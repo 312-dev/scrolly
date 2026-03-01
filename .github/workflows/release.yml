@@ -35,6 +35,7 @@ jobs:
   # When release-please creates or updates a PR via GITHUB_TOKEN, the
   # pull_request_target `synchronize` event doesn't always fire. Closing
   # and reopening the PR ensures the `reopened` event triggers CI checks.
+  # We verify both state transitions and retry once on failure.
   trigger-pr-checks:
     needs: [release-please]
     if: needs.release-please.outputs.pr != '' && needs.release-please.outputs.release_created != 'true'
@@ -45,8 +46,45 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ fromJSON(needs.release-please.outputs.pr).number }}
         run: |
-          echo "Triggering checks on release PR #$PR_NUMBER"
-          gh pr close "$PR_NUMBER" --repo "$GITHUB_REPOSITORY"
-          sleep 2
-          gh pr reopen "$PR_NUMBER" --repo "$GITHUB_REPOSITORY"
-          echo "Release PR #$PR_NUMBER reopened — checks should now trigger"
+          trigger_checks() {
+            echo "Closing release PR #$PR_NUMBER..."
+            gh pr close "$PR_NUMBER" --repo "$GITHUB_REPOSITORY"
+
+            # Wait and verify closed state
+            for i in 1 2 3; do
+              sleep 3
+              STATE=$(gh pr view "$PR_NUMBER" --json state --jq '.state' --repo "$GITHUB_REPOSITORY")
+              if [ "$STATE" = "CLOSED" ]; then break; fi
+              echo "  Waiting for close to propagate (attempt $i)..."
+            done
+
+            echo "Reopening release PR #$PR_NUMBER..."
+            gh pr reopen "$PR_NUMBER" --repo "$GITHUB_REPOSITORY"
+
+            # Verify reopened state
+            sleep 3
+            STATE=$(gh pr view "$PR_NUMBER" --json state --jq '.state' --repo "$GITHUB_REPOSITORY")
+            if [ "$STATE" = "OPEN" ]; then
+              echo "Release PR #$PR_NUMBER successfully reopened"
+              return 0
+            else
+              echo "WARNING: PR state is $STATE after reopen attempt"
+              return 1
+            fi
+          }
+
+          # First attempt
+          if trigger_checks; then
+            exit 0
+          fi
+
+          echo "First attempt failed, retrying in 10s..."
+          sleep 10
+
+          # Retry once
+          if trigger_checks; then
+            exit 0
+          fi
+
+          echo "ERROR: Failed to reopen PR after 2 attempts"
+          exit 1

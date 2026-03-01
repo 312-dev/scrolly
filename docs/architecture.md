@@ -97,6 +97,10 @@ scrolly/
 │   │   │       ├── MemberList.svelte
 │   │   │       ├── RetentionPicker.svelte
 │   │   │       ├── ClipsManager.svelte
+│   │   │       ├── NotificationSettings.svelte # Push toggle + test button
+│   │   │       ├── ShortcutManager.svelte   # iOS Shortcut config wrapper
+│   │   │       ├── ShortcutSheet.svelte     # Shortcut setup sheet content
+│   │   │       ├── ValidationResults.svelte # Shared validation display
 │   │   │       ├── GettingStartedChecklist.svelte
 │   │   │       └── SetupDoneState.svelte
 │   │   ├── stores/

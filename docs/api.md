@@ -68,9 +68,11 @@ Response: { "user": { ... }, "group": { ... } }
 
 ### GET /api/clips
 ```
-Query params: ?filter=unwatched|watched|favorites&limit=20&offset=0
+Query params: ?filter=unwatched|watched|favorites&sort=oldest|round-robin&limit=20&offset=0
 Response: { "clips": [...], "hasMore": true }
 ```
+Only returns clips with `status: 'ready'`. Default sort is `oldest` (chronological). `round-robin` interleaves clips across members so no single poster dominates the feed. The `watched` filter sorts by most-recently-watched instead.
+
 Each clip includes: id, originalUrl, title, addedByUsername, addedByAvatar, status, durationSeconds, platform, contentType, createdAt, watched, favorited, reactions, commentCount, unreadCommentCount, viewCount, seenByOthers.
 
 ### POST /api/clips
@@ -335,10 +337,10 @@ Response: { "preferences": { ... } }
 
 ### POST /api/profile/preferences
 ```
-Request:  { "themePreference": "dark", "autoScroll": true, "mutedByDefault": false }
-Response: { "themePreference": "dark", "autoScroll": true, "mutedByDefault": false }
+Request:  { "themePreference": "dark", "autoScroll": true, "mutedByDefault": false, "feedSortOrder": "oldest" }
+Response: { "themePreference": "dark", "autoScroll": true, "mutedByDefault": false, "feedSortOrder": "oldest" }
 ```
-All fields optional — only provided fields are updated.
+All fields optional — only provided fields are updated. `feedSortOrder` accepts `"oldest"` or `"round-robin"`.
 
 ### POST /api/profile/avatar
 Upload a profile picture as `multipart/form-data`.
@@ -373,11 +375,18 @@ Response: { "gifs": [{ "id", "title", "url", "stillUrl", "width", "height" }] }
 |--------|------|-------------|
 | POST | `/api/push/subscribe` | Register a push subscription |
 | DELETE | `/api/push/subscribe` | Unregister |
+| POST | `/api/push/test` | Send a test notification to current user |
 
 ### POST /api/push/subscribe
 ```
 Request:  { "endpoint": "...", "keys": { "p256dh": "...", "auth": "..." } }
 Response: { "id": "subscription-id" }   (201 Created)
+```
+
+### POST /api/push/test
+Sends a test push notification to the current user after a 10-second delay. Requires at least one active push subscription.
+```
+Response: { "sent": true, "sentAt": 1740000000000 }
 ```
 
 ## Media

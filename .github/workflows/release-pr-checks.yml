@@ -6,6 +6,12 @@
 # Without this, release PRs have no status checks and can't be merged when
 # branch protection requires them.
 #
+# Triggers:
+# 1. pull_request_target (opened/synchronize/reopened) — fired by close/reopen
+#    in release.yml or by direct PR updates
+# 2. workflow_run (Release workflow completed) — fallback if close/reopen fails
+#    to fire pull_request_target events
+#
 # Security: restricted to release-please branches only. The checkout uses the
 # PR's HEAD SHA, which is safe because release-please PRs come from within the
 # same repository (not forks) and only modify version/changelog files.
@@ -16,26 +22,54 @@ on:
   pull_request_target:
     branches: [main]
     types: [opened, synchronize, reopened]
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
 
 permissions: read-all
 
 jobs:
-  # Gate: only run for release-please PRs
+  # Gate: only run for release-please PRs. Finds PR details from either trigger.
   should-run:
-    if: startsWith(github.head_ref, 'release-please--')
+    if: |
+      (github.event_name == 'pull_request_target' && startsWith(github.head_ref, 'release-please--')) ||
+      github.event_name == 'workflow_run'
     runs-on: ubuntu-latest
+    outputs:
+      head_sha: ${{ steps.find-pr.outputs.head_sha }}
     steps:
-      - run: echo "Running CI for release-please PR"
+      - name: Find release PR
+        id: find-pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request_target" ]; then
+            echo "Triggered by pull_request_target"
+            echo "head_sha=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            # workflow_run trigger — find the open release-please PR
+            PR=$(gh pr list --repo "$GITHUB_REPOSITORY" --json number,headRefName,headRefOid --jq '.[] | select(.headRefName | startswith("release-please--"))' 2>/dev/null || echo "")
+            if [ -z "$PR" ] || [ "$PR" = "null" ]; then
+              echo "No open release-please PR found, skipping"
+              echo "head_sha=" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            HEAD_SHA=$(echo "$PR" | jq -r '.headRefOid')
+            PR_NUM=$(echo "$PR" | jq -r '.number')
+            echo "Found release PR #$PR_NUM (sha: $HEAD_SHA)"
+            echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+          fi
 
   lint-and-check:
     needs: [should-run]
+    if: needs.should-run.outputs.head_sha != ''
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout PR code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ needs.should-run.outputs.head_sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -64,10 +98,14 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     if: always()
-    needs: [lint-and-check]
+    needs: [should-run, lint-and-check]
     steps:
       - name: Check CI status
         run: |
+          if [[ "${{ needs.should-run.outputs.head_sha }}" == "" ]]; then
+            echo "No release PR found, skipping"
+            exit 0
+          fi
           if [[ "${{ needs.lint-and-check.result }}" == "failure" || "${{ needs.lint-and-check.result }}" == "cancelled" ]]; then
             echo "CI failed"
             exit 1
@@ -76,6 +114,7 @@ jobs:
 
   codeql:
     needs: [should-run]
+    if: needs.should-run.outputs.head_sha != ''
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -84,7 +123,7 @@ jobs:
       - name: Checkout PR code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ needs.should-run.outputs.head_sha }}
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3

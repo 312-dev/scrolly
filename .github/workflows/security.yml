@@ -3,10 +3,8 @@ name: Security
 on:
   pull_request:
     branches: [main]
-    paths-ignore: ['docs/**', '*.md']
   push:
     branches: [main]
-    paths-ignore: ['docs/**', '*.md']
   schedule:
     - cron: '0 0 * * 1'  # Weekly on Monday midnight UTC
   workflow_dispatch:

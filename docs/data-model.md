@@ -34,6 +34,7 @@ SQLite database via Drizzle ORM. All IDs are UUIDs stored as text. Timestamps ar
 | theme_preference | text | `'system'` / `'light'` / `'dark'`. Default `'system'`. |
 | auto_scroll | integer | Boolean (0/1). Default 0. |
 | muted_by_default | integer | Boolean (0/1). Default 1. |
+| feed_sort_order | text | `'oldest'` / `'round-robin'`. Default `'oldest'`. |
 | avatar_path | text | Nullable. Path to uploaded profile picture. |
 | removed_at | integer | Nullable. Unix timestamp when removed from group. |
 | created_at | integer | Unix timestamp |
