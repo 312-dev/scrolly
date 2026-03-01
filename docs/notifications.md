@@ -96,6 +96,7 @@ VAPID_SUBJECT=mailto:you@example.com
 |-------|------|------|
 | Server push utility | `src/lib/server/push.ts` | VAPID init, `sendNotification()`, `sendGroupNotification()`, `notifyNewClip()` |
 | Subscribe API | `src/routes/api/push/subscribe/+server.ts` | POST/DELETE push subscriptions |
+| Test API | `src/routes/api/push/test/+server.ts` | POST test notification to current user |
 | Notifications API | `src/routes/api/notifications/+server.ts` | GET notification feed |
 | Mark-read API | `src/routes/api/notifications/mark-read/+server.ts` | POST mark as read |
 | Unread-count API | `src/routes/api/notifications/unread-count/+server.ts` | GET unread badge count |
