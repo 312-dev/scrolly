@@ -88,8 +88,8 @@ sw.addEventListener('push', (event) => {
 
 	const notificationOptions: NotificationOptions & { image?: string } = {
 		body: body || '',
-		icon: icon || '/icons/icon-192.png',
-		badge: '/icons/badge-72.png',
+		icon: icon || '/icon/icon-192.svg',
+		badge: '/icon/badge-72.svg',
 		tag: tag || undefined,
 		data: { url: url || '/' }
 	};
