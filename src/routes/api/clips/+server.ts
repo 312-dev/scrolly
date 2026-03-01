@@ -9,7 +9,7 @@ import {
 	reactions,
 	comments
 } from '$lib/server/db/schema';
-import { eq, desc, and, inArray } from 'drizzle-orm';
+import { eq, asc, and, inArray } from 'drizzle-orm';
 import {
 	isSupportedUrl,
 	detectPlatform,
@@ -37,6 +37,7 @@ import { createLogger } from '$lib/server/logger';
 const log = createLogger('clips');
 
 const VALID_FILTERS = ['unwatched', 'watched', 'favorites'] as const;
+const VALID_SORTS = ['oldest', 'round-robin'] as const;
 
 function countByClipId(items: { clipId: string }[], clipIds: Set<string>): Map<string, number> {
 	const counts = new Map<string, number>();
@@ -64,10 +65,55 @@ function countUnreadComments(
 	return counts;
 }
 
+type ClipRow = Awaited<ReturnType<typeof db.query.clips.findMany>>[number];
+
+function applySortOrder(
+	clipList: ClipRow[],
+	sort: string,
+	filter: string | null,
+	watchedRows: { clipId: string; watchedAt: Date }[]
+): ClipRow[] {
+	if (filter === 'watched') {
+		// Watched tab: always sort by most-recently-watched
+		const watchedAtMap = new Map(watchedRows.map((w) => [w.clipId, w.watchedAt.getTime()]));
+		return [...clipList].sort(
+			(a, b) => (watchedAtMap.get(b.id) ?? 0) - (watchedAtMap.get(a.id) ?? 0)
+		);
+	}
+	if (sort === 'round-robin') {
+		// Group clips by member, each group already in createdAt asc order
+		const byMember = new Map<string, ClipRow[]>();
+		for (const clip of clipList) {
+			const list = byMember.get(clip.addedBy) || [];
+			list.push(clip);
+			byMember.set(clip.addedBy, list);
+		}
+		// Interleave: pick oldest from each member in rotation
+		const queues = [...byMember.values()].map((list) => ({ items: list, idx: 0 }));
+		const interleaved: ClipRow[] = [];
+		let remaining = clipList.length;
+		while (remaining > 0) {
+			for (const q of queues) {
+				if (q.idx < q.items.length) {
+					interleaved.push(q.items[q.idx++]);
+					remaining--;
+				}
+			}
+		}
+		return interleaved;
+	}
+	// 'oldest': already sorted by createdAt asc from the DB query
+	return clipList;
+}
+
 export const GET: RequestHandler = withAuth(async ({ url }, { user }) => {
 	const filter = url.searchParams.get('filter');
 	if (filter && !(VALID_FILTERS as readonly string[]).includes(filter)) {
 		return badRequest('Invalid filter. Must be unwatched, watched, or favorites');
+	}
+	const sort = url.searchParams.get('sort') || 'oldest';
+	if (!(VALID_SORTS as readonly string[]).includes(sort)) {
+		return badRequest('Invalid sort. Must be oldest or round-robin');
 	}
 	const limit = safeInt(url.searchParams.get('limit'), 20, 50);
 	const offset = safeInt(url.searchParams.get('offset'), 0);
@@ -76,8 +122,8 @@ export const GET: RequestHandler = withAuth(async ({ url }, { user }) => {
 
 	// Get all clips for the group
 	let allClips = await db.query.clips.findMany({
-		where: eq(clips.groupId, groupId),
-		orderBy: [desc(clips.createdAt)]
+		where: and(eq(clips.groupId, groupId), eq(clips.status, 'ready')),
+		orderBy: [asc(clips.createdAt)]
 	});
 
 	// Get watched and favorited clip IDs for this user
@@ -99,6 +145,8 @@ export const GET: RequestHandler = withAuth(async ({ url }, { user }) => {
 	} else if (filter === 'favorites') {
 		allClips = allClips.filter((c) => favIds.has(c.id));
 	}
+
+	allClips = applySortOrder(allClips, sort, filter, watchedRows);
 
 	const total = allClips.length;
 	const paginatedClips = allClips.slice(offset, offset + limit);

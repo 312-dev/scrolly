@@ -2,14 +2,17 @@ import type { FeedClip } from '$lib/types';
 import { fetchUnwatchedCount } from '$lib/stores/notifications';
 
 export type FeedFilter = 'all' | 'unwatched' | 'watched' | 'favorites';
+export type FeedSort = 'oldest' | 'round-robin';
 
 export function buildClipParams(
 	filter: FeedFilter,
 	offset: number,
-	pageSize: number
+	pageSize: number,
+	sort?: FeedSort
 ): URLSearchParams {
 	const params = new URLSearchParams();
 	if (filter !== 'all') params.set('filter', filter);
+	if (sort && sort !== 'oldest') params.set('sort', sort);
 	params.set('limit', String(pageSize));
 	params.set('offset', String(offset));
 	return params;
@@ -17,10 +20,11 @@ export function buildClipParams(
 
 export async function fetchClips(
 	filter: FeedFilter,
-	pageSize: number
+	pageSize: number,
+	sort?: FeedSort
 ): Promise<{ clips: FeedClip[]; hasMore: boolean } | null> {
 	try {
-		const params = buildClipParams(filter, 0, pageSize);
+		const params = buildClipParams(filter, 0, pageSize, sort);
 		const res = await fetch(`/api/clips?${params}`);
 		if (res.ok) return res.json();
 		return null;
@@ -33,10 +37,11 @@ export async function fetchClips(
 export async function fetchMoreClips(
 	filter: FeedFilter,
 	offset: number,
-	pageSize: number
+	pageSize: number,
+	sort?: FeedSort
 ): Promise<{ clips: FeedClip[]; hasMore: boolean } | null> {
 	try {
-		const params = buildClipParams(filter, offset, pageSize);
+		const params = buildClipParams(filter, offset, pageSize, sort);
 		const res = await fetch(`/api/clips?${params}`);
 		if (res.ok) return res.json();
 		return null;

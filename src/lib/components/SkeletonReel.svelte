@@ -50,7 +50,7 @@
 	.sidebar-bones {
 		position: absolute;
 		right: var(--space-md);
-		bottom: calc(90px + env(safe-area-inset-bottom));
+		bottom: calc(var(--bottom-nav-height, 64px) + 10px);
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-lg);
@@ -66,7 +66,7 @@
 
 	.overlay-bones {
 		position: absolute;
-		bottom: calc(80px + env(safe-area-inset-bottom));
+		bottom: var(--bottom-nav-height, 64px);
 		left: var(--space-lg);
 		display: flex;
 		flex-direction: column;

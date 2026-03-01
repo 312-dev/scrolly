@@ -11,12 +11,15 @@
 	import { type AccentColorKey } from '$lib/colors';
 	import { globalMuted } from '$lib/stores/mute';
 	import CameraIcon from 'phosphor-svelte/lib/CameraIcon';
+	import SortAscendingIcon from 'phosphor-svelte/lib/SortAscendingIcon';
+	import ShuffleIcon from 'phosphor-svelte/lib/ShuffleIcon';
 
 	import {
 		applyTheme,
 		saveThemePreference,
 		saveAutoScroll,
 		saveMutedByDefault,
+		saveFeedSortOrder,
 		applyAccentColor,
 		saveAccentColor,
 		fetchNotificationPrefs,
@@ -86,6 +89,7 @@
 	let themeOverride = $state<'system' | 'light' | 'dark' | null>(null);
 	let autoScrollOverride = $state<boolean | null>(null);
 	let mutedByDefaultOverride = $state<boolean | null>(null);
+	let feedSortOverride = $state<'oldest' | 'round-robin' | null>(null);
 	let currentAccentOverride = $state<AccentColorKey | null>(null);
 
 	const theme = $derived(
@@ -93,6 +97,10 @@
 	);
 	const autoScroll = $derived(autoScrollOverride ?? user?.autoScroll ?? false);
 	const mutedByDefault = $derived(mutedByDefaultOverride ?? user?.mutedByDefault ?? true);
+	const feedSort = $derived(
+		feedSortOverride ?? (user?.feedSortOrder as 'oldest' | 'round-robin') ?? 'oldest'
+	);
+	const feedSortIndex = $derived(feedSort === 'oldest' ? 0 : 1);
 	const currentAccent = $derived(
 		currentAccentOverride ?? (group?.accentColor as AccentColorKey) ?? 'coral'
 	);
@@ -148,6 +156,11 @@
 		mutedByDefaultOverride = newValue;
 		globalMuted.set(newValue);
 		saveMutedByDefault(newValue);
+	}
+
+	function handleFeedSortChange(value: 'oldest' | 'round-robin') {
+		feedSortOverride = value;
+		saveFeedSortOrder(value);
 	}
 
 	async function togglePush() {
@@ -288,6 +301,32 @@
 						>
 							<span class="toggle-thumb"></span>
 						</button>
+					</div>
+				</div>
+			</div>
+
+			<div class="settings-section">
+				<h3 class="section-title">Feed Order</h3>
+				<div class="card">
+					<div class="setting-row">
+						<div class="setting-label">
+							<span class="setting-desc">Choose how clips are sorted in your feed</span>
+						</div>
+					</div>
+					<div class="theme-toggle feed-sort-toggle">
+						<div class="theme-bg" style="transform: translateX({feedSortIndex * 100}%)"></div>
+						<button
+							class="theme-option"
+							class:active={feedSort === 'oldest'}
+							onclick={() => handleFeedSortChange('oldest')}
+							><SortAscendingIcon size={15} weight="bold" /> Oldest First</button
+						>
+						<button
+							class="theme-option"
+							class:active={feedSort === 'round-robin'}
+							onclick={() => handleFeedSortChange('round-robin')}
+							><ShuffleIcon size={15} weight="bold" /> Mix Members</button
+						>
 					</div>
 				</div>
 			</div>
@@ -439,7 +478,7 @@
 	.settings-page {
 		max-width: 520px;
 		margin: 0 auto;
-		padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+		padding-bottom: var(--bottom-nav-height, 64px);
 	}
 
 	.tab-bar {
@@ -614,6 +653,17 @@
 		border-radius: var(--radius-full);
 		transition: transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
 		z-index: 0;
+	}
+
+	.feed-sort-toggle .theme-bg {
+		width: calc(50% - 3px);
+	}
+
+	.feed-sort-toggle .theme-option {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 5px;
 	}
 
 	.theme-option {

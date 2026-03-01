@@ -12,6 +12,7 @@ function validateUsername(body: Record<string, unknown>): { value: string } | { 
 }
 
 const VALID_THEMES = ['system', 'light', 'dark'];
+const VALID_SORT_ORDERS = ['oldest', 'round-robin'];
 
 export const POST: RequestHandler = withAuth(async ({ request }, { user }) => {
 	const body = await parseBody<Record<string, unknown>>(request);
@@ -38,6 +39,13 @@ export const POST: RequestHandler = withAuth(async ({ request }, { user }) => {
 
 	if ('mutedByDefault' in body && typeof body.mutedByDefault === 'boolean') {
 		updates.mutedByDefault = body.mutedByDefault;
+	}
+
+	if ('feedSortOrder' in body) {
+		if (!VALID_SORT_ORDERS.includes(body.feedSortOrder as string)) {
+			return json({ error: 'Invalid feed sort order' }, { status: 400 });
+		}
+		updates.feedSortOrder = body.feedSortOrder;
 	}
 
 	if (Object.keys(updates).length === 0) {

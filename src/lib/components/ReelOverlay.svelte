@@ -105,7 +105,7 @@
 <style>
 	.reel-overlay {
 		position: absolute;
-		bottom: calc(94px + env(safe-area-inset-bottom));
+		bottom: calc(var(--bottom-nav-height, 64px) + 14px);
 		left: var(--space-lg);
 		right: var(--space-lg);
 		z-index: 5;

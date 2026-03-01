@@ -21,7 +21,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/state';
 	import type { FeedClip } from '$lib/types';
-	import type { FeedFilter } from '$lib/feed';
+	import type { FeedFilter, FeedSort } from '$lib/feed';
 	import {
 		fetchClips,
 		fetchMoreClips,
@@ -37,6 +37,7 @@
 
 	let clips = $state<FeedClip[]>([]);
 	let filter = $state<FeedFilter>('unwatched');
+	let sort = $state<FeedSort>((page.data.user?.feedSortOrder as FeedSort) || 'oldest');
 	let loading = $state(true);
 	let activeIndex = $state(0);
 	let scrollContainer: HTMLDivElement | null = $state(null);
@@ -96,7 +97,7 @@
 		loading = true;
 		currentOffset = 0;
 		hasMore = true;
-		const data = await fetchClips(filter, PAGE_SIZE);
+		const data = await fetchClips(filter, PAGE_SIZE, sort);
 		if (data) {
 			clips = data.clips;
 			hasMore = data.hasMore;
@@ -110,7 +111,7 @@
 	async function loadMore() {
 		if (loadingMore || !hasMore || loading) return;
 		loadingMore = true;
-		const data = await fetchMoreClips(filter, currentOffset, PAGE_SIZE);
+		const data = await fetchMoreClips(filter, currentOffset, PAGE_SIZE, sort);
 		if (data) {
 			const existingIds = new Set(clips.map((c) => c.id));
 			const newClips = data.clips.filter((c) => !existingIds.has(c.id));
@@ -372,7 +373,7 @@
 	async function refresh() {
 		isRefreshing = true;
 		const previousIds = new Set(clips.map((c) => c.id));
-		const data = await fetchClips(filter, PAGE_SIZE);
+		const data = await fetchClips(filter, PAGE_SIZE, sort);
 		if (data) {
 			clips = data.clips;
 			hasMore = data.hasMore;
@@ -396,6 +397,40 @@
 		}, 250);
 		fetchUnwatchedCount();
 	}
+
+	// Intercept wheel events on the scroll container to enforce one-reel-at-a-time scrolling.
+	// Trackpad inertia generates a long stream of wheel events — we scroll once on the first
+	// event, then swallow everything until the events fully stop (200ms gap = gesture over).
+	$effect(() => {
+		if (!scrollContainer) return;
+		const el = scrollContainer;
+		let scrollLocked = false;
+		let idleTimer: ReturnType<typeof setTimeout> | null = null;
+
+		function handleWheel(e: WheelEvent) {
+			e.preventDefault();
+			if (clips.length === 0) return;
+
+			// Reset the idle timer on every event — unlock only after events stop
+			if (idleTimer) clearTimeout(idleTimer);
+			idleTimer = setTimeout(() => {
+				scrollLocked = false;
+			}, 200);
+
+			if (scrollLocked) return;
+			scrollLocked = true;
+			const direction = e.deltaY > 0 ? 1 : -1;
+			const target = activeIndex + direction;
+			if (target < 0 || target >= clips.length) return;
+			scrollToIndex(target);
+		}
+
+		el.addEventListener('wheel', handleWheel, { passive: false });
+		return () => {
+			el.removeEventListener('wheel', handleWheel);
+			if (idleTimer) clearTimeout(idleTimer);
+		};
+	});
 
 	$effect(() => {
 		if (!scrollContainer) return;
@@ -480,12 +515,25 @@
 		if (!targetClipId) return;
 		viewClipSignal.set(null);
 		(async () => {
-			filter = 'all' as FeedFilter;
+			// Fetch the target clip to determine its watched status
+			const targetClip = await fetchSingleClip(targetClipId);
+			const targetFilter: FeedFilter = targetClip?.watched ? 'watched' : 'unwatched';
+
+			filter = targetFilter;
 			currentOffset = 0;
 			hasMore = true;
-			const data = await fetchClips('all', PAGE_SIZE);
+			const data = await fetchClips(targetFilter, PAGE_SIZE, sort);
 			if (data) {
-				clips = data.clips;
+				// Ensure target clip is in the list (it may be beyond the first page)
+				const inPage = data.clips.some((c) => c.id === targetClipId);
+				if (inPage) {
+					clips = data.clips;
+				} else if (targetClip) {
+					// Prepend target clip and de-dupe from the rest
+					clips = [targetClip, ...data.clips.filter((c) => c.id !== targetClipId)];
+				} else {
+					clips = data.clips;
+				}
 				hasMore = data.hasMore;
 				currentOffset = data.clips.length;
 			}
@@ -773,15 +821,20 @@
 	}
 	.reel-scroll {
 		height: 100dvh;
-		overflow-y: scroll;
+		overflow-y: auto;
 		scroll-snap-type: y mandatory;
 		-webkit-overflow-scrolling: touch;
 		overscroll-behavior-y: none;
+		scrollbar-width: none;
+	}
+	.reel-scroll::-webkit-scrollbar {
+		display: none;
 	}
 	.reel-slot {
 		height: 100dvh;
 		width: 100%;
 		scroll-snap-align: start;
+		scroll-snap-stop: always;
 		position: relative;
 		overflow: hidden;
 	}

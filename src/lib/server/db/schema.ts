@@ -27,6 +27,7 @@ export const users = sqliteTable('users', {
 	themePreference: text('theme_preference').notNull().default('system'),
 	autoScroll: integer('auto_scroll', { mode: 'boolean' }).notNull().default(false),
 	mutedByDefault: integer('muted_by_default', { mode: 'boolean' }).notNull().default(true),
+	feedSortOrder: text('feed_sort_order').notNull().default('oldest'),
 	avatarPath: text('avatar_path'),
 	removedAt: integer('removed_at', { mode: 'timestamp' }),
 	createdAt: integer('created_at', { mode: 'timestamp' }).notNull()

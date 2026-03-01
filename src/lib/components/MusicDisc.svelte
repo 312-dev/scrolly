@@ -84,7 +84,7 @@
 	.music-disc-area {
 		position: absolute;
 		right: var(--space-lg);
-		bottom: calc(90px + env(safe-area-inset-bottom));
+		bottom: calc(var(--bottom-nav-height, 64px) + 10px);
 		display: flex;
 		align-items: center;
 		gap: var(--space-sm);

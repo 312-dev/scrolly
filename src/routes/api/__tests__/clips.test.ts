@@ -52,7 +52,7 @@ describe('GET /api/clips', () => {
 		expect(body.error).toBeDefined();
 	});
 
-	it('returns clips for the user group', async () => {
+	it('returns ready clips for the user group', async () => {
 		const event = createMockEvent({
 			method: 'GET',
 			path: '/api/clips',
@@ -64,9 +64,9 @@ describe('GET /api/clips', () => {
 		const body = await res.json();
 		expect(body.clips).toBeInstanceOf(Array);
 		expect(body.clips.length).toBeGreaterThanOrEqual(2);
-		// Both seed clips belong to the same group
 		const ids = body.clips.map((c: any) => c.id);
-		expect(ids).toContain(data.clip.id);
+		// Only ready clips appear in the feed (downloading clips are excluded)
+		expect(ids).not.toContain(data.clip.id);
 		expect(ids).toContain(data.readyClip.id);
 	});
 
@@ -285,6 +285,11 @@ describe('POST /api/clips', () => {
 		const res = await clipsMod.POST(event as any);
 		expect(res.status).toBe(201);
 		const body = await res.json();
+
+		// Simulate download completion — feed only returns ready clips
+		const { clips } = await import('$lib/server/db/schema');
+		const { eq } = await import('drizzle-orm');
+		db.update(clips).set({ status: 'ready' }).where(eq(clips.id, body.clip.id)).run();
 
 		// Verify the clip shows as watched when fetching clips for this user
 		const getEvent = createMockEvent({
