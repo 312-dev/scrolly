@@ -1,7 +1,7 @@
 <script lang="ts">
 	/* eslint-disable max-lines */
 	import { env } from '$env/dynamic/public';
-	import iconUrl from '$lib/assets/icon.svg?url';
+	import iconSvg from '$lib/assets/icon.svg?raw';
 	import InlineError from '$lib/components/InlineError.svelte';
 	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
 	import { rawDigits, formatPhone, toE164 } from '$lib/phone';
@@ -152,7 +152,8 @@
 
 	<div class="content">
 		<div class="brand">
-			<img src={iconUrl} alt="scrolly" class="brand-logo" />
+			<!-- eslint-disable-next-line svelte/no-at-html-tags -- trusted local SVG asset -->
+			<div class="brand-logo" aria-label="scrolly">{@html iconSvg}</div>
 			<h1>scrolly</h1>
 			<p class="tagline">your crew's <span class="tagline-accent">private</span> feed</p>
 		</div>
@@ -343,6 +344,12 @@
 		width: 72px;
 		height: 72px;
 		margin-bottom: var(--space-lg);
+		color: var(--accent-primary);
+	}
+
+	.brand-logo :global(svg) {
+		width: 100%;
+		height: 100%;
 	}
 
 	h1 {
