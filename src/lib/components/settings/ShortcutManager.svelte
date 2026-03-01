@@ -9,6 +9,7 @@
 	import AppleLogoIcon from 'phosphor-svelte/lib/AppleLogoIcon';
 	import AndroidLogoIcon from 'phosphor-svelte/lib/AndroidLogoIcon';
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
+	import ValidationResults from './ValidationResults.svelte';
 
 	const ICLOUD_SHORTCUT_RE = /^https:\/\/www\.icloud\.com\/shortcuts\/[a-f0-9]{32}\/?$/;
 
@@ -20,59 +21,37 @@
 		shortcutToken: string | null;
 	} = $props();
 
+	const SOFT_CODES = ['bad_name', 'localhost_url'];
+	const UNREACHABLE_CODES = ['fetch_failed'];
+
 	let savedUrl = $state(propUrl ?? '');
 	let shortcutUrl = $state(propUrl ?? '');
 	let saving = $state(false);
+	let validating = $state(false);
 	let validationError = $state('');
+	let validationWarnings = $state<{ code: string; message: string }[]>([]);
+	let validated = $state(false);
 	let token = $state(propToken);
 	let rotating = $state(false);
 	let showSheet = $state(false);
 
 	const isConfigured = $derived(savedUrl.length > 0);
 	const isDirty = $derived(shortcutUrl.trim() !== savedUrl);
-	const canSave = $derived(isDirty && !saving);
+	const canSave = $derived(isDirty && !saving && !validating);
 
-	async function saveShortcutUrl() {
-		const trimmed = shortcutUrl.trim();
-		if (trimmed === savedUrl) {
-			validationError = '';
-			return;
-		}
+	const blockers = $derived(
+		validationWarnings.filter(
+			(w) => !SOFT_CODES.includes(w.code) && !UNREACHABLE_CODES.includes(w.code)
+		)
+	);
+	const softWarnings = $derived(validationWarnings.filter((w) => SOFT_CODES.includes(w.code)));
+	const isUnreachable = $derived(
+		validationWarnings.some((w) => UNREACHABLE_CODES.includes(w.code))
+	);
+	const hasBlockers = $derived(blockers.length > 0);
+	const hasSoftOnly = $derived(softWarnings.length > 0 && !hasBlockers && !isUnreachable);
 
-		// Allow clearing the field
-		if (!trimmed) {
-			validationError = '';
-			saving = true;
-			try {
-				const res = await fetch('/api/group/shortcut', {
-					method: 'PATCH',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ shortcutUrl: null })
-				});
-				if (res.ok) {
-					shortcutUrl = '';
-					savedUrl = '';
-					toast.success('Shortcut link removed');
-				} else {
-					const data = await res.json();
-					toast.error(data.error || 'Failed to save');
-				}
-			} catch {
-				toast.error('Failed to save');
-			} finally {
-				saving = false;
-			}
-			return;
-		}
-
-		// Validate format
-		if (!ICLOUD_SHORTCUT_RE.test(trimmed)) {
-			validationError =
-				'Must be a valid iCloud shortcut link (https://www.icloud.com/shortcuts/...)';
-			return;
-		}
-
-		validationError = '';
+	async function doSave(trimmed: string | null) {
 		saving = true;
 		try {
 			const res = await fetch('/api/group/shortcut', {
@@ -84,7 +63,9 @@
 				const data = await res.json();
 				shortcutUrl = data.shortcutUrl ?? '';
 				savedUrl = data.shortcutUrl ?? '';
-				toast.success('Shortcut link saved');
+				validationWarnings = [];
+				validated = false;
+				toast.success(trimmed ? 'Shortcut link saved' : 'Shortcut link removed');
 			} else {
 				const data = await res.json();
 				toast.error(data.error || 'Failed to save');
@@ -96,15 +77,71 @@
 		}
 	}
 
+	async function validateAndSave() {
+		const trimmed = shortcutUrl.trim();
+		if (trimmed === savedUrl) {
+			validationError = '';
+			return;
+		}
+
+		// Allow clearing the field without validation
+		if (!trimmed) {
+			validationError = '';
+			await doSave(null);
+			return;
+		}
+
+		// Validate format
+		if (!ICLOUD_SHORTCUT_RE.test(trimmed)) {
+			validationError =
+				'Must be a valid iCloud shortcut link (https://www.icloud.com/shortcuts/...)';
+			return;
+		}
+
+		validationError = '';
+		validating = true;
+		validated = false;
+		validationWarnings = [];
+		try {
+			const res = await fetch('/api/group/shortcut/validate', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ shortcutUrl: trimmed })
+			});
+			if (res.ok) {
+				const data = await res.json();
+				validationWarnings = data.warnings ?? [];
+				validated = true;
+
+				// Auto-save only when fully clean
+				if (validationWarnings.length === 0) {
+					await doSave(trimmed);
+				}
+			} else {
+				const data = await res.json();
+				toast.error(data.error || 'Validation failed');
+			}
+		} catch {
+			toast.error('Could not validate shortcut');
+		} finally {
+			validating = false;
+		}
+	}
+
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Enter') {
 			e.preventDefault();
-			if (canSave) saveShortcutUrl();
+			if (canSave) validateAndSave();
 		}
 	}
 
 	function handleInput() {
 		if (validationError) validationError = '';
+		// Reset validation state when the user edits
+		if (validated) {
+			validated = false;
+			validationWarnings = [];
+		}
 	}
 
 	async function rotateToken() {
@@ -199,15 +236,17 @@
 						onkeydown={handleKeydown}
 						oninput={handleInput}
 						placeholder="https://www.icloud.com/shortcuts/..."
-						disabled={saving}
+						disabled={saving || validating}
 					/>
 					<button
 						class="save-btn"
 						class:saved={!isDirty && isConfigured}
-						onclick={saveShortcutUrl}
+						onclick={validateAndSave}
 						disabled={!canSave}
 					>
-						{#if saving}
+						{#if validating}
+							Checking…
+						{:else if saving}
 							Saving…
 						{:else if !isDirty && isConfigured}
 							Saved
@@ -218,6 +257,20 @@
 				</div>
 				{#if validationError}
 					<p class="input-error">{validationError}</p>
+				{/if}
+
+				{#if validated && validationWarnings.length > 0}
+					<ValidationResults
+						{blockers}
+						{softWarnings}
+						{isUnreachable}
+						{hasBlockers}
+						{hasSoftOnly}
+						{validating}
+						{saving}
+						onRevalidate={validateAndSave}
+						onSaveAnyway={() => doSave(shortcutUrl.trim())}
+					/>
 				{/if}
 			</div>
 
@@ -244,32 +297,27 @@
 		flex-direction: column;
 		gap: var(--space-md);
 	}
-
 	.intro-desc {
 		font-size: 0.8125rem;
 		color: var(--text-secondary);
 		margin: 0;
 		line-height: 1.4;
 	}
-
 	.platform-list {
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-xs);
 	}
-
 	.platform-row {
 		display: flex;
 		align-items: center;
 		gap: var(--space-md);
 		padding: var(--space-sm) 0;
 	}
-
 	.platform-row > :global(svg:first-child) {
 		flex-shrink: 0;
 		color: var(--text-secondary);
 	}
-
 	.platform-info {
 		display: flex;
 		flex-direction: column;
@@ -277,13 +325,11 @@
 		flex: 1;
 		min-width: 0;
 	}
-
 	.platform-title {
 		font-size: 0.8125rem;
 		font-weight: 600;
 		color: var(--text-primary);
 	}
-
 	.platform-desc {
 		font-size: 0.75rem;
 		color: var(--text-muted);
@@ -305,17 +351,14 @@
 		padding: var(--space-sm);
 		transition: background 0.15s ease;
 	}
-
 	.ios-row:active {
 		background: var(--bg-surface);
 	}
-
 	.ios-row :global(.row-chevron) {
 		flex-shrink: 0;
 		color: var(--text-muted);
 	}
 
-	/* Sheet content */
 	.sheet-content {
 		display: flex;
 		flex-direction: column;
@@ -326,7 +369,6 @@
 		overflow-y: auto;
 		-webkit-overflow-scrolling: touch;
 	}
-
 	.setup-link {
 		display: flex;
 		align-items: center;
@@ -338,7 +380,6 @@
 		text-decoration: none;
 		transition: transform 0.1s ease;
 	}
-
 	.setup-link:active {
 		transform: scale(0.98);
 	}
@@ -376,7 +417,6 @@
 		flex-direction: column;
 		gap: var(--space-sm);
 	}
-
 	.subsection-label {
 		font-size: 0.8125rem;
 		font-weight: 600;
@@ -388,7 +428,6 @@
 		margin: 0;
 		line-height: 1.4;
 	}
-
 	.url-row {
 		display: flex;
 		gap: var(--space-sm);
@@ -408,7 +447,6 @@
 		transition: border-color 0.2s ease;
 		box-sizing: border-box;
 	}
-
 	.icloud-input::placeholder {
 		color: var(--text-muted);
 	}
@@ -435,7 +473,6 @@
 		white-space: nowrap;
 		transition: all 0.2s ease;
 	}
-
 	.save-btn:active:not(:disabled) {
 		transform: scale(0.97);
 	}
@@ -464,7 +501,6 @@
 		background: var(--bg-elevated);
 		border-radius: var(--radius-sm);
 	}
-
 	.token-value {
 		font-size: 0.8125rem;
 		color: var(--text-secondary);
@@ -473,7 +509,6 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
-
 	.rotate-btn {
 		display: flex;
 		align-items: center;
@@ -489,7 +524,6 @@
 		white-space: nowrap;
 		transition: all 0.2s ease;
 	}
-
 	.rotate-btn:active:not(:disabled) {
 		transform: scale(0.97);
 	}

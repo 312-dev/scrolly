@@ -54,6 +54,8 @@
 	const isUnreachable = $derived(
 		validationWarnings.some((w) => UNREACHABLE_CODES.includes(w.code))
 	);
+	const softWarnings = $derived(validationWarnings.filter((w) => SOFT_CODES.includes(w.code)));
+	const hasSoftOnly = $derived(softWarnings.length > 0 && blockers.length === 0 && !isUnreachable);
 	const hasBlockers = $derived(blockers.length > 0);
 	const hasExtraPrompts = $derived(blockers.some((w) => w.code === 'extra_prompts'));
 	const hasTrailingSlash = $derived(blockers.some((w) => w.code === 'trailing_slash'));
@@ -113,11 +115,8 @@
 				shortcutName = data.name ?? null;
 				validated = true;
 
-				// Auto-save when clean or only soft warnings (bad_name) — name is not critical
-				if (
-					validationWarnings.length === 0 ||
-					validationWarnings.every((w: { code: string }) => SOFT_CODES.includes(w.code))
-				) {
+				// Auto-save only when fully clean — soft warnings are shown but don't block
+				if (validationWarnings.length === 0) {
 					await doSave(url);
 				}
 			} else {
@@ -441,8 +440,21 @@
 								{validating ? 'Validating…' : 'Re-validate'}
 							</button>
 						</div>
-					{:else}
-						<!-- Only soft warnings (e.g. bad name) — already auto-saved -->
+					{:else if hasSoftOnly}
+						{#each softWarnings as warning (warning.code + warning.message)}
+							<div class="validation-soft">
+								<WarningIcon size={16} weight="fill" />
+								<!-- eslint-disable-next-line svelte/no-at-html-tags -- server-generated, no user input -->
+								<span>{@html warning.message}</span>
+							</div>
+						{/each}
+						<button
+							class="save-link-btn"
+							onclick={() => doSave(icloudLink.trim())}
+							disabled={savingLink}
+						>
+							{savingLink ? 'Saving…' : 'Save Anyway'}
+						</button>
 					{/if}
 				</div>
 			{/if}
@@ -783,6 +795,29 @@
 		line-height: 1.5;
 	}
 	.validation-blocker span :global(b) {
+		color: var(--text-primary);
+		font-weight: 600;
+	}
+	.validation-soft {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--space-sm);
+		padding: var(--space-sm) var(--space-md);
+		background: color-mix(in srgb, var(--warning) 8%, transparent);
+		border: 1px solid color-mix(in srgb, var(--warning) 20%, transparent);
+		border-radius: var(--radius-sm);
+	}
+	.validation-soft :global(svg) {
+		flex-shrink: 0;
+		color: var(--warning);
+		margin-top: 2px;
+	}
+	.validation-soft span {
+		font-size: 0.9375rem;
+		color: var(--text-secondary);
+		line-height: 1.5;
+	}
+	.validation-soft span :global(b) {
 		color: var(--text-primary);
 		font-weight: 600;
 	}
