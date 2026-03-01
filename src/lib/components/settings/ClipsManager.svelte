@@ -408,7 +408,7 @@
 	/* Selection bar */
 	.selection-bar {
 		position: fixed;
-		bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+		bottom: calc(var(--bottom-nav-height, 64px) + 8px);
 		left: 50%;
 		transform: translateX(-50%);
 		display: flex;

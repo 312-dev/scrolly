@@ -17,6 +17,7 @@
 	import GearSixIcon from 'phosphor-svelte/lib/GearSixIcon';
 	const { children }: { children: Snippet } = $props();
 
+	let bottomTabsEl: HTMLElement | undefined = $state();
 	const isFeed = $derived(page.url.pathname === '/');
 	const isSettings = $derived(page.url.pathname === '/settings');
 
@@ -29,8 +30,21 @@
 		startPolling();
 		fetchGroupMembers();
 
-		// Tell fixed-position components (e.g. InstallBanner) about the bottom nav height
-		document.documentElement.style.setProperty('--bottom-nav-height', '80px');
+		// Measure actual bottom nav height and expose as CSS variable.
+		// This adapts to the real safe-area insets on each device instead of
+		// hardcoding 80px + env(safe-area-inset-bottom) everywhere.
+		const updateNavHeight = () => {
+			if (bottomTabsEl) {
+				const h = bottomTabsEl.offsetHeight;
+				document.documentElement.style.setProperty('--bottom-nav-height', `${h}px`);
+			}
+		};
+		const navObserver = new ResizeObserver(updateNavHeight);
+		if (bottomTabsEl) {
+			navObserver.observe(bottomTabsEl);
+			updateNavHeight();
+		}
+
 		// Initialize mute state from user preference
 		const user = page.data?.user;
 		if (user) {
@@ -57,6 +71,7 @@
 
 		return () => {
 			stopPolling();
+			navObserver.disconnect();
 			themeObserver.disconnect();
 			darkMq.removeEventListener('change', syncThemeColor);
 			document.documentElement.style.removeProperty('--bottom-nav-height');
@@ -110,7 +125,12 @@
 	<main class:immersive={isFeed}>
 		{@render children()}
 	</main>
-	<nav class="bottom-tabs" class:overlay-mode={isFeed} class:ui-hidden={isFeed && $feedUiHidden}>
+	<nav
+		class="bottom-tabs"
+		class:overlay-mode={isFeed}
+		class:ui-hidden={isFeed && $feedUiHidden}
+		bind:this={bottomTabsEl}
+	>
 		{#if isFeed}
 			<button class="tab active" onclick={() => homeTapSignal.update((n) => n + 1)}>
 				<HouseIcon size={24} weight="fill" />
@@ -253,7 +273,7 @@
 	main {
 		flex: 1;
 		padding: var(--space-lg) var(--space-sm);
-		padding-bottom: calc(80px + env(safe-area-inset-bottom));
+		padding-bottom: var(--bottom-nav-height, 64px);
 	}
 
 	main.immersive {

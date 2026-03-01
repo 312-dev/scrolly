@@ -167,7 +167,7 @@
 	.action-sidebar {
 		position: absolute;
 		right: var(--space-lg);
-		bottom: calc(148px + env(safe-area-inset-bottom));
+		bottom: calc(var(--bottom-nav-height, 64px) + 68px);
 		display: flex;
 		flex-direction: column;
 		align-items: center;
