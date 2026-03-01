@@ -20,6 +20,7 @@ export async function seed(db: TestDb): Promise<SeedResult> {
 	const otherUserId = uuid();
 	const clipId = uuid();
 	const readyClipId = uuid();
+	const readyClip2Id = uuid();
 	const now = new Date();
 
 	db.insert(schema.groups)
@@ -98,6 +99,20 @@ export async function seed(db: TestDb): Promise<SeedResult> {
 				title: 'Test Video',
 				durationSeconds: 30,
 				createdAt: new Date(now.getTime() - 60000)
+			},
+			{
+				id: readyClip2Id,
+				groupId,
+				addedBy: memberId,
+				originalUrl: 'https://www.youtube.com/shorts/789',
+				platform: 'youtube',
+				contentType: 'video',
+				status: 'ready',
+				videoPath: 'videos/test-video-2.mp4',
+				thumbnailPath: 'videos/test-thumb-2.jpg',
+				title: 'Another Video',
+				durationSeconds: 15,
+				createdAt: new Date(now.getTime() - 30000)
 			}
 		])
 		.run();
