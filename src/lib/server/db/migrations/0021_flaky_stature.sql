@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `feed_sort_order` text DEFAULT 'oldest' NOT NULL;

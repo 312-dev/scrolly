@@ -64,6 +64,12 @@ export async function saveMutedByDefault(value: boolean): Promise<void> {
 	await savePreference({ mutedByDefault: value });
 }
 
+// --- Feed sort ---
+
+export async function saveFeedSortOrder(value: 'oldest' | 'round-robin'): Promise<void> {
+	await savePreference({ feedSortOrder: value });
+}
+
 // --- Accent color ---
 
 export function applyAccentColor(key: AccentColorKey): void {
