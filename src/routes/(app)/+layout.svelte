@@ -12,6 +12,7 @@
 	import { fetchGroupMembers } from '$lib/stores/members';
 	import { anySheetOpen } from '$lib/stores/sheetOpen';
 	import ActivitySheet from '$lib/components/ActivitySheet.svelte';
+	import AddVideoModal from '$lib/components/AddVideoModal.svelte';
 	import BellIcon from 'phosphor-svelte/lib/BellIcon';
 	import HouseIcon from 'phosphor-svelte/lib/HouseIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
@@ -150,13 +151,7 @@
 				<span>Home</span>
 			</a>
 		{/if}
-		<button
-			class="tab add-tab"
-			onclick={() => {
-				if (isFeed) addVideoModalOpen.set(true);
-				else window.location.href = '/';
-			}}
-		>
+		<button class="tab add-tab" onclick={() => addVideoModalOpen.set(true)}>
 			<div class="add-icon">
 				<PlusIcon size={18} weight="bold" />
 			</div>
@@ -175,6 +170,10 @@
 
 {#if $activitySheetOpen}
 	<ActivitySheet ondismiss={() => activitySheetOpen.set(false)} />
+{/if}
+
+{#if $addVideoModalOpen}
+	<AddVideoModal ondismiss={() => addVideoModalOpen.set(false)} />
 {/if}
 
 <style>

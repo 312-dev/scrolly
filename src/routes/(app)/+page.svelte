@@ -1,7 +1,6 @@
 <script lang="ts">
 	/* eslint-disable max-lines */
 	import ReelItem from '$lib/components/ReelItem.svelte';
-	import AddVideoModal from '$lib/components/AddVideoModal.svelte';
 	import FilterBar from '$lib/components/FilterBar.svelte';
 	import SkeletonReel from '$lib/components/SkeletonReel.svelte';
 	import LinkIcon from 'phosphor-svelte/lib/LinkIcon';
@@ -858,10 +857,6 @@
 		openComments={overlayOpenComments}
 		ondismiss={handleOverlayDismiss}
 	/>
-{/if}
-
-{#if $addVideoModalOpen}
-	<AddVideoModal ondismiss={() => addVideoModalOpen.set(false)} />
 {/if}
 
 <style>
