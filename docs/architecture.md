@@ -75,20 +75,36 @@ scrolly/
 │   │   │   ├── ReelVideo.svelte     # Video player within a reel
 │   │   │   ├── ReelMusic.svelte     # Music player within a reel
 │   │   │   ├── ReelOverlay.svelte   # Bottom overlay (user info, caption)
-│   │   │   ├── ActionSidebar.svelte # Right-side action buttons
-│   │   │   ├── ClipOverlay.svelte  # Full-screen single-clip overlay view
+│   │   │   ├── ReelIndicators.svelte # Mute/play/speed flash indicators
+│   │   │   ├── ActionSidebar.svelte # Right-side action buttons (+ MusicDisc for music clips)
+│   │   │   ├── MusicDisc.svelte     # Spinning album art disc (music clips, inside ActionSidebar)
+│   │   │   ├── CommentPrompt.svelte # Comment bar at bottom of reel
+│   │   │   ├── ProgressBar.svelte   # Scrubable playback progress bar
+│   │   │   ├── SkeletonReel.svelte  # Loading skeleton for reel
+│   │   │   ├── BaseSheet.svelte     # Shared drag-to-dismiss bottom sheet base
+│   │   │   ├── ClipOverlay.svelte   # Full-screen single-clip overlay view
 │   │   │   ├── CommentsSheet.svelte # Bottom sheet for comments
 │   │   │   ├── ViewersSheet.svelte  # Bottom sheet for view list
-│   │   │   ├── AddVideoModal.svelte # Modal to paste/submit URLs
+│   │   │   ├── ActivitySheet.svelte # Bottom sheet for in-app notifications
+│   │   │   ├── GifPicker.svelte     # GIPHY search/picker (full or compact carousel mode)
+│   │   │   ├── AddVideo.svelte      # Add video form
+│   │   │   ├── AddVideoModal.svelte # Modal wrapper for AddVideo
+│   │   │   ├── AvatarCropModal.svelte # Profile picture crop UI
+│   │   │   ├── CommentInput.svelte  # Rich comment input with GIF and mention support
+│   │   │   ├── CommentRow.svelte    # Single comment row with hearts and replies
+│   │   │   ├── MentionInput.svelte  # Input with @mention autocomplete
+│   │   │   ├── MentionText.svelte   # Rendered mention text
 │   │   │   ├── ReactionPicker.svelte
+│   │   │   ├── ReelOverlayActions.svelte # Reaction pills on reel overlay
 │   │   │   ├── EmojiShower.svelte   # Animated emoji celebration
 │   │   │   ├── ConfirmDialog.svelte
 │   │   │   ├── ToastStack.svelte    # Toast notification stack
 │   │   │   ├── InstallBanner.svelte # PWA install prompt
 │   │   │   ├── SwUpdateToast.svelte # Service worker update prompt
+│   │   │   ├── UploadStatus.svelte  # Background upload progress indicator
+│   │   │   ├── SpeedPill.svelte     # Playback speed indicator pill
 │   │   │   ├── ViewBadge.svelte     # View count badge
 │   │   │   ├── PlatformIcon.svelte  # Platform logo (TikTok, IG, etc.)
-│   │   │   ├── ProgressBar.svelte
 │   │   │   ├── InlineError.svelte
 │   │   │   ├── FilterBar.svelte     # Feed filter tabs
 │   │   │   ├── ShortcutGuideSheet.svelte # iOS Shortcut setup guide
@@ -112,6 +128,10 @@ scrolly/
 │   │   │   ├── toasts.ts           # Toast notification queue
 │   │   │   ├── confirm.ts          # Confirmation dialog state
 │   │   │   ├── addVideoModal.ts    # Add video modal state
+│   │   │   ├── activitySheet.ts    # Activity/notifications sheet state
+│   │   │   ├── members.ts          # Group members list cache
+│   │   │   ├── sheetOpen.ts        # Global any-sheet-open state (blocks scroll/nav)
+│   │   │   ├── uiHidden.ts         # Feed UI hidden state (synced from active reel)
 │   │   │   ├── homeTap.ts          # Double-tap home to scroll to top
 │   │   │   └── shortcutNudge.ts    # Share shortcut install nudge
 │   │   ├── types.ts                 # Shared TypeScript types (Clip, etc.)
@@ -143,6 +163,7 @@ scrolly/
 │   │   │   └── health/
 │   │   └── (app)/                   # Authenticated route group
 │   │       ├── +page.svelte         # Feed (TikTok-style reel)
+│   │       ├── favorites/+page.svelte # Favorites feed (grid + reel view)
 │   │       └── settings/+page.svelte # User + group settings
 │   ├── service-worker.ts           # PWA caching, offline support
 │   └── app.html
