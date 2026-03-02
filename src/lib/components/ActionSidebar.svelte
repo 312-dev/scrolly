@@ -5,6 +5,7 @@
 	import HeartIcon from 'phosphor-svelte/lib/HeartIcon';
 	import ChatIcon from 'phosphor-svelte/lib/ChatIcon';
 	import ArrowSquareOutIcon from 'phosphor-svelte/lib/ArrowSquareOutIcon';
+	import MusicDisc from './MusicDisc.svelte';
 
 	const {
 		favorited,
@@ -15,6 +16,12 @@
 		muted = true,
 		uiHidden = false,
 		isOwn = false,
+		albumArt = null,
+		spotifyUrl = null,
+		appleMusicUrl = null,
+		youtubeMusicUrl = null,
+		active = false,
+		paused = false,
 		onsave,
 		oncomment,
 		onreactionhold,
@@ -28,6 +35,12 @@
 		muted?: boolean;
 		uiHidden?: boolean;
 		isOwn?: boolean;
+		albumArt?: string | null;
+		spotifyUrl?: string | null;
+		appleMusicUrl?: string | null;
+		youtubeMusicUrl?: string | null;
+		active?: boolean;
+		paused?: boolean;
 		onsave: () => void;
 		oncomment: () => void;
 		onreactionhold?: (x: number, y: number) => void;
@@ -146,19 +159,23 @@
 		{/if}
 	</button>
 
-	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- external URL, not app navigation -->
-	<a
-		href={originalUrl}
-		target="_blank"
-		rel="noopener noreferrer"
-		class="sidebar-btn"
-		onclick={stop}
-		aria-label="Open original"
-	>
-		<span class="icon-circle">
-			<ArrowSquareOutIcon size={24} />
-		</span>
-	</a>
+	{#if albumArt}
+		<MusicDisc {albumArt} {spotifyUrl} {appleMusicUrl} {youtubeMusicUrl} {active} {paused} />
+	{:else}
+		<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- external URL, not app navigation -->
+		<a
+			href={originalUrl}
+			target="_blank"
+			rel="noopener noreferrer"
+			class="sidebar-btn"
+			onclick={stop}
+			aria-label="Open original"
+		>
+			<span class="icon-circle">
+				<ArrowSquareOutIcon size={24} />
+			</span>
+		</a>
+	{/if}
 </div>
 
 <style>

@@ -2,34 +2,21 @@
 	import ChatIcon from 'phosphor-svelte/lib/ChatIcon';
 
 	const {
-		discInset = false,
-		uiHidden = false,
 		onclick
 	}: {
-		discInset?: boolean;
-		uiHidden?: boolean;
 		onclick: (e: MouseEvent) => void;
 	} = $props();
 </script>
 
-<button
-	type="button"
-	class="comment-prompt"
-	class:disc-inset={discInset}
-	class:ui-hidden={uiHidden}
-	{onclick}
->
+<button type="button" class="comment-prompt" {onclick}>
 	<ChatIcon size={18} />
 	<span>Add a comment...</span>
 </button>
 
 <style>
 	.comment-prompt {
-		position: absolute;
-		bottom: calc(var(--bottom-nav-height, 64px) + 4px);
-		left: var(--space-lg);
-		right: var(--space-lg);
-		z-index: 5;
+		flex: 1;
+		min-width: 0;
 		display: flex;
 		align-items: center;
 		gap: var(--space-sm);
@@ -43,16 +30,7 @@
 		cursor: pointer;
 		font: inherit;
 		text-align: left;
-		transition:
-			background 0.2s ease,
-			opacity 0.3s ease;
-	}
-	.comment-prompt.disc-inset {
-		right: calc(var(--space-lg) + 52px);
-	}
-	.comment-prompt.ui-hidden {
-		opacity: 0;
-		pointer-events: none;
+		transition: background 0.2s ease;
 	}
 	.comment-prompt:active {
 		background: var(--reel-frosted-bg-active);

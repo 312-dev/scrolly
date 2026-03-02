@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable max-lines */
 	import { onMount, onDestroy } from 'svelte';
 	import { isPointerFine } from '$lib/gestures';
 	import { fetchUnreadCount } from '$lib/stores/notifications';
@@ -31,7 +32,6 @@
 	import ViewBadge from './ViewBadge.svelte';
 	import ViewersSheet from './ViewersSheet.svelte';
 	import ReelIndicators from './ReelIndicators.svelte';
-	import MusicDisc from './MusicDisc.svelte';
 
 	import type { FeedClip } from '$lib/types';
 
@@ -108,6 +108,60 @@
 	let showViewers = $state(false);
 	let maxPercent = $state(0);
 	let wasActive = $state(false);
+
+	// Auto-scroll engagement deferral
+	let pendingAutoScroll = $state(false);
+	let postEngagementTimer: ReturnType<typeof setTimeout> | null = null;
+	const POST_ENGAGEMENT_DELAY = 3000;
+
+	const isEngaged = $derived(showComments || showPicker || showViewers);
+	// Keep looping while we're waiting to auto-scroll (engaged or post-engagement cooldown)
+	const forceLoop = $derived(isEngaged || pendingAutoScroll);
+
+	function handleEnded() {
+		if (!autoScroll) return;
+		if (isEngaged) {
+			pendingAutoScroll = true;
+		} else {
+			onended();
+		}
+	}
+
+	$effect(() => {
+		if (isEngaged) {
+			// User is engaging — cancel any pending post-engagement timer
+			if (postEngagementTimer) {
+				clearTimeout(postEngagementTimer);
+				postEngagementTimer = null;
+			}
+		} else if (pendingAutoScroll && active) {
+			// Engagement ended — wait a beat then scroll
+			postEngagementTimer = setTimeout(() => {
+				postEngagementTimer = null;
+				if (pendingAutoScroll && active) {
+					pendingAutoScroll = false;
+					onended();
+				}
+			}, POST_ENGAGEMENT_DELAY);
+		}
+		return () => {
+			if (postEngagementTimer) {
+				clearTimeout(postEngagementTimer);
+				postEngagementTimer = null;
+			}
+		};
+	});
+
+	$effect(() => {
+		if (!active) {
+			// Reel is no longer visible — cancel everything
+			pendingAutoScroll = false;
+			if (postEngagementTimer) {
+				clearTimeout(postEngagementTimer);
+				postEngagementTimer = null;
+			}
+		}
+	});
 	const SCRUBBER_IDLE_TIMEOUT = 3000;
 	let scrubberTimerId: ReturnType<typeof setTimeout> | null = null;
 	let scrubberHidden = $state(false);
@@ -119,6 +173,8 @@
 		if (muteIndicatorTimer) clearTimeout(muteIndicatorTimer);
 		if (playIndicatorTimer) clearTimeout(playIndicatorTimer);
 		if (scrubberTimerId) clearTimeout(scrubberTimerId);
+		if (postEngagementTimer) clearTimeout(postEngagementTimer);
+		scrubSeekedCleanup?.();
 		sendWatchPercent(clip.id, maxPercent);
 	});
 
@@ -242,10 +298,53 @@
 		if (videoEl) connectNormalizer(videoEl);
 		muteIndicatorTimer = flashIndicator((v) => (showMuteIndicator = v), muteIndicatorTimer);
 	}
+	// Scrub-seek state — "seek on seeked" pattern prevents mobile seek queue buildup
+	// while keeping the video playing so frames visually update during drag.
+	let isScrubbing = false;
+	let scrubSeeking = false;
+	let scrubPendingTime: number | null = null;
+	let scrubSeekedCleanup: (() => void) | null = null;
+
 	function seekMedia(time: number, relative = false) {
 		const el = videoEl ?? audioEl;
-		if (el)
-			el.currentTime = Math.max(0, Math.min(relative ? el.currentTime + time : time, duration));
+		if (!el) return;
+		const t = Math.max(0, Math.min(relative ? el.currentTime + time : time, duration));
+		if (isScrubbing && scrubSeeking) {
+			// A seek is already in flight — queue the latest target, drop older ones
+			scrubPendingTime = t;
+		} else {
+			if (isScrubbing) scrubSeeking = true;
+			el.currentTime = t;
+		}
+	}
+
+	function handleScrubStart() {
+		isScrubbing = true;
+		scrubSeeking = false;
+		scrubPendingTime = null;
+		const el = videoEl ?? audioEl;
+		if (!el) return;
+		const mediaEl = el;
+		// When each seek completes, immediately issue the next pending seek
+		function onSeeked() {
+			if (scrubPendingTime !== null) {
+				const t = scrubPendingTime;
+				scrubPendingTime = null;
+				mediaEl.currentTime = t;
+			} else {
+				scrubSeeking = false;
+			}
+		}
+		mediaEl.addEventListener('seeked', onSeeked);
+		scrubSeekedCleanup = () => mediaEl.removeEventListener('seeked', onSeeked);
+	}
+
+	function handleScrubEnd() {
+		isScrubbing = false;
+		scrubSeeking = false;
+		scrubPendingTime = null;
+		scrubSeekedCleanup?.();
+		scrubSeekedCleanup = null;
 	}
 	function fireHeartReaction(cx: number, cy: number) {
 		if (isOwn) return;
@@ -317,9 +416,27 @@
 	</div>
 
 	{#if clip.contentType === 'music'}
-		<ReelMusic {clip} {active} {muted} {autoScroll} {onretry} {onended} bind:audioEl />
+		<ReelMusic
+			{clip}
+			{active}
+			{muted}
+			{autoScroll}
+			{forceLoop}
+			{onretry}
+			onended={handleEnded}
+			bind:audioEl
+		/>
 	{:else}
-		<ReelVideo {clip} {active} {muted} {autoScroll} {onretry} {onended} bind:videoEl />
+		<ReelVideo
+			{clip}
+			{active}
+			{muted}
+			{autoScroll}
+			{forceLoop}
+			{onretry}
+			onended={handleEnded}
+			bind:videoEl
+		/>
 	{/if}
 
 	<ReelIndicators
@@ -337,6 +454,8 @@
 			{duration}
 			{isDesktop}
 			onseek={seekMedia}
+			onscrubstart={handleScrubStart}
+			onscrubend={handleScrubEnd}
 			uiHidden={uiHidden || scrubberHidden}
 		/>
 	{/if}
@@ -357,17 +476,18 @@
 		/>
 	</div>
 
-	{#if active}
-		<CommentPrompt
-			discInset={clip.contentType === 'music' && !!clip.albumArt}
-			{uiHidden}
-			onclick={(e) => {
-				e.stopPropagation();
-				commentsAutoFocus = true;
-				showComments = true;
-			}}
-		/>
-	{/if}
+	<!-- Shared bottom row: comment prompt grows left, music disc anchors right -->
+	<div class="bottom-row" class:ui-hidden={uiHidden}>
+		{#if active}
+			<CommentPrompt
+				onclick={(e) => {
+					e.stopPropagation();
+					commentsAutoFocus = true;
+					showComments = true;
+				}}
+			/>
+		{/if}
+	</div>
 
 	<ActionSidebar
 		favorited={clip.favorited}
@@ -378,6 +498,12 @@
 		{muted}
 		{uiHidden}
 		{isOwn}
+		albumArt={clip.contentType === 'music' ? (clip.albumArt ?? null) : null}
+		spotifyUrl={clip.spotifyUrl ?? null}
+		appleMusicUrl={clip.appleMusicUrl ?? null}
+		youtubeMusicUrl={clip.youtubeMusicUrl ?? null}
+		{active}
+		{paused}
 		onsave={() => {
 			showPicker = false;
 			onfavorited(clip.id);
@@ -389,18 +515,6 @@
 		onreactionhold={triggerReactionPickerHold}
 		onmute={toggleMute}
 	/>
-
-	{#if clip.contentType === 'music' && clip.albumArt}
-		<MusicDisc
-			albumArt={clip.albumArt}
-			spotifyUrl={clip.spotifyUrl}
-			appleMusicUrl={clip.appleMusicUrl}
-			youtubeMusicUrl={clip.youtubeMusicUrl}
-			{active}
-			{paused}
-			{uiHidden}
-		/>
-	{/if}
 </div>
 
 {#if showPicker}
@@ -482,6 +596,21 @@
 		transition: opacity 0.3s ease;
 	}
 	.top-left-row.ui-hidden {
+		opacity: 0;
+		pointer-events: none;
+	}
+	.bottom-row {
+		position: absolute;
+		bottom: calc(var(--bottom-nav-height, 64px) + 4px);
+		left: var(--space-lg);
+		right: var(--space-lg);
+		z-index: 5;
+		display: flex;
+		align-items: center;
+		gap: var(--space-sm);
+		transition: opacity 0.3s ease;
+	}
+	.bottom-row.ui-hidden {
 		opacity: 0;
 		pointer-events: none;
 	}

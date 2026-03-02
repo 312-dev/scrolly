@@ -4,20 +4,28 @@
 		duration,
 		isDesktop,
 		onseek,
+		onscrubstart,
+		onscrubend,
 		uiHidden = false
 	}: {
 		currentTime: number;
 		duration: number;
 		isDesktop: boolean;
 		onseek: (time: number) => void;
+		onscrubstart?: () => void;
+		onscrubend?: () => void;
 		uiHidden?: boolean;
 	} = $props();
 
 	let barEl: HTMLDivElement | null = $state(null);
 	let scrubbing = $state(false);
 	let hoverProgress = $state<number | null>(null);
+	// Track finger position locally so the bar follows instantly, independent of video decode lag
+	let scrubTime = $state<number | null>(null);
 
-	const progress = $derived(duration > 0 ? (currentTime / duration) * 100 : 0);
+	// Use local scrubTime while dragging so the bar follows instantly
+	const displayTime = $derived(scrubbing && scrubTime !== null ? scrubTime : currentTime);
+	const progress = $derived(duration > 0 ? (displayTime / duration) * 100 : 0);
 
 	function getTimeFromX(clientX: number): number {
 		if (!barEl) return 0;
@@ -31,12 +39,18 @@
 		e.stopPropagation();
 		scrubbing = true;
 		barEl?.setPointerCapture(e.pointerId);
-		onseek(getTimeFromX(e.clientX));
+		const t = getTimeFromX(e.clientX);
+		scrubTime = t;
+		onscrubstart?.();
+		onseek(t);
 	}
 
 	function handlePointerMove(e: PointerEvent) {
 		if (scrubbing) {
-			onseek(getTimeFromX(e.clientX));
+			const t = getTimeFromX(e.clientX);
+			scrubTime = t;
+			// Video is paused during scrub, so seek directly on every move — no throttle needed
+			onseek(t);
 		} else if (e.pointerType === 'mouse') {
 			hoverProgress = getTimeFromX(e.clientX);
 		}
@@ -44,9 +58,12 @@
 
 	function handlePointerUp(e: PointerEvent) {
 		if (!scrubbing) return;
+		if (scrubTime !== null) onseek(scrubTime);
 		scrubbing = false;
+		scrubTime = null;
 		barEl?.releasePointerCapture(e.pointerId);
 		if (e.pointerType !== 'mouse') hoverProgress = null;
+		onscrubend?.();
 	}
 
 	function handlePointerLeave() {
