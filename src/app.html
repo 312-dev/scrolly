@@ -38,6 +38,17 @@
 						}
 					} catch(e) { /* ignore malformed cookie */ }
 				}
+				// Feed route: set dark background immediately (before JS hydrates) so the iOS
+				// black-translucent status bar sees the correct reel-bg color on cold start.
+				if (window.location.pathname === '/') {
+					document.documentElement.classList.add('feed-context');
+					var pref = m && m[1] !== 'system' ? m[1] : 'system';
+					var isDark = pref === 'dark' || (pref !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+					var reelBg = isDark ? '#0d0d0d' : '#1c1c1c';
+					document.querySelectorAll('meta[name="theme-color"]').forEach(function(el) {
+						el.setAttribute('content', reelBg);
+					});
+				}
 			})();
 		</script>
 	</head>

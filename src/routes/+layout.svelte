@@ -36,6 +36,9 @@
 <style>
 	:global(*, *::before, *::after) {
 		box-sizing: border-box;
+		-webkit-touch-callout: none;
+		-webkit-user-select: none;
+		user-select: none;
 	}
 
 	/* Dark theme (default) */
@@ -69,6 +72,10 @@
 		--overlay-btn-active: rgba(255, 255, 255, 0.25);
 		--overlay-text: rgba(255, 255, 255, 0.6);
 		--overlay-track: rgba(255, 255, 255, 0.2);
+
+		/* Reel/feed background — always dark regardless of theme (used for empty/end states in the feed) */
+		--reel-bg: #0d0d0d;
+		--reel-bg-elevated: #1a1a1a;
 
 		/* Reel/feed overlay gradients & shadows */
 		--reel-gradient-heavy: rgba(0, 0, 0, 0.85);
@@ -143,6 +150,8 @@
 			--overlay-btn-active: rgba(0, 0, 0, 0.15);
 			--overlay-text: rgba(0, 0, 0, 0.5);
 			--overlay-track: rgba(0, 0, 0, 0.15);
+			--reel-bg: #1c1c1c;
+			--reel-bg-elevated: #262626;
 			--reel-gradient-heavy: rgba(0, 0, 0, 0.55);
 			--reel-gradient-medium: rgba(0, 0, 0, 0.45);
 			--reel-gradient-soft: rgba(0, 0, 0, 0.3);
@@ -167,12 +176,21 @@
 		--overlay-btn-active: rgba(0, 0, 0, 0.15);
 		--overlay-text: rgba(0, 0, 0, 0.5);
 		--overlay-track: rgba(0, 0, 0, 0.15);
+		--reel-bg: #1c1c1c;
+		--reel-bg-elevated: #262626;
 		--reel-gradient-heavy: rgba(0, 0, 0, 0.55);
 		--reel-gradient-medium: rgba(0, 0, 0, 0.45);
 		--reel-gradient-soft: rgba(0, 0, 0, 0.3);
 		--reel-gradient-faint: rgba(0, 0, 0, 0.12);
 		--reel-text-shadow: rgba(0, 0, 0, 0.35);
 		--reel-icon-shadow: rgba(0, 0, 0, 0.25);
+	}
+
+	/* Feed context: override body background so the iOS black-translucent status bar
+	   shows the reel bg color rather than the light-mode white */
+	:global(html.feed-context),
+	:global(html.feed-context body) {
+		background: var(--reel-bg);
 	}
 
 	:global(body) {
@@ -187,10 +205,10 @@
 		touch-action: manipulation;
 	}
 
-	:global(button, a, [role='button']) {
-		-webkit-touch-callout: none;
-		-webkit-user-select: none;
-		user-select: none;
+	:global(input, textarea, [contenteditable]) {
+		-webkit-touch-callout: default;
+		-webkit-user-select: text;
+		user-select: text;
 	}
 
 	@media (prefers-reduced-motion: reduce) {
