@@ -4,8 +4,7 @@
 	import AddVideo from './AddVideo.svelte';
 	import UploadStatus from './UploadStatus.svelte';
 	import BaseSheet from './BaseSheet.svelte';
-	import { addToast, toast, toasts } from '$lib/stores/toasts';
-	import { clipReadySignal, viewClipSignal } from '$lib/stores/toasts';
+	import { addToast, toasts, clipReadySignal, clipOverlaySignal } from '$lib/stores/toasts';
 	import { dismissShortcutNudge } from '$lib/stores/shortcutNudge';
 	import { groupMembers } from '$lib/stores/members';
 
@@ -14,13 +13,9 @@
 	let phase = $state<'form' | 'uploading' | 'done' | 'failed'>('form');
 	let clipId = $state('');
 	let clipContentType = $state('');
-	let caption = $state('');
-	let captionDirty = $state(false);
-	let serverTitle = $state<string | null>(null);
 	let serverArtist = $state<string | null>(null);
 	let serverAlbumArt = $state<string | null>(null);
 	let pollTimer: ReturnType<typeof setInterval> | null = null;
-	let savingCaption = $state(false);
 	let addVideoRef = $state<ReturnType<typeof AddVideo> | null>(null);
 	let sheetRef = $state<ReturnType<typeof BaseSheet> | null>(null);
 
@@ -45,13 +40,9 @@
 		timers.forEach(clearTimeout);
 	});
 
-	function handleSubmitted(
-		clip: { id: string; status: string; contentType: string },
-		submittedCaption: string
-	) {
+	function handleSubmitted(clip: { id: string; status: string; contentType: string }) {
 		clipId = clip.id;
 		clipContentType = clip.contentType;
-		caption = submittedCaption;
 		// Remove the processing toast AddVideo created — UploadStatus screen takes over
 		toasts.update((t) => t.filter((item) => item.clipId !== clip.id));
 		phase = 'uploading';
@@ -65,10 +56,6 @@
 				if (!res.ok) return;
 				const data = await res.json();
 
-				// Update metadata from server (e.g. music title/artist from Odesli)
-				if (data.title && !captionDirty) {
-					serverTitle = data.title;
-				}
 				if (data.artist) serverArtist = data.artist;
 				if (data.albumArt) serverAlbumArt = data.albumArt;
 
@@ -101,24 +88,6 @@
 		}
 	}
 
-	async function saveCaption() {
-		if (!captionDirty || !caption.trim()) return;
-		savingCaption = true;
-		try {
-			const res = await fetch(`/api/clips/${clipId}`, {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ title: caption.trim() })
-			});
-			if (!res.ok) {
-				toast.error('Failed to save caption');
-			}
-		} catch {
-			toast.error('Failed to save caption');
-		}
-		savingCaption = false;
-	}
-
 	function dismiss() {
 		// If still uploading, push a background toast
 		if (phase === 'uploading') {
@@ -134,25 +103,15 @@
 	}
 
 	async function handleSaveAndView() {
-		if (captionDirty && caption.trim()) {
-			await saveCaption();
-		}
 		clipReadySignal.set(clipId);
-		viewClipSignal.set(clipId);
+		clipOverlaySignal.set(clipId);
 		sheetRef?.dismiss();
-	}
-
-	function handleCaptionInput(e: Event) {
-		caption = (e.target as HTMLInputElement).value;
-		captionDirty = true;
 	}
 
 	function handleDismissNudge() {
 		dismissShortcutNudge();
 		sheetRef?.dismiss();
 	}
-
-	const displayTitle = $derived(captionDirty ? caption : serverTitle || caption || '');
 </script>
 
 <div class="add-video-wrapper" class:fullscreen={phase !== 'form'}>
@@ -178,14 +137,11 @@
 			<UploadStatus
 				{phase}
 				{clipContentType}
-				{displayTitle}
 				{serverArtist}
 				{serverAlbumArt}
-				{savingCaption}
 				ondismiss={dismiss}
 				onretry={handleRetry}
 				onsaveandview={handleSaveAndView}
-				oncaptioninput={handleCaptionInput}
 				ondismissnudge={handleDismissNudge}
 			/>
 		{/if}

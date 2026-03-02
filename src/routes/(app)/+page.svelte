@@ -7,14 +7,10 @@
 	import LinkIcon from 'phosphor-svelte/lib/LinkIcon';
 	import ArrowDownIcon from 'phosphor-svelte/lib/ArrowDownIcon';
 	import FilmSlateIcon from 'phosphor-svelte/lib/FilmSlateIcon';
+	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
 	import { addVideoModalOpen } from '$lib/stores/addVideoModal';
-	import {
-		addToast,
-		toast,
-		clipReadySignal,
-		viewClipSignal,
-		openCommentsSignal
-	} from '$lib/stores/toasts';
+	import ClipOverlay from '$lib/components/ClipOverlay.svelte';
+	import { addToast, toast, clipReadySignal, clipOverlaySignal } from '$lib/stores/toasts';
 	import { homeTapSignal } from '$lib/stores/homeTap';
 	import { unwatchedCount, fetchUnwatchedCount } from '$lib/stores/notifications';
 	import { feedUiHidden } from '$lib/stores/uiHidden';
@@ -50,6 +46,11 @@
 
 	let isDesktopFeed = $state(false);
 	const renderWindow = $derived(isDesktopFeed ? 3 : 2);
+
+	// Clip overlay (dedicated single-clip view)
+	let overlayClipId = $state<string | null>(null);
+	let overlayOpenComments = $state(false);
+	const overlayActive = $derived(overlayClipId !== null);
 
 	let pullDistance = $state(0);
 	let isRefreshing = $state(false);
@@ -161,8 +162,10 @@
 	}
 
 	function scrollToIndex(index: number) {
-		if (!scrollContainer || index < 0 || index >= clips.length) return;
-		const slot = scrollContainer.querySelectorAll('.reel-slot')[index] as HTMLElement | undefined;
+		if (!scrollContainer || index < 0) return;
+		const slots = scrollContainer.querySelectorAll('.reel-slot');
+		if (index >= slots.length) return;
+		const slot = slots[index] as HTMLElement | undefined;
 		if (slot) slot.scrollIntoView({ behavior: 'smooth' });
 	}
 
@@ -378,13 +381,10 @@
 			clips = data.clips;
 			hasMore = data.hasMore;
 			currentOffset = data.clips.length;
-			activeIndex = 0;
-			if (scrollContainer) scrollContainer.scrollTop = 0;
 			const hasNew = data.clips.some((c) => !previousIds.has(c.id));
-			if (!hasNew && data.clips.length > 0) {
-				toast.info('All caught up');
-			} else if (data.clips.length === 0) {
-				toast.info('Nothing new');
+			if (hasNew) {
+				activeIndex = 0;
+				if (scrollContainer) scrollContainer.scrollTop = 0;
 			}
 		} else {
 			toast.error('Failed to refresh feed');
@@ -511,53 +511,34 @@
 	});
 
 	$effect(() => {
-		const targetClipId = $viewClipSignal;
+		const targetClipId = $clipOverlaySignal;
 		if (!targetClipId) return;
-		viewClipSignal.set(null);
-		(async () => {
-			// Fetch the target clip to determine its watched status
-			const targetClip = await fetchSingleClip(targetClipId);
-			const targetFilter: FeedFilter = targetClip?.watched ? 'watched' : 'unwatched';
-
-			filter = targetFilter;
-			currentOffset = 0;
-			hasMore = true;
-			const data = await fetchClips(targetFilter, PAGE_SIZE, sort);
-			if (data) {
-				// Ensure target clip is in the list (it may be beyond the first page)
-				const inPage = data.clips.some((c) => c.id === targetClipId);
-				if (inPage) {
-					clips = data.clips;
-				} else if (targetClip) {
-					// Prepend target clip and de-dupe from the rest
-					clips = [targetClip, ...data.clips.filter((c) => c.id !== targetClipId)];
-				} else {
-					clips = data.clips;
-				}
-				hasMore = data.hasMore;
-				currentOffset = data.clips.length;
-			}
-			loading = false;
-			await new Promise((r) => requestAnimationFrame(r));
-			const idx = clips.findIndex((c) => c.id === targetClipId);
-			if (idx >= 0) {
-				activeIndex = idx;
-				scrollToIndex(idx);
-			}
-		})();
+		clipOverlaySignal.set(null);
+		overlayClipId = targetClipId;
 	});
 
 	$effect(() => {
 		const tap = $homeTapSignal;
 		if (tap > 0) {
 			homeTapSignal.set(0);
-			if (filter !== 'unwatched') setFilter('unwatched');
-			else {
+			if (overlayClipId) {
+				handleOverlayDismiss();
+			} else if (filter !== 'unwatched') {
+				setFilter('unwatched');
+			} else {
 				activeIndex = 0;
 				if (scrollContainer) scrollContainer.scrollTop = 0;
 			}
 		}
 	});
+
+	function handleOverlayDismiss() {
+		overlayClipId = null;
+		overlayOpenComments = false;
+		// Refresh feed to reflect any changes made in the overlay
+		loadInitialClips();
+		fetchUnwatchedCount();
+	}
 
 	function handleCaptionEdit(clipId: string, newCaption: string) {
 		clips = clips.map((c) => (c.id === clipId ? { ...c, title: newCaption } : c));
@@ -641,13 +622,13 @@
 			})();
 		}
 
-		// Deep-link: jump to a specific clip (and optionally open comments)
+		// Deep-link: open a specific clip in the overlay (and optionally open comments)
 		const params = new URLSearchParams(window.location.search);
 		const deepClipId = params.get('clip');
 		const deepComments = params.get('comments') === 'true';
 		if (deepClipId) {
-			viewClipSignal.set(deepClipId);
-			if (deepComments) openCommentsSignal.set(deepClipId);
+			overlayOpenComments = deepComments;
+			clipOverlaySignal.set(deepClipId);
 			// Clean URL without triggering navigation
 			const clean = new URL(window.location.href);
 			clean.searchParams.delete('clip');
@@ -742,7 +723,7 @@
 							<ReelItem
 								{clip}
 								{currentUserId}
-								active={i === activeIndex}
+								active={i === activeIndex && !overlayActive}
 								index={i}
 								{autoScroll}
 								{gifEnabled}
@@ -781,11 +762,42 @@
 					<div class="reel-slot loading-more-slot">
 						<div class="reel-placeholder"><span class="spinner"></span></div>
 					</div>
+				{:else if !hasMore}
+					<div class="reel-slot end-slide" data-index={clips.length}>
+						<div class="end-slide-content">
+							<span class="end-slide-icon">
+								<CheckCircleIcon size={56} weight="duotone" />
+							</span>
+							<p class="end-slide-title">
+								{filter === 'unwatched' ? "You're all caught up!" : "That's all, folks!"}
+							</p>
+							<p class="end-slide-sub">
+								{#if filter === 'unwatched'}
+									Check back later for new clips
+								{:else if filter === 'watched'}
+									All your watched clips are above
+								{:else}
+									Your favorite clips are above
+								{/if}
+							</p>
+						</div>
+					</div>
 				{/if}
 			</div>
 		{/if}
 	</div>
 </div>
+
+{#if overlayClipId}
+	<ClipOverlay
+		clipId={overlayClipId}
+		{currentUserId}
+		{autoScroll}
+		{gifEnabled}
+		openComments={overlayOpenComments}
+		ondismiss={handleOverlayDismiss}
+	/>
+{/if}
 
 {#if $addVideoModalOpen}
 	<AddVideoModal ondismiss={() => addVideoModalOpen.set(false)} />
@@ -965,6 +977,35 @@
 		font-size: 1.25rem;
 		font-weight: 700;
 		color: var(--text-primary);
+		margin: 0;
+	}
+	.end-slide {
+		background: var(--bg-primary);
+	}
+	.end-slide-content {
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-sm);
+		animation: empty-in 400ms cubic-bezier(0.32, 0.72, 0, 1);
+	}
+	.end-slide-icon {
+		color: var(--accent-primary);
+		opacity: 0.7;
+		margin-bottom: var(--space-xs);
+	}
+	.end-slide-title {
+		font-family: var(--font-display);
+		font-size: 1.25rem;
+		font-weight: 700;
+		color: var(--text-primary);
+		margin: 0;
+	}
+	.end-slide-sub {
+		color: var(--text-muted);
+		font-size: 0.875rem;
 		margin: 0;
 	}
 	@keyframes fade-in {
