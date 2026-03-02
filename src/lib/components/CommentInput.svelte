@@ -206,10 +206,10 @@
 
 	.input-bar {
 		display: flex;
-		padding: var(--space-sm) var(--space-lg);
+		padding: var(--space-md) var(--space-lg);
 		border-top: 1px solid var(--border);
 		background: var(--bg-surface);
-		padding-bottom: max(12px, env(safe-area-inset-bottom));
+		padding-bottom: max(var(--space-md), env(safe-area-inset-bottom));
 	}
 
 	.input-wrapper {
