@@ -26,53 +26,31 @@
 		return ratio * duration;
 	}
 
-	function handleMouseDown(e: MouseEvent) {
+	function handlePointerDown(e: PointerEvent) {
 		e.preventDefault();
 		e.stopPropagation();
 		scrubbing = true;
+		barEl?.setPointerCapture(e.pointerId);
 		onseek(getTimeFromX(e.clientX));
-
-		function handleMouseMove(ev: MouseEvent) {
-			onseek(getTimeFromX(ev.clientX));
-		}
-
-		function handleMouseUp() {
-			scrubbing = false;
-			document.removeEventListener('mousemove', handleMouseMove);
-			document.removeEventListener('mouseup', handleMouseUp);
-		}
-
-		document.addEventListener('mousemove', handleMouseMove);
-		document.addEventListener('mouseup', handleMouseUp);
 	}
 
-	function handleHover(e: MouseEvent) {
-		if (scrubbing) return;
-		hoverProgress = getTimeFromX(e.clientX);
-	}
-
-	function handleMouseLeave() {
-		if (!scrubbing) {
-			hoverProgress = null;
+	function handlePointerMove(e: PointerEvent) {
+		if (scrubbing) {
+			onseek(getTimeFromX(e.clientX));
+		} else if (e.pointerType === 'mouse') {
+			hoverProgress = getTimeFromX(e.clientX);
 		}
 	}
 
-	function handleTouchStart(e: TouchEvent) {
-		e.stopPropagation();
-		scrubbing = true;
-		const touch = e.touches[0];
-		onseek(getTimeFromX(touch.clientX));
-	}
-
-	function handleTouchMove(e: TouchEvent) {
+	function handlePointerUp(e: PointerEvent) {
 		if (!scrubbing) return;
-		e.stopPropagation();
-		const touch = e.touches[0];
-		onseek(getTimeFromX(touch.clientX));
+		scrubbing = false;
+		barEl?.releasePointerCapture(e.pointerId);
+		if (e.pointerType !== 'mouse') hoverProgress = null;
 	}
 
-	function handleTouchEnd() {
-		scrubbing = false;
+	function handlePointerLeave() {
+		if (!scrubbing) hoverProgress = null;
 	}
 </script>
 
@@ -82,12 +60,11 @@
 	class:scrubbing
 	class:ui-hidden={uiHidden}
 	bind:this={barEl}
-	onmousedown={handleMouseDown}
-	onmousemove={handleHover}
-	onmouseleave={handleMouseLeave}
-	ontouchstart={handleTouchStart}
-	ontouchmove={handleTouchMove}
-	ontouchend={handleTouchEnd}
+	onpointerdown={handlePointerDown}
+	onpointermove={handlePointerMove}
+	onpointerup={handlePointerUp}
+	onpointercancel={handlePointerUp}
+	onpointerleave={handlePointerLeave}
 	tabindex="0"
 	role="slider"
 	aria-label="Video progress"
@@ -117,6 +94,7 @@
 		align-items: center;
 		cursor: pointer;
 		padding: 0;
+		touch-action: none;
 		transition: opacity 0.3s ease;
 	}
 
