@@ -1,5 +1,6 @@
 <script lang="ts">
 	import GifIcon from 'phosphor-svelte/lib/GifIcon';
+	import KeyboardIcon from 'phosphor-svelte/lib/KeyboardIcon';
 	import MentionInput from './MentionInput.svelte';
 	import type { GroupMember } from '$lib/types';
 
@@ -7,6 +8,7 @@
 		replyingTo,
 		submitting,
 		gifEnabled = false,
+		gifPickerOpen = false,
 		attachedGif = null,
 		members = [],
 		onsubmit,
@@ -17,6 +19,7 @@
 		replyingTo: { id: string; username: string } | null;
 		submitting: boolean;
 		gifEnabled?: boolean;
+		gifPickerOpen?: boolean;
 		attachedGif: { url: string; stillUrl: string; shareUrl?: string } | null;
 		members?: GroupMember[];
 		onsubmit: (text: string, gifUrl?: string) => void;
@@ -39,10 +42,27 @@
 		mentionInputRef?.clear();
 	}
 
+	export function isEmpty() {
+		return text.trim().length === 0;
+	}
+
 	function handleSubmit(e: SubmitEvent) {
 		e.preventDefault();
 		if (!canSubmit || submitting) return;
 		onsubmit(text.trim(), attachedGif?.shareUrl || attachedGif?.url);
+	}
+
+	function getGifBtnLabel() {
+		if (gifPickerOpen) return 'Show keyboard';
+		if (gifEnabled) return 'Attach GIF';
+		return 'GIFs not available';
+	}
+	const gifBtnLabel = $derived(getGifBtnLabel());
+
+	function handleInputFocus() {
+		if (gifPickerOpen) {
+			ongiftoggle();
+		}
 	}
 </script>
 
@@ -64,13 +84,17 @@
 	<button
 		type="button"
 		class="gif-btn"
-		class:active={!!attachedGif}
+		class:active={gifPickerOpen || !!attachedGif}
 		disabled={!gifEnabled}
 		onclick={ongiftoggle}
-		aria-label={gifEnabled ? 'Attach GIF' : 'GIFs not available — host must configure GIPHY'}
+		aria-label={gifBtnLabel}
 		title={gifEnabled ? '' : 'Host must configure GIPHY API key'}
 	>
-		<GifIcon size={26} />
+		{#if gifPickerOpen}
+			<KeyboardIcon size={26} />
+		{:else}
+			<GifIcon size={26} />
+		{/if}
 	</button>
 	<MentionInput
 		bind:this={mentionInputRef}
@@ -82,6 +106,7 @@
 		onchange={(t) => {
 			text = t;
 		}}
+		onfocus={handleInputFocus}
 		onsubmit={() => {
 			if (canSubmit && !submitting)
 				onsubmit(text.trim(), attachedGif?.shareUrl || attachedGif?.url);
