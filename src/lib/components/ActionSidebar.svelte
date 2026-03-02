@@ -10,6 +10,7 @@
 	const {
 		favorited,
 		reactedEmoji = null,
+		reactionCount = 0,
 		commentCount = 0,
 		unreadCommentCount = 0,
 		originalUrl,
@@ -29,6 +30,7 @@
 	}: {
 		favorited: boolean;
 		reactedEmoji?: string | null;
+		reactionCount?: number;
 		commentCount?: number;
 		unreadCommentCount?: number;
 		originalUrl: string;
@@ -139,6 +141,9 @@
 				<HeartIcon size={24} weight={favorited ? 'fill' : 'regular'} />
 			{/if}
 		</span>
+		{#if reactionCount > 0}
+			<span class="sidebar-count">{formatCount(reactionCount)}</span>
+		{/if}
 	</button>
 
 	<button
