@@ -6,8 +6,8 @@ import type { Component } from 'svelte';
 import HeartIcon from 'phosphor-svelte/lib/HeartIcon';
 import ThumbsUpIcon from 'phosphor-svelte/lib/ThumbsUpIcon';
 import ThumbsDownIcon from 'phosphor-svelte/lib/ThumbsDownIcon';
-import SmileyIcon from 'phosphor-svelte/lib/SmileyIcon';
-import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
+import SmileyXEyesIcon from 'phosphor-svelte/lib/SmileyXEyesIcon';
+import DoubleExclamationIcon from '$lib/components/DoubleExclamationIcon.svelte';
 import QuestionIcon from 'phosphor-svelte/lib/QuestionIcon';
 
 export interface ReactionDef {
@@ -21,8 +21,8 @@ export const REACTIONS: ReactionDef[] = [
 	{ emoji: '❤️', component: HeartIcon, weight: 'fill' },
 	{ emoji: '👍', component: ThumbsUpIcon, weight: 'regular' },
 	{ emoji: '👎', component: ThumbsDownIcon, weight: 'regular' },
-	{ emoji: '😂', component: SmileyIcon, weight: 'regular' },
-	{ emoji: '‼️', component: WarningIcon, weight: 'bold' },
+	{ emoji: '😂', component: SmileyXEyesIcon, weight: 'regular' },
+	{ emoji: '‼️', component: DoubleExclamationIcon, weight: 'bold' },
 	{ emoji: '❓', component: QuestionIcon, weight: 'regular' }
 ];
 
