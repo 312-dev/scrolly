@@ -97,7 +97,7 @@
 		function handleUp(e: PointerEvent) {
 			const idx = hitTestEmoji(e.clientX, e.clientY);
 			if (idx >= 0) {
-				onpick(REACTIONS[idx].emoji);
+				onpick(REACTIONS[idx]);
 			} else {
 				ondismiss();
 			}
@@ -120,8 +120,7 @@
 	role="listbox"
 	aria-label="Reaction picker"
 >
-	{#each REACTIONS as reaction, i (reaction.emoji)}
-		{@const ReactionIcon = reaction.component}
+	{#each REACTIONS as emoji, i (emoji)}
 		<button
 			class="reaction-btn"
 			class:visible
@@ -131,11 +130,11 @@
 				: 0}ms"
 			bind:this={btnEls[i]}
 			onclick={() => {
-				if (!dragMode) onpick(reaction.emoji);
+				if (!dragMode) onpick(emoji);
 			}}
-			aria-label="React with {reaction.emoji}"
+			aria-label="React with {emoji}"
 		>
-			<ReactionIcon size={26} weight={reaction.weight} />
+			<span class="emoji">{emoji}</span>
 		</button>
 	{/each}
 </div>
@@ -181,15 +180,16 @@
 		color: var(--accent-magenta);
 	}
 
-	.reaction-btn:hover:not(.hovered) :global(svg) {
+	.reaction-btn:hover:not(.hovered) .emoji {
 		transform: scale(1.15);
 	}
 
-	.reaction-btn :global(svg) {
-		width: 26px;
-		height: 26px;
+	.emoji {
+		font-size: 24px;
+		line-height: 1;
 		filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 8px rgba(0, 0, 0, 0.4));
 		transition: transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1);
 		pointer-events: none;
+		user-select: none;
 	}
 </style>
