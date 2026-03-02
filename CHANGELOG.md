@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.9.0...scrolly-v1.10.0) (2026-03-02)
+
+
+### Features
+
+* reel UI improvements — pointer events, gestures, bottom row layout ([#40](https://github.com/312-dev/scrolly/issues/40)) ([8e7ac3c](https://github.com/312-dev/scrolly/commit/8e7ac3cc1ad63950220336fb2dab320b9efec12d))
+
 ## [1.9.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.8.0...scrolly-v1.9.0) (2026-03-02)
 
 
