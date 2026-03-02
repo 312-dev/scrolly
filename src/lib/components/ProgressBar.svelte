@@ -108,7 +108,7 @@
 <style>
 	.progress-bar {
 		position: absolute;
-		bottom: calc(var(--bottom-nav-height, 64px) + 36px);
+		bottom: calc(var(--bottom-nav-height, 64px) + 42px);
 		left: 0;
 		right: 0;
 		z-index: 6;

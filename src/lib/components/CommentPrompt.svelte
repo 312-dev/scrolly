@@ -26,7 +26,7 @@
 <style>
 	.comment-prompt {
 		position: absolute;
-		bottom: calc(var(--bottom-nav-height, 64px) + 8px);
+		bottom: calc(var(--bottom-nav-height, 64px) + 4px);
 		left: var(--space-lg);
 		right: var(--space-lg);
 		z-index: 5;
