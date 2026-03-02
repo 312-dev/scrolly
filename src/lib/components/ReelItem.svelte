@@ -495,6 +495,7 @@
 	<ActionSidebar
 		favorited={clip.favorited}
 		{reactedEmoji}
+		commentCount={localCommentCount}
 		unreadCommentCount={localUnreadCount}
 		originalUrl={clip.originalUrl}
 		{muted}

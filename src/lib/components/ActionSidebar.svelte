@@ -10,6 +10,7 @@
 	const {
 		favorited,
 		reactedEmoji = null,
+		commentCount = 0,
 		unreadCommentCount = 0,
 		originalUrl,
 		muted = true,
@@ -28,6 +29,7 @@
 	}: {
 		favorited: boolean;
 		reactedEmoji?: string | null;
+		commentCount?: number;
 		unreadCommentCount?: number;
 		originalUrl: string;
 		muted?: boolean;
@@ -64,6 +66,11 @@
 		}
 		prevFavorited = favorited;
 	});
+
+	function formatCount(n: number): string {
+		if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k`;
+		return String(n);
+	}
 
 	function stop(e: MouseEvent | PointerEvent) {
 		e.stopPropagation();
@@ -147,6 +154,9 @@
 				<span class="unread-badge">{unreadCommentCount > 9 ? '9+' : unreadCommentCount}</span>
 			{/if}
 		</span>
+		{#if commentCount > 0}
+			<span class="sidebar-count">{formatCount(commentCount)}</span>
+		{/if}
 	</button>
 
 	{#if albumArt}
@@ -270,6 +280,13 @@
 		align-items: center;
 		justify-content: center;
 		line-height: 1;
+	}
+
+	.sidebar-count {
+		font-size: 0.6875rem;
+		font-weight: 600;
+		color: var(--reel-text);
+		text-shadow: 0 1px 3px var(--reel-text-shadow);
 	}
 
 	.icon-circle.pop {
