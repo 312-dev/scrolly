@@ -248,7 +248,7 @@
 	}
 </script>
 
-<div class="comments-sheet-wrapper">
+<div class="comments-sheet-wrapper" class:gif-open={showGifPicker}>
 	<BaseSheet
 		bind:this={sheetRef}
 		title="Comments{totalCount > 0 ? ` (${totalCount})` : ''}"
@@ -258,6 +258,7 @@
 		<div class="content-area">
 			{#if showGifPicker}
 				<GifPicker
+					autoFocus
 					onselect={(gif) => {
 						attachedGif = gif;
 						showGifPicker = false;
@@ -266,7 +267,6 @@
 						showGifPicker = false;
 						requestAnimationFrame(() => commentInput?.focus());
 					}}
-					autoFocus
 				/>
 			{:else}
 				<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
@@ -381,6 +381,20 @@
 		height: 50vh;
 		height: 50dvh;
 		background: var(--_sheet-bg);
+		/* Animate height when GIF picker opens/closes */
+		transition:
+			transform 300ms cubic-bezier(0.32, 0.72, 0, 1),
+			height 300ms cubic-bezier(0.32, 0.72, 0, 1);
+	}
+	/* Expand to fill the full visible viewport so the GIF grid is never
+	   hidden behind the keyboard — dvh always equals the above-keyboard space */
+	.comments-sheet-wrapper.gif-open :global(.base-sheet) {
+		height: 100vh;
+		height: 100dvh;
+	}
+	/* Keep drag-to-dismiss instant while dragging */
+	.comments-sheet-wrapper :global(.base-sheet.dragging) {
+		transition: none;
 	}
 	.content-area {
 		flex: 1;
