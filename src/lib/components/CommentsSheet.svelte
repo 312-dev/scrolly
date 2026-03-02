@@ -378,8 +378,8 @@
 		background: transparent;
 	}
 	.comments-sheet-wrapper :global(.base-sheet) {
-		height: 70vh;
-		height: 70dvh;
+		height: 50vh;
+		height: 50dvh;
 		background: var(--_sheet-bg);
 	}
 	.content-area {
