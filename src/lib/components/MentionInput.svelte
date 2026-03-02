@@ -156,10 +156,7 @@
 	export function clear() {
 		text = '';
 		onchange?.('');
-		if (maxRows > 0) {
-			const el = inputEl as HTMLTextAreaElement | null;
-			if (el) el.style.height = 'auto';
-		}
+		if (maxRows > 0) autoResize();
 	}
 
 	export function getText(): string {

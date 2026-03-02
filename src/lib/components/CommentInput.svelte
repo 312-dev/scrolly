@@ -238,6 +238,9 @@
 	 */
 	.input-wrapper :global(textarea.overlay-input) {
 		height: calc(1.4em + 12px);
+		/* Strip macOS/iOS native appearance so our height rule takes full control */
+		-webkit-appearance: none;
+		appearance: none;
 	}
 	/* More right space when GIF pill is also showing */
 	.input-wrapper.has-gif :global(.overlay-input),
