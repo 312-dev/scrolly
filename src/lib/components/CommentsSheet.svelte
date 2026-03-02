@@ -406,7 +406,6 @@
 		align-items: center;
 		gap: var(--space-sm);
 		padding: var(--space-xs) 0;
-		opacity: 0.55;
 	}
 	.reaction-emoji {
 		font-size: 0.875rem;
