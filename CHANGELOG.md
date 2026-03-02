@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.10.1](https://github.com/312-dev/scrolly/compare/scrolly-v1.10.0...scrolly-v1.10.1) (2026-03-02)
+
+
+### Bug Fixes
+
+* swipe gestures, back-button reel dismiss, and comment send fix ([#44](https://github.com/312-dev/scrolly/issues/44)) ([50902ea](https://github.com/312-dev/scrolly/commit/50902eafff10fd70dbad5a543b9c5f5414a84f3f))
+
+
+### Documentation
+
+* update architecture.md for new components, stores, and routes ([#42](https://github.com/312-dev/scrolly/issues/42)) ([5c4a686](https://github.com/312-dev/scrolly/commit/5c4a686d975c864bb0852797e0bf991aa894f926))
+
 ## [1.10.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.9.0...scrolly-v1.10.0) (2026-03-02)
 
 
