@@ -55,7 +55,11 @@
 
 <div class={isReply ? 'reply' : 'comment'} class:just-posted={isJustPosted} role="listitem">
 	<div class={isReply ? 'reply-avatar' : 'comment-avatar'}>
-		<span>{comment.username.charAt(0).toUpperCase()}</span>
+		{#if comment.avatarPath}
+			<img src="/api/profile/avatar/{comment.avatarPath}" alt="" class="avatar-img" />
+		{:else}
+			<span>{comment.username.charAt(0).toUpperCase()}</span>
+		{/if}
 	</div>
 	<div class={isReply ? 'reply-body' : 'comment-body'}>
 		<div class="comment-header">
@@ -171,6 +175,13 @@
 		width: 28px;
 		height: 28px;
 		font-size: 0.75rem;
+	}
+	.comment-avatar .avatar-img,
+	.reply-avatar .avatar-img {
+		width: 100%;
+		height: 100%;
+		border-radius: var(--radius-full);
+		object-fit: cover;
 	}
 	.comment-body,
 	.reply-body {
