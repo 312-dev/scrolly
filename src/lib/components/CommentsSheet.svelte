@@ -412,11 +412,11 @@
 	}
 	.reaction-text {
 		font-size: 0.75rem;
-		color: var(--text-muted);
+		color: var(--text-secondary);
 	}
 	.reaction-time {
 		font-size: 0.6875rem;
-		color: var(--text-muted);
+		color: var(--text-secondary);
 		margin-left: auto;
 	}
 	.replies {

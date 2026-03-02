@@ -248,25 +248,23 @@
 		padding-right: 70px;
 	}
 
-	/* Actions row: centered vertically on single-line, bottom-anchored on multi-line */
+	/*
+	 * Actions row: pin to the first text line on single-line, bottom-anchored on multi-line.
+	 * top: 5px = border(1px) + padding-top(6px) - (icon_height(26) - line_height(22.4))/2
+	 * This aligns the icon center with the text center regardless of container height.
+	 */
 	.input-actions {
 		position: absolute;
-		top: 50%;
-		transform: translateY(-50%);
+		top: 5px;
 		right: 8px;
 		display: flex;
 		align-items: center;
 		gap: 4px;
 		z-index: 10;
-		transition:
-			top 0.12s ease,
-			bottom 0.12s ease,
-			transform 0.12s ease;
 	}
 	.input-wrapper.multi-line .input-actions {
 		top: auto;
 		bottom: 6px;
-		transform: none;
 	}
 
 	.gif-pill {
