@@ -97,7 +97,7 @@
 		};
 	});
 
-	// Swipe-to-dismiss gesture (swipe left)
+	// Swipe-to-dismiss gesture (swipe right — back the way the overlay came)
 	$effect(() => {
 		if (!overlayEl) return;
 		const el = overlayEl;
@@ -106,6 +106,14 @@
 		let tracking = false;
 		let decided = false;
 		let isHorizontal = false;
+
+		// Block the browser's native edge-swipe-back gesture (iOS Safari, Chrome Android).
+		// Must be non-passive so preventDefault() is honoured.
+		function onTouchStart(e: TouchEvent) {
+			if (e.touches.length === 1 && e.touches[0].clientX < 30) {
+				e.preventDefault();
+			}
+		}
 
 		function onPointerDown(e: PointerEvent) {
 			if (swipeAnimating || isEntering) return;
@@ -128,13 +136,21 @@
 				if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
 				decided = true;
 				isHorizontal = Math.abs(dx) > Math.abs(dy);
+				if (isHorizontal) {
+					// Capture the pointer so the browser can't steal the gesture mid-swipe
+					try {
+						el.setPointerCapture(e.pointerId);
+					} catch {
+						// setPointerCapture not supported — swipe still works, just without capture
+					}
+				}
 				if (!isHorizontal) return;
 			}
 
 			if (!isHorizontal) return;
 
-			// Only allow leftward swipe to dismiss; rightward gets rubber-band damping
-			swipeX = dx > 0 ? dx * 0.15 : dx;
+			// Only allow rightward swipe to dismiss; leftward gets rubber-band damping
+			swipeX = dx < 0 ? dx * 0.15 : dx;
 		}
 
 		function onPointerUp() {
@@ -149,10 +165,10 @@
 			const vw = window.innerWidth;
 			const threshold = vw * 0.2;
 
-			// Dismiss if swiped left far enough
-			if (swipeX < -threshold) {
+			// Dismiss if swiped right far enough
+			if (swipeX > threshold) {
 				swipeAnimating = true;
-				swipeX = -vw;
+				swipeX = vw;
 				setTimeout(() => {
 					swipeAnimating = false;
 					handleDismiss();
@@ -168,11 +184,13 @@
 			}, 250);
 		}
 
+		el.addEventListener('touchstart', onTouchStart, { passive: false });
 		el.addEventListener('pointerdown', onPointerDown);
 		el.addEventListener('pointermove', onPointerMove);
 		el.addEventListener('pointerup', onPointerUp);
 		el.addEventListener('pointercancel', onPointerUp);
 		return () => {
+			el.removeEventListener('touchstart', onTouchStart);
 			el.removeEventListener('pointerdown', onPointerDown);
 			el.removeEventListener('pointermove', onPointerMove);
 			el.removeEventListener('pointerup', onPointerUp);
@@ -282,6 +300,7 @@
 		z-index: 40;
 		background: var(--bg-primary);
 		touch-action: pan-y;
+		overscroll-behavior-x: none;
 		/* No tab bar — baseline is safe area minus the 4px bar gap, so the comment bar
 		   lands flush at the safe area edge. Clamped at 0 for devices with no safe area. */
 		--bottom-nav-height: max(0px, calc(env(safe-area-inset-bottom, 0px) - 4px));
