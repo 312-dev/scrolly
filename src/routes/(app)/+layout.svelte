@@ -16,14 +16,17 @@
 	import HouseIcon from 'phosphor-svelte/lib/HouseIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import GearSixIcon from 'phosphor-svelte/lib/GearSixIcon';
+	import HeartIcon from 'phosphor-svelte/lib/HeartIcon';
 	const { children }: { children: Snippet } = $props();
 
 	let bottomTabsEl: HTMLElement | undefined = $state();
 	const isFeed = $derived(page.url.pathname === '/');
 	const isSettings = $derived(page.url.pathname === '/settings');
+	const isFaves = $derived(page.url.pathname === '/favorites');
 
 	const pageTitle = $derived.by(() => {
 		if (isSettings) return 'Settings';
+		if (isFaves) return 'Faves';
 		return '';
 	});
 
@@ -81,10 +84,13 @@
 
 	function syncThemeColor() {
 		const metas = document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]');
-		const bgPrimary = getComputedStyle(document.documentElement)
-			.getPropertyValue('--bg-primary')
-			.trim();
-		metas.forEach((m) => m.setAttribute('content', bgPrimary));
+		const cs = getComputedStyle(document.documentElement);
+		// On the feed, use --reel-bg so the iOS status bar matches the dark reel context.
+		// On all other pages, use --bg-primary to match the app shell theme.
+		const color = isFeed
+			? cs.getPropertyValue('--reel-bg').trim()
+			: cs.getPropertyValue('--bg-primary').trim();
+		metas.forEach((m) => m.setAttribute('content', color));
 	}
 
 	// Re-sync when navigating between feed and other pages
@@ -156,6 +162,10 @@
 			</div>
 			<span>Add</span>
 		</button>
+		<a href="/favorites" class="tab" class:active={isFaves}>
+			<HeartIcon size={24} weight={isFaves ? 'fill' : 'regular'} />
+			<span>Faves</span>
+		</a>
 		<a href="/settings" class="tab" class:active={isSettings}>
 			<GearSixIcon size={24} weight={isSettings ? 'fill' : 'regular'} />
 			<span>Settings</span>
