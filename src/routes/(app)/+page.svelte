@@ -224,31 +224,33 @@
 		const el = feedWrapper;
 		const getScrollTop = () => scrollContainer?.scrollTop ?? 0;
 
-		function handleTouchStart(e: TouchEvent) {
+		function handlePointerDown(e: PointerEvent) {
+			if (e.pointerType !== 'touch') return;
 			if (get(anySheetOpen)) return;
 			if (getScrollTop() <= 0 && !isRefreshing) {
-				touchStartY = e.touches[0].clientY;
+				touchStartY = e.clientY;
 				isPullingActive = true;
 			}
 		}
 
-		function handleTouchMove(e: TouchEvent) {
+		function handlePointerMove(e: PointerEvent) {
+			if (e.pointerType !== 'touch') return;
 			if (!isPullingActive || isRefreshing || isHorizontalSwiping) return;
 			if (getScrollTop() > 0) {
 				isPullingActive = false;
 				pullDistance = 0;
 				return;
 			}
-			const delta = e.touches[0].clientY - touchStartY;
+			const delta = e.clientY - touchStartY;
 			if (delta > 0) {
 				pullDistance = Math.min(delta * 0.4, 120);
-				if (pullDistance > 10) e.preventDefault();
 			} else {
 				pullDistance = 0;
 			}
 		}
 
-		function handleTouchEnd() {
+		function handlePointerUp(e: PointerEvent) {
+			if (e.pointerType !== 'touch') return;
 			if (pullDistance > 0) endPull(pullDistance >= PULL_THRESHOLD && !isRefreshing);
 			isPullingActive = false;
 		}
@@ -285,14 +287,16 @@
 			}, 150);
 		}
 
-		el.addEventListener('touchstart', handleTouchStart, { passive: true });
-		el.addEventListener('touchmove', handleTouchMove, { passive: false });
-		el.addEventListener('touchend', handleTouchEnd, { passive: true });
+		el.addEventListener('pointerdown', handlePointerDown);
+		el.addEventListener('pointermove', handlePointerMove);
+		el.addEventListener('pointerup', handlePointerUp);
+		el.addEventListener('pointercancel', handlePointerUp);
 		el.addEventListener('wheel', handleWheel, { passive: false });
 		return () => {
-			el.removeEventListener('touchstart', handleTouchStart);
-			el.removeEventListener('touchmove', handleTouchMove);
-			el.removeEventListener('touchend', handleTouchEnd);
+			el.removeEventListener('pointerdown', handlePointerDown);
+			el.removeEventListener('pointermove', handlePointerMove);
+			el.removeEventListener('pointerup', handlePointerUp);
+			el.removeEventListener('pointercancel', handlePointerUp);
 			el.removeEventListener('wheel', handleWheel);
 			if (wheelTimer) clearTimeout(wheelTimer);
 		};
@@ -308,7 +312,7 @@
 		let decided = false;
 		let isHorizontal = false;
 
-		function onTouchStart(e: TouchEvent) {
+		function onPointerDown(e: PointerEvent) {
 			if (swipeAnimating) return;
 			const target = e.target as HTMLElement;
 			if (target.closest('.progress-bar')) {
@@ -316,17 +320,17 @@
 				return;
 			}
 			tracking = true;
-			startX = e.touches[0].clientX;
-			startY = e.touches[0].clientY;
+			startX = e.clientX;
+			startY = e.clientY;
 			decided = false;
 			isHorizontal = false;
 			isHorizontalSwiping = false;
 		}
 
-		function onTouchMove(e: TouchEvent) {
+		function onPointerMove(e: PointerEvent) {
 			if (!tracking || swipeAnimating) return;
-			const dx = e.touches[0].clientX - startX;
-			const dy = e.touches[0].clientY - startY;
+			const dx = e.clientX - startX;
+			const dy = e.clientY - startY;
 
 			if (!decided) {
 				if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
@@ -337,14 +341,13 @@
 			}
 
 			if (!isHorizontal) return;
-			e.preventDefault();
 
 			const atFirst = filterIndex === 0 && dx > 0;
 			const atLast = filterIndex === FILTERS.length - 1 && dx < 0;
 			swipeX = atFirst || atLast ? dx * 0.15 : dx;
 		}
 
-		function onTouchEnd() {
+		function onPointerUp() {
 			if (!tracking || !isHorizontal || swipeX === 0) {
 				tracking = false;
 				decided = false;
@@ -378,13 +381,15 @@
 			}, 250);
 		}
 
-		el.addEventListener('touchstart', onTouchStart, { passive: true });
-		el.addEventListener('touchmove', onTouchMove, { passive: false });
-		el.addEventListener('touchend', onTouchEnd, { passive: true });
+		el.addEventListener('pointerdown', onPointerDown);
+		el.addEventListener('pointermove', onPointerMove);
+		el.addEventListener('pointerup', onPointerUp);
+		el.addEventListener('pointercancel', onPointerUp);
 		return () => {
-			el.removeEventListener('touchstart', onTouchStart);
-			el.removeEventListener('touchmove', onTouchMove);
-			el.removeEventListener('touchend', onTouchEnd);
+			el.removeEventListener('pointerdown', onPointerDown);
+			el.removeEventListener('pointermove', onPointerMove);
+			el.removeEventListener('pointerup', onPointerUp);
+			el.removeEventListener('pointercancel', onPointerUp);
 		};
 	});
 
@@ -891,7 +896,6 @@
 		height: 100dvh;
 		overflow-y: auto;
 		scroll-snap-type: y mandatory;
-		-webkit-overflow-scrolling: touch;
 		overscroll-behavior-y: none;
 		scrollbar-width: none;
 	}
@@ -994,6 +998,7 @@
 	}
 	.feed-slide {
 		height: 100%;
+		touch-action: pan-y;
 	}
 	.feed-slide.animating {
 		transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
