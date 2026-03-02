@@ -41,6 +41,14 @@
 	let overlayEl: HTMLDivElement | null = $state(null);
 	let swipeX = $state(0);
 	let swipeAnimating = $state(false);
+	let isEntering = $state(true);
+
+	$effect(() => {
+		const t = setTimeout(() => {
+			isEntering = false;
+		}, 300);
+		return () => clearTimeout(t);
+	});
 
 	// Viewers sheet (rendered here since ViewBadge is in our top bar)
 	let showViewers = $state(false);
@@ -100,7 +108,7 @@
 		let isHorizontal = false;
 
 		function onPointerDown(e: PointerEvent) {
-			if (swipeAnimating) return;
+			if (swipeAnimating || isEntering) return;
 			const target = e.target as HTMLElement;
 			// Don't interfere with progress bar or interactive elements
 			if (target.closest('.progress-bar') || target.closest('.base-sheet')) return;
@@ -277,9 +285,20 @@
 		/* No tab bar — baseline is safe area minus the 4px bar gap, so the comment bar
 		   lands flush at the safe area edge. Clamped at 0 for devices with no safe area. */
 		--bottom-nav-height: max(0px, calc(env(safe-area-inset-bottom, 0px) - 4px));
+		animation: slide-in-right 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
+	}
+
+	@keyframes slide-in-right {
+		from {
+			transform: translateX(100%);
+		}
+		to {
+			transform: translateX(0);
+		}
 	}
 
 	.clip-overlay.animating {
+		animation: none;
 		transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
 	}
 
