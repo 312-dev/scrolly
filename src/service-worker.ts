@@ -84,11 +84,10 @@ sw.addEventListener('push', (event) => {
 	if (!event.data) return;
 
 	const data = event.data.json();
-	const { title, body, icon, url, tag, image, badgeCount } = data;
+	const { title, body, url, tag, image, badgeCount } = data;
 
 	const notificationOptions: NotificationOptions & { image?: string } = {
 		body: body || '',
-		icon: icon || '/icon/icon-192.svg',
 		badge: '/icon/badge-72.svg',
 		tag: tag || undefined,
 		data: { url: url || '/' }

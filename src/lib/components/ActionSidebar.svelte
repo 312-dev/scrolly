@@ -5,6 +5,7 @@
 	import HeartIcon from 'phosphor-svelte/lib/HeartIcon';
 	import ChatIcon from 'phosphor-svelte/lib/ChatIcon';
 	import ArrowSquareOutIcon from 'phosphor-svelte/lib/ArrowSquareOutIcon';
+	import MusicDisc from './MusicDisc.svelte';
 
 	const {
 		favorited,
@@ -15,6 +16,12 @@
 		muted = true,
 		uiHidden = false,
 		isOwn = false,
+		albumArt = null,
+		spotifyUrl = null,
+		appleMusicUrl = null,
+		youtubeMusicUrl = null,
+		active = false,
+		paused = false,
 		onsave,
 		oncomment,
 		onreactionhold,
@@ -28,6 +35,12 @@
 		muted?: boolean;
 		uiHidden?: boolean;
 		isOwn?: boolean;
+		albumArt?: string | null;
+		spotifyUrl?: string | null;
+		appleMusicUrl?: string | null;
+		youtubeMusicUrl?: string | null;
+		active?: boolean;
+		paused?: boolean;
 		onsave: () => void;
 		oncomment: () => void;
 		onreactionhold?: (x: number, y: number) => void;
@@ -121,9 +134,7 @@
 	>
 		<span class="icon-circle" class:pop={justSaved}>
 			{#if reactedEmoji && reactedEmoji !== '❤️' && REACTION_MAP.has(reactedEmoji)}
-				{@const def = REACTION_MAP.get(reactedEmoji)!}
-				{@const ReactionIcon = def.component}
-				<ReactionIcon size={24} weight={def.weight} />
+				<span class="reaction-emoji">{reactedEmoji}</span>
 			{:else}
 				<HeartIcon size={24} weight={favorited ? 'fill' : 'regular'} />
 			{/if}
@@ -148,26 +159,30 @@
 		{/if}
 	</button>
 
-	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- external URL, not app navigation -->
-	<a
-		href={originalUrl}
-		target="_blank"
-		rel="noopener noreferrer"
-		class="sidebar-btn"
-		onclick={stop}
-		aria-label="Open original"
-	>
-		<span class="icon-circle">
-			<ArrowSquareOutIcon size={24} />
-		</span>
-	</a>
+	{#if albumArt}
+		<MusicDisc {albumArt} {spotifyUrl} {appleMusicUrl} {youtubeMusicUrl} {active} {paused} />
+	{:else}
+		<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- external URL, not app navigation -->
+		<a
+			href={originalUrl}
+			target="_blank"
+			rel="noopener noreferrer"
+			class="sidebar-btn"
+			onclick={stop}
+			aria-label="Open original"
+		>
+			<span class="icon-circle">
+				<ArrowSquareOutIcon size={24} />
+			</span>
+		</a>
+	{/if}
 </div>
 
 <style>
 	.action-sidebar {
 		position: absolute;
 		right: var(--space-lg);
-		bottom: calc(var(--bottom-nav-height, 64px) + 88px);
+		bottom: calc(var(--bottom-nav-height, 64px) + 84px);
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -219,6 +234,13 @@
 		width: 24px;
 		height: 24px;
 		filter: drop-shadow(0 1px 2px var(--reel-icon-shadow));
+	}
+
+	.reaction-emoji {
+		font-size: 22px;
+		line-height: 1;
+		user-select: none;
+		pointer-events: none;
 	}
 
 	.sidebar-btn.active .icon-circle {

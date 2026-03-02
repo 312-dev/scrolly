@@ -31,8 +31,8 @@ export const POST: RequestHandler = withClipAuth(async ({ params, request }, { u
 				watchPercent:
 					watchPercent === null
 						? watched.watchPercent
-						: sql`MAX(COALESCE(${watched.watchPercent}, 0), ${watchPercent})`,
-				watchedAt: new Date()
+						: sql`MAX(COALESCE(${watched.watchPercent}, 0), ${watchPercent})`
+				// watchedAt intentionally not updated — keep the first-watched timestamp for stable sort order
 			}
 		});
 

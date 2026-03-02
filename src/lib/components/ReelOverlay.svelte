@@ -3,7 +3,6 @@
 	import ReelOverlayActions from './ReelOverlayActions.svelte';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
 	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
-	import ChatIcon from 'phosphor-svelte/lib/ChatIcon';
 
 	const {
 		username,
@@ -13,12 +12,9 @@
 		canEditCaption = false,
 		seenByOthers = false,
 		clipId = '',
-		active = false,
 		uiHidden = false,
-		hasDiscOverlap = false,
 		oncaptionedit,
-		ondelete,
-		oncomment
+		ondelete
 	}: {
 		username: string;
 		avatarPath?: string | null;
@@ -27,12 +23,9 @@
 		canEditCaption?: boolean;
 		seenByOthers?: boolean;
 		clipId?: string;
-		active?: boolean;
 		uiHidden?: boolean;
-		hasDiscOverlap?: boolean;
 		oncaptionedit?: (clipId: string, newCaption: string) => void;
 		ondelete?: (clipId: string) => void;
-		oncomment?: () => void;
 	} = $props();
 
 	let expanded = $state(false);
@@ -85,27 +78,12 @@
 			bind:confirmingDelete
 		/>
 	</div>
-
-	{#if active && oncomment}
-		<button
-			type="button"
-			class="comment-prompt"
-			class:disc-inset={hasDiscOverlap}
-			onclick={(e) => {
-				e.stopPropagation();
-				oncomment();
-			}}
-		>
-			<ChatIcon size={18} />
-			<span>Add a comment...</span>
-		</button>
-	{/if}
 </div>
 
 <style>
 	.reel-overlay {
 		position: absolute;
-		bottom: calc(var(--bottom-nav-height, 64px) + 34px);
+		bottom: calc(var(--bottom-nav-height, 64px) + 84px);
 		left: var(--space-lg);
 		right: var(--space-lg);
 		z-index: 5;
@@ -191,49 +169,5 @@
 	}
 	.host-icon-btn.delete:active {
 		color: var(--error);
-	}
-	.comment-prompt {
-		display: flex;
-		align-items: center;
-		gap: var(--space-sm);
-		width: 100%;
-		margin-top: var(--space-md);
-		padding: var(--space-sm) var(--space-md);
-		border-radius: var(--radius-full);
-		background: var(--reel-glass-pill-bg);
-		backdrop-filter: blur(20px);
-		-webkit-backdrop-filter: blur(20px);
-		border: 1px solid var(--reel-glass-border);
-		cursor: pointer;
-		font: inherit;
-		text-align: left;
-		transition: background 0.2s ease;
-		animation: comment-prompt-in 0.3s ease;
-	}
-	.comment-prompt.disc-inset {
-		width: calc(100% - 56px);
-	}
-	.comment-prompt:active {
-		background: var(--reel-frosted-bg-active);
-	}
-	.comment-prompt :global(svg) {
-		width: 18px;
-		height: 18px;
-		flex-shrink: 0;
-		color: var(--reel-text-subtle);
-	}
-	.comment-prompt span {
-		font-size: 0.875rem;
-		color: var(--reel-text-subtle);
-	}
-	@keyframes comment-prompt-in {
-		from {
-			opacity: 0;
-			transform: translateY(8px);
-		}
-		to {
-			opacity: 1;
-			transform: translateY(0);
-		}
 	}
 </style>

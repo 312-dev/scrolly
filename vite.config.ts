@@ -7,6 +7,9 @@ const version = process.env.APP_VERSION || pkg.version;
 
 export default defineConfig({
 	plugins: [sveltekit()],
+	server: {
+		host: '0.0.0.0'
+	},
 	define: {
 		__APP_VERSION__: JSON.stringify(version)
 	},

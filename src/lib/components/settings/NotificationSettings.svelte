@@ -11,6 +11,8 @@
 		pushLoading,
 		prefs,
 		prefsLoading,
+		isStandaloneMode,
+		isIos,
 		onTogglePush,
 		onUpdatePref
 	}: {
@@ -19,6 +21,8 @@
 		pushLoading: boolean;
 		prefs: NotificationPrefs;
 		prefsLoading: boolean;
+		isStandaloneMode: boolean;
+		isIos: boolean;
 		onTogglePush: () => void;
 		onUpdatePref: (key: keyof NotificationPrefs, value: boolean) => void;
 	} = $props();
@@ -91,7 +95,11 @@
 </script>
 
 {#if !pushSupported}
-	<p class="hint">Install scrolly to your home screen to enable push notifications.</p>
+	{#if isIos && !isStandaloneMode}
+		<p class="hint">Install scrolly to your home screen to enable push notifications.</p>
+	{:else}
+		<p class="hint">Push notifications aren't supported on this device or browser.</p>
+	{/if}
 {:else}
 	<div class="setting-row last">
 		<div class="setting-label">

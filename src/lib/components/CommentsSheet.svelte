@@ -76,6 +76,14 @@
 		loadComments();
 	});
 
+	// Auto-focus the input independently of data loading so iOS doesn't lose
+	// the gesture context by the time the fetch finishes.
+	$effect(() => {
+		if (!autoFocus) return;
+		const t = safeTimeout(() => commentInput?.focus(), 350);
+		return () => clearTimeout(t);
+	});
+
 	$effect(() => {
 		function handleKeydown(e: KeyboardEvent) {
 			if (e.key === 'Escape') {
@@ -97,7 +105,6 @@
 		reactionEvents = result.reactionEvents;
 		loading = false;
 		markCommentsRead(clipId);
-		if (autoFocus) safeTimeout(() => commentInput?.focus(), 350);
 	}
 
 	async function handleSubmit(text: string, gifUrl?: string) {
@@ -241,7 +248,7 @@
 	}
 </script>
 
-<div class="comments-sheet-wrapper">
+<div class="comments-sheet-wrapper" class:gif-open={showGifPicker}>
 	<BaseSheet
 		bind:this={sheetRef}
 		title="Comments{totalCount > 0 ? ` (${totalCount})` : ''}"
@@ -251,6 +258,7 @@
 		<div class="content-area">
 			{#if showGifPicker}
 				<GifPicker
+					autoFocus
 					onselect={(gif) => {
 						attachedGif = gif;
 						showGifPicker = false;
@@ -259,7 +267,6 @@
 						showGifPicker = false;
 						requestAnimationFrame(() => commentInput?.focus());
 					}}
-					autoFocus
 				/>
 			{:else}
 				<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
@@ -353,13 +360,41 @@
 </div>
 
 <style>
+	.comments-sheet-wrapper {
+		--_sheet-bg: rgba(0, 0, 0, 0.93);
+	}
+	@media (prefers-color-scheme: light) {
+		.comments-sheet-wrapper {
+			--_sheet-bg: var(--bg-elevated);
+		}
+	}
+	:global([data-theme='dark']) .comments-sheet-wrapper {
+		--_sheet-bg: rgba(0, 0, 0, 0.93);
+	}
+	:global([data-theme='light']) .comments-sheet-wrapper {
+		--_sheet-bg: var(--bg-elevated);
+	}
 	.comments-sheet-wrapper :global(.base-overlay) {
 		background: transparent;
 	}
 	.comments-sheet-wrapper :global(.base-sheet) {
-		height: 70vh;
-		height: 70dvh;
-		background: rgba(0, 0, 0, 0.93);
+		height: 50vh;
+		height: 50dvh;
+		background: var(--_sheet-bg);
+		/* Animate height when GIF picker opens/closes */
+		transition:
+			transform 300ms cubic-bezier(0.32, 0.72, 0, 1),
+			height 300ms cubic-bezier(0.32, 0.72, 0, 1);
+	}
+	/* Expand to fill the full visible viewport so the GIF grid is never
+	   hidden behind the keyboard — dvh always equals the above-keyboard space */
+	.comments-sheet-wrapper.gif-open :global(.base-sheet) {
+		height: 100vh;
+		height: 100dvh;
+	}
+	/* Keep drag-to-dismiss instant while dragging */
+	.comments-sheet-wrapper :global(.base-sheet.dragging) {
+		transition: none;
 	}
 	.content-area {
 		flex: 1;
@@ -385,18 +420,17 @@
 		align-items: center;
 		gap: var(--space-sm);
 		padding: var(--space-xs) 0;
-		opacity: 0.55;
 	}
 	.reaction-emoji {
 		font-size: 0.875rem;
 	}
 	.reaction-text {
 		font-size: 0.75rem;
-		color: var(--text-muted);
+		color: var(--text-secondary);
 	}
 	.reaction-time {
 		font-size: 0.6875rem;
-		color: var(--text-muted);
+		color: var(--text-secondary);
 		margin-left: auto;
 	}
 	.replies {

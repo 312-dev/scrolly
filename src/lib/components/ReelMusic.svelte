@@ -7,6 +7,7 @@
 		active,
 		muted,
 		autoScroll,
+		forceLoop = false,
 		playbackRate = 1,
 		onretry,
 		onended,
@@ -25,6 +26,7 @@
 		active: boolean;
 		muted: boolean;
 		autoScroll: boolean;
+		forceLoop?: boolean;
 		playbackRate?: number;
 		onretry: (id: string) => void;
 		onended: () => void;
@@ -99,11 +101,11 @@
 				bind:this={audioEl}
 				src={getAudioUrl(clip.audioPath)}
 				preload="auto"
-				loop={!autoScroll}
+				loop={!autoScroll || forceLoop}
 				onplay={() => (playing = true)}
 				onpause={() => (playing = false)}
 				onended={() => {
-					if (autoScroll) onended();
+					if (autoScroll && !forceLoop) onended();
 				}}
 			></audio>
 		{/if}

@@ -41,6 +41,14 @@
 	let overlayEl: HTMLDivElement | null = $state(null);
 	let swipeX = $state(0);
 	let swipeAnimating = $state(false);
+	let isEntering = $state(true);
+
+	$effect(() => {
+		const t = setTimeout(() => {
+			isEntering = false;
+		}, 300);
+		return () => clearTimeout(t);
+	});
 
 	// Viewers sheet (rendered here since ViewBadge is in our top bar)
 	let showViewers = $state(false);
@@ -99,22 +107,22 @@
 		let decided = false;
 		let isHorizontal = false;
 
-		function onTouchStart(e: TouchEvent) {
-			if (swipeAnimating) return;
+		function onPointerDown(e: PointerEvent) {
+			if (swipeAnimating || isEntering) return;
 			const target = e.target as HTMLElement;
 			// Don't interfere with progress bar or interactive elements
 			if (target.closest('.progress-bar') || target.closest('.base-sheet')) return;
 			tracking = true;
-			startX = e.touches[0].clientX;
-			startY = e.touches[0].clientY;
+			startX = e.clientX;
+			startY = e.clientY;
 			decided = false;
 			isHorizontal = false;
 		}
 
-		function onTouchMove(e: TouchEvent) {
+		function onPointerMove(e: PointerEvent) {
 			if (!tracking || swipeAnimating) return;
-			const dx = e.touches[0].clientX - startX;
-			const dy = e.touches[0].clientY - startY;
+			const dx = e.clientX - startX;
+			const dy = e.clientY - startY;
 
 			if (!decided) {
 				if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
@@ -124,13 +132,12 @@
 			}
 
 			if (!isHorizontal) return;
-			e.preventDefault();
 
 			// Only allow leftward swipe to dismiss; rightward gets rubber-band damping
 			swipeX = dx > 0 ? dx * 0.15 : dx;
 		}
 
-		function onTouchEnd() {
+		function onPointerUp() {
 			if (!tracking || !isHorizontal) {
 				tracking = false;
 				decided = false;
@@ -161,13 +168,15 @@
 			}, 250);
 		}
 
-		el.addEventListener('touchstart', onTouchStart, { passive: true });
-		el.addEventListener('touchmove', onTouchMove, { passive: false });
-		el.addEventListener('touchend', onTouchEnd, { passive: true });
+		el.addEventListener('pointerdown', onPointerDown);
+		el.addEventListener('pointermove', onPointerMove);
+		el.addEventListener('pointerup', onPointerUp);
+		el.addEventListener('pointercancel', onPointerUp);
 		return () => {
-			el.removeEventListener('touchstart', onTouchStart);
-			el.removeEventListener('touchmove', onTouchMove);
-			el.removeEventListener('touchend', onTouchEnd);
+			el.removeEventListener('pointerdown', onPointerDown);
+			el.removeEventListener('pointermove', onPointerMove);
+			el.removeEventListener('pointerup', onPointerUp);
+			el.removeEventListener('pointercancel', onPointerUp);
 		};
 	});
 
@@ -215,17 +224,19 @@
 >
 	<!-- Top bar: back button + view badge -->
 	<div class="overlay-top-bar">
-		<button class="back-btn" onclick={handleDismiss} aria-label="Go back">
-			<CaretLeftIcon size={22} weight="bold" />
-		</button>
-		{#if clip && clip.viewCount > 0}
-			<ViewBadge
-				viewCount={clip.viewCount}
-				ontap={() => {
-					showViewers = true;
-				}}
-			/>
-		{/if}
+		<div class="overlay-top-row">
+			<button class="back-btn" onclick={handleDismiss} aria-label="Go back">
+				<CaretLeftIcon size={22} weight="bold" />
+			</button>
+			{#if clip && clip.viewCount > 0}
+				<ViewBadge
+					viewCount={clip.viewCount}
+					ontap={() => {
+						showViewers = true;
+					}}
+				/>
+			{/if}
+		</div>
 	</div>
 
 	{#if loading}
@@ -270,21 +281,43 @@
 		inset: 0;
 		z-index: 40;
 		background: var(--bg-primary);
+		touch-action: pan-y;
+		/* No tab bar — baseline is safe area minus the 4px bar gap, so the comment bar
+		   lands flush at the safe area edge. Clamped at 0 for devices with no safe area. */
+		--bottom-nav-height: max(0px, calc(env(safe-area-inset-bottom, 0px) - 4px));
+		animation: slide-in-right 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
+	}
+
+	@keyframes slide-in-right {
+		from {
+			transform: translateX(100%);
+		}
+		to {
+			transform: translateX(0);
+		}
 	}
 
 	.clip-overlay.animating {
+		animation: none;
 		transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
 	}
 
 	.overlay-top-bar {
 		position: absolute;
-		top: max(var(--space-md), env(safe-area-inset-top));
-		left: var(--space-lg);
+		top: 0;
+		left: 0;
+		right: 0;
+		padding-top: max(var(--space-md), env(safe-area-inset-top));
+		padding-left: var(--space-lg);
+		padding-right: var(--space-lg);
 		z-index: 6;
+		pointer-events: none;
+	}
+	.overlay-top-row {
 		display: flex;
-		align-items: center;
-		gap: var(--space-sm);
-		min-height: 40px;
+		align-items: stretch;
+		justify-content: space-between;
+		height: 40px;
 	}
 
 	.back-btn {
@@ -292,7 +325,6 @@
 		align-items: center;
 		justify-content: center;
 		width: 40px;
-		height: 40px;
 		background: rgba(0, 0, 0, 0.5);
 		backdrop-filter: blur(8px);
 		-webkit-backdrop-filter: blur(8px);
@@ -301,6 +333,7 @@
 		color: var(--reel-text);
 		cursor: pointer;
 		transition: transform 0.1s ease;
+		pointer-events: auto;
 	}
 
 	.back-btn:active {
@@ -309,6 +342,11 @@
 
 	.back-btn :global(svg) {
 		filter: drop-shadow(0 1px 2px var(--reel-text-shadow));
+	}
+
+	/* ViewBadge sits in the pointer-events:none bar — re-enable for its button */
+	.overlay-top-bar :global(.view-badge) {
+		pointer-events: auto;
 	}
 
 	.overlay-reel {

@@ -14,11 +14,13 @@
 	const {
 		onselect,
 		onclose,
-		autoFocus = false
+		autoFocus = false,
+		compact = false
 	}: {
 		onselect: (gif: GifResult) => void;
 		onclose?: () => void;
 		autoFocus?: boolean;
+		compact?: boolean;
 	} = $props();
 
 	function handleSearchKeydown(e: KeyboardEvent) {
@@ -136,54 +138,153 @@
 	}
 </script>
 
-<div class="gif-picker">
-	<div class="picker-header">
-		<div class="search-field">
-			<MagnifyingGlassIcon size={16} weight="bold" />
-			<input
-				bind:this={searchInputEl}
-				type="text"
-				bind:value={query}
-				placeholder="Search GIPHY"
-				inputmode="search"
-				onkeydown={handleSearchKeydown}
-			/>
+{#if compact}
+	<div class="gif-picker-compact">
+		<div class="compact-search-wrap">
+			<div class="search-field">
+				<MagnifyingGlassIcon size={14} weight="bold" />
+				<input
+					bind:this={searchInputEl}
+					type="text"
+					bind:value={query}
+					placeholder="Search GIFs"
+					inputmode="search"
+					onkeydown={handleSearchKeydown}
+				/>
+			</div>
+		</div>
+		<div class="compact-row" bind:this={gridEl}>
+			{#if loading && gifs.length === 0}
+				<div class="compact-status-wrap"><p class="status">Loading...</p></div>
+			{:else if gifs.length === 0}
+				<div class="compact-status-wrap"><p class="status">No GIFs found</p></div>
+			{:else}
+				{#each gifs as gif (gif.id)}
+					<button class="compact-gif-btn" onclick={() => onselect(gif)}>
+						<img
+							src={gif.stillUrl}
+							data-animated={gif.url}
+							data-still={gif.stillUrl}
+							alt={gif.title}
+							loading="lazy"
+							style="aspect-ratio: {gif.width}/{gif.height}"
+						/>
+					</button>
+				{/each}
+			{/if}
 		</div>
 	</div>
+{:else}
+	<div class="gif-picker">
+		<div class="picker-header">
+			<div class="search-field">
+				<MagnifyingGlassIcon size={16} weight="bold" />
+				<input
+					bind:this={searchInputEl}
+					type="text"
+					bind:value={query}
+					placeholder="Search GIPHY"
+					inputmode="search"
+					onkeydown={handleSearchKeydown}
+				/>
+			</div>
+		</div>
 
-	<div class="gif-grid" bind:this={gridEl}>
-		{#if loading && gifs.length === 0}
-			<div class="status-wrap">
-				<p class="status">Loading...</p>
-			</div>
-		{:else if gifs.length === 0}
-			<div class="status-wrap">
-				<p class="status">No GIFs found</p>
-			</div>
-		{:else}
-			{#each columns as col, i (i)}
-				<div class="masonry-col">
-					{#each col as gif (gif.id)}
-						<button class="gif-item" onclick={() => onselect(gif)}>
-							<img
-								src={gif.stillUrl}
-								data-animated={gif.url}
-								data-still={gif.stillUrl}
-								alt={gif.title}
-								loading="lazy"
-								style="aspect-ratio: {gif.width}/{gif.height}"
-							/>
-						</button>
-					{/each}
+		<div class="gif-grid" bind:this={gridEl}>
+			{#if loading && gifs.length === 0}
+				<div class="status-wrap">
+					<p class="status">Loading...</p>
 				</div>
-			{/each}
-		{/if}
-	</div>
+			{:else if gifs.length === 0}
+				<div class="status-wrap">
+					<p class="status">No GIFs found</p>
+				</div>
+			{:else}
+				{#each columns as col, i (i)}
+					<div class="masonry-col">
+						{#each col as gif (gif.id)}
+							<button class="gif-item" onclick={() => onselect(gif)}>
+								<img
+									src={gif.stillUrl}
+									data-animated={gif.url}
+									data-still={gif.stillUrl}
+									alt={gif.title}
+									loading="lazy"
+									style="aspect-ratio: {gif.width}/{gif.height}"
+								/>
+							</button>
+						{/each}
+					</div>
+				{/each}
+			{/if}
+		</div>
 
-	<div class="attribution">Powered by GIPHY</div>
-</div>
+		<div class="attribution">Powered by GIPHY</div>
+	</div>
+{/if}
 
 <style>
+	/* ── Compact horizontal carousel ── */
+	.gif-picker-compact {
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+		min-height: 0;
+		background: var(--bg-elevated);
+		border-top: 1px solid var(--border);
+	}
+
+	.compact-search-wrap {
+		flex-shrink: 0;
+		padding: var(--space-xs) var(--space-md);
+		border-bottom: 1px solid var(--border);
+	}
+
+	.compact-row {
+		flex: 1;
+		min-height: 0;
+		display: flex;
+		flex-direction: row;
+		align-items: stretch;
+		overflow-x: auto;
+		overflow-y: hidden;
+		gap: 4px;
+		padding: var(--space-xs) var(--space-sm);
+		-webkit-overflow-scrolling: touch;
+		scrollbar-width: none;
+	}
+	.compact-row::-webkit-scrollbar {
+		display: none;
+	}
+
+	.compact-status-wrap {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex: 1;
+	}
+
+	.compact-gif-btn {
+		flex-shrink: 0;
+		border: none;
+		border-radius: var(--radius-sm);
+		overflow: hidden;
+		cursor: pointer;
+		padding: 0;
+		background: var(--bg-surface);
+		height: 100%;
+		display: block;
+	}
+	.compact-gif-btn:active {
+		transform: scale(0.97);
+	}
+	.compact-gif-btn img {
+		height: 100%;
+		width: auto;
+		display: block;
+	}
+
+	/* ── Full grid picker ── */
 	.gif-picker {
 		display: flex;
 		flex-direction: column;

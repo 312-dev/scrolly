@@ -2,7 +2,7 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
 		<meta name="description" content="Private video sharing for your friend group" />
 		<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
 		<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
@@ -37,6 +37,17 @@
 							document.documentElement.style.setProperty('--accent-primary-dark', c.dark);
 						}
 					} catch(e) { /* ignore malformed cookie */ }
+				}
+				// Feed route: set dark background immediately (before JS hydrates) so the iOS
+				// black-translucent status bar sees the correct reel-bg color on cold start.
+				if (window.location.pathname === '/') {
+					document.documentElement.classList.add('feed-context');
+					var pref = m && m[1] !== 'system' ? m[1] : 'system';
+					var isDark = pref === 'dark' || (pref !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+					var reelBg = isDark ? '#0d0d0d' : '#1c1c1c';
+					document.querySelectorAll('meta[name="theme-color"]').forEach(function(el) {
+						el.setAttribute('content', reelBg);
+					});
 				}
 			})();
 		</script>

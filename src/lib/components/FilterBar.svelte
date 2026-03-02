@@ -19,8 +19,8 @@
 		pullOffset?: number;
 	} = $props();
 
-	const filters: FeedFilter[] = ['unwatched', 'watched', 'favorites'];
-	const labels = ['New', 'Watched', 'Faves'];
+	const filters: FeedFilter[] = ['unwatched', 'watched'];
+	const labels = ['New', 'Seen'];
 	const activeIndex = $derived(filters.indexOf(filter));
 
 	let containerEl: HTMLDivElement | undefined = $state();
@@ -41,6 +41,8 @@
 	$effect(() => {
 		const idx = activeIndex;
 		const progress = swipeProgress;
+		// eslint-disable-next-line sonarjs/void-use -- re-run when badge appears/disappears so width updates
+		void unwatchedCount;
 		const base = getLabelPos(idx);
 		if (!base) return;
 
@@ -128,7 +130,7 @@
 		position: relative;
 		padding: 8px var(--space-md);
 		background: none;
-		color: rgba(255, 255, 255, 0.5);
+		color: var(--reel-text-subtle);
 		border: none;
 		border-radius: 0;
 		font-family: var(--font-display);
@@ -164,7 +166,7 @@
 		position: absolute;
 		bottom: 0;
 		height: 3px;
-		background: var(--text-primary);
+		background: var(--reel-text);
 		border-radius: var(--radius-full);
 		transition:
 			left 0.25s cubic-bezier(0.32, 0.72, 0, 1),

@@ -7,6 +7,7 @@
 		active,
 		muted,
 		autoScroll,
+		forceLoop = false,
 		playbackRate = 1,
 		onretry,
 		onended,
@@ -22,6 +23,7 @@
 		active: boolean;
 		muted: boolean;
 		autoScroll: boolean;
+		forceLoop?: boolean;
 		playbackRate?: number;
 		onretry: (id: string) => void;
 		onended: () => void;
@@ -78,12 +80,12 @@
 			poster={getThumbnailUrl(clip.thumbnailPath)}
 			playsinline
 			preload="auto"
-			loop={!autoScroll}
+			loop={!autoScroll || forceLoop}
 			muted
 			class="reel-video"
 			oncontextmenu={(e) => e.preventDefault()}
 			onended={() => {
-				if (autoScroll) onended();
+				if (autoScroll && !forceLoop) onended();
 			}}
 		></video>
 	</div>

@@ -7,8 +7,7 @@
 		appleMusicUrl = null,
 		youtubeMusicUrl = null,
 		active,
-		paused,
-		uiHidden
+		paused
 	}: {
 		albumArt: string;
 		spotifyUrl?: string | null;
@@ -16,7 +15,6 @@
 		youtubeMusicUrl?: string | null;
 		active: boolean;
 		paused: boolean;
-		uiHidden: boolean;
 	} = $props();
 
 	let showMusicLinks = $state(false);
@@ -32,7 +30,7 @@
 	></div>
 {/if}
 
-<div class="music-disc-area" class:ui-hidden={uiHidden}>
+<div class="music-disc-area">
 	<button
 		type="button"
 		class="music-disc"
@@ -95,20 +93,14 @@
 
 <style>
 	.music-links-backdrop {
-		position: absolute;
+		position: fixed;
 		inset: 0;
 		z-index: 9;
 	}
 	.music-disc-area {
-		position: absolute;
-		right: var(--space-lg);
-		bottom: calc(var(--bottom-nav-height, 64px) + 28px);
-		z-index: 10;
-		transition: opacity 0.3s ease;
-	}
-	.music-disc-area.ui-hidden {
-		opacity: 0;
-		pointer-events: none;
+		position: relative;
+		flex-shrink: 0;
+		margin-left: auto;
 	}
 	.music-disc {
 		width: 44px;
@@ -121,6 +113,7 @@
 		background: none;
 		cursor: pointer;
 		flex-shrink: 0;
+		display: block;
 	}
 	.music-disc.spinning {
 		animation: spin-disc 4s linear infinite;
@@ -143,6 +136,7 @@
 		border-radius: var(--radius-md);
 		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 		animation: links-slide-in 200ms cubic-bezier(0.32, 0.72, 0, 1);
+		z-index: 10;
 	}
 	@keyframes links-slide-in {
 		from {

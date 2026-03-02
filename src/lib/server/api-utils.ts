@@ -3,6 +3,7 @@ import { db } from '$lib/server/db';
 import { clips, users, notificationPreferences, notifications } from '$lib/server/db/schema';
 import { eq, and, inArray, type InferSelectModel } from 'drizzle-orm';
 import { sendNotification } from '$lib/server/push';
+import { env } from '$env/dynamic/private';
 import { v4 as uuid } from 'uuid';
 import { createLogger } from '$lib/server/logger';
 
@@ -196,6 +197,7 @@ export async function notifyClipOwner(opts: {
 	recipientId: string;
 	actorId: string;
 	actorUsername: string;
+	actorAvatarPath?: string | null;
 	clipId: string;
 	type: 'reaction' | 'comment' | 'reply';
 	preferenceKey: 'reactions' | 'comments';
@@ -215,11 +217,16 @@ export async function notifyClipOwner(opts: {
 			opts.type === 'comment' || opts.type === 'reply'
 				? `/?clip=${opts.clipId}&comments=true`
 				: `/?clip=${opts.clipId}`;
+		const image =
+			opts.actorAvatarPath && env.ORIGIN
+				? `${env.ORIGIN}/api/profile/avatar/${opts.actorAvatarPath}`
+				: undefined;
 		sendNotification(opts.recipientId, {
 			title: opts.pushTitle,
 			body: opts.pushBody,
 			url,
-			tag: opts.pushTag
+			tag: opts.pushTag,
+			...(image ? { image } : {})
 		}).catch((err) => log.error({ err }, 'push notification failed'));
 	}
 

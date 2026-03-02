@@ -127,7 +127,7 @@ export const GET: RequestHandler = withClipAuth(async ({ params }, { user }) => 
 async function dispatchCommentNotification(
 	clipId: string,
 	parentId: string | null,
-	actor: { id: string; username: string },
+	actor: { id: string; username: string; avatarPath: string | null },
 	preview: string
 ): Promise<string | null> {
 	if (parentId) {
@@ -139,6 +139,7 @@ async function dispatchCommentNotification(
 				recipientId: parentComment.userId,
 				actorId: actor.id,
 				actorUsername: actor.username,
+				actorAvatarPath: actor.avatarPath,
 				clipId,
 				type: 'reply',
 				preferenceKey: 'comments',
@@ -156,6 +157,7 @@ async function dispatchCommentNotification(
 				recipientId: clip.addedBy,
 				actorId: actor.id,
 				actorUsername: actor.username,
+				actorAvatarPath: actor.avatarPath,
 				clipId,
 				type: 'comment',
 				preferenceKey: 'comments',
@@ -242,6 +244,7 @@ export const POST: RequestHandler = withClipAuth(async ({ params, request }, { u
 			mentionedUsernames,
 			actorId: user.id,
 			actorUsername: user.username,
+			actorAvatarPath: user.avatarPath,
 			clipId,
 			groupId: user.groupId,
 			commentPreview: preview,

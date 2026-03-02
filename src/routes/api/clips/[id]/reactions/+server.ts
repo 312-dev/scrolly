@@ -76,6 +76,7 @@ export const POST: RequestHandler = withClipAuth(async ({ params, request }, { u
 			recipientId: clip.addedBy,
 			actorId: userId,
 			actorUsername: user.username,
+			actorAvatarPath: user.avatarPath,
 			clipId,
 			type: 'reaction',
 			preferenceKey: 'reactions',

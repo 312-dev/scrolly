@@ -93,9 +93,10 @@
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<span
 					class="heart-wrapper"
-					ontouchstart={onstartlongpress}
-					ontouchend={oncancellongpress}
-					ontouchcancel={oncancellongpress}
+					onpointerdown={onstartlongpress}
+					onpointerup={oncancellongpress}
+					onpointercancel={oncancellongpress}
+					onpointerleave={oncancellongpress}
 				>
 					<button
 						class="heart-btn"
@@ -121,9 +122,10 @@
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<span
 					class="heart-wrapper"
-					ontouchstart={onstartlongpress}
-					ontouchend={oncancellongpress}
-					ontouchcancel={oncancellongpress}
+					onpointerdown={onstartlongpress}
+					onpointerup={oncancellongpress}
+					onpointercancel={oncancellongpress}
+					onpointerleave={oncancellongpress}
 				>
 					<span class="heart-count-only">
 						<HeartIcon size={iconSize} weight="regular" />

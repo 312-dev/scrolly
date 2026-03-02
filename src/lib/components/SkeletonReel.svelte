@@ -16,6 +16,9 @@
 		<div class="bone-text" style="width: 200px"></div>
 		<div class="bone-text short" style="width: 140px"></div>
 	</div>
+
+	<!-- Comment prompt bone -->
+	<div class="comment-bone"></div>
 </div>
 
 <style>
@@ -49,8 +52,8 @@
 
 	.sidebar-bones {
 		position: absolute;
-		right: var(--space-md);
-		bottom: calc(var(--bottom-nav-height, 64px) + 10px);
+		right: var(--space-lg);
+		bottom: calc(var(--bottom-nav-height, 64px) + 84px);
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-lg);
@@ -66,11 +69,22 @@
 
 	.overlay-bones {
 		position: absolute;
-		bottom: var(--bottom-nav-height, 64px);
+		bottom: calc(var(--bottom-nav-height, 64px) + 84px);
 		left: var(--space-lg);
+		right: calc(var(--space-lg) + 64px);
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-sm);
+	}
+
+	.comment-bone {
+		position: absolute;
+		bottom: calc(var(--bottom-nav-height, 64px) + 4px);
+		left: var(--space-lg);
+		right: var(--space-lg);
+		height: 44px;
+		border-radius: var(--radius-full);
+		background: rgba(255, 255, 255, 0.06);
 	}
 
 	.bone-row {

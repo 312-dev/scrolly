@@ -1,6 +1,5 @@
 <script lang="ts">
-	import GifIcon from 'phosphor-svelte/lib/GifIcon';
-	import KeyboardIcon from 'phosphor-svelte/lib/KeyboardIcon';
+	import PaperPlaneTiltIcon from 'phosphor-svelte/lib/PaperPlaneTiltIcon';
 	import MentionInput from './MentionInput.svelte';
 	import type { GroupMember } from '$lib/types';
 
@@ -30,8 +29,12 @@
 
 	let text = $state('');
 	let mentionInputRef = $state<ReturnType<typeof MentionInput> | null>(null);
+	let inputWrapperHeight = $state(0);
 
 	const canSubmit = $derived(text.trim().length > 0 || !!attachedGif);
+	// Switch from centered to bottom-anchored once the input grows past 1 line.
+	// Single-line height is ~36px; threshold of 50px gives plenty of buffer.
+	const isMultiLine = $derived(inputWrapperHeight > 50);
 
 	export function focus() {
 		mentionInputRef?.focus();
@@ -88,38 +91,51 @@
 {/if}
 
 <form class="input-bar" onsubmit={handleSubmit}>
-	<button
-		type="button"
-		class="gif-btn"
-		class:active={gifPickerOpen || !!attachedGif}
-		disabled={!gifEnabled}
-		onclick={ongiftoggle}
-		aria-label={gifBtnLabel}
-		title={gifEnabled ? '' : 'Host must configure GIPHY API key'}
+	<div
+		class="input-wrapper"
+		class:has-gif={gifEnabled}
+		class:multi-line={isMultiLine}
+		bind:offsetHeight={inputWrapperHeight}
 	>
-		{#if gifPickerOpen}
-			<KeyboardIcon size={26} />
-		{:else}
-			<GifIcon size={26} />
-		{/if}
-	</button>
-	<MentionInput
-		bind:this={mentionInputRef}
-		placeholder={replyingTo ? `Reply to ${replyingTo.username}...` : 'Add a comment...'}
-		maxlength={500}
-		disabled={submitting}
-		{members}
-		maxRows={3}
-		onchange={(t) => {
-			text = t;
-		}}
-		onfocus={handleInputFocus}
-		onsubmit={() => {
-			if (canSubmit && !submitting)
-				onsubmit(stripEmptyLines(text.trim()), attachedGif?.shareUrl || attachedGif?.url);
-		}}
-	/>
-	<button type="submit" disabled={!canSubmit || submitting}>Send</button>
+		<MentionInput
+			bind:this={mentionInputRef}
+			placeholder={replyingTo ? `Reply to ${replyingTo.username}...` : 'Add a comment...'}
+			maxlength={500}
+			disabled={submitting}
+			{members}
+			maxRows={3}
+			onchange={(t) => {
+				text = t;
+			}}
+			onfocus={handleInputFocus}
+			onsubmit={() => {
+				if (canSubmit && !submitting)
+					onsubmit(stripEmptyLines(text.trim()), attachedGif?.shareUrl || attachedGif?.url);
+			}}
+		/>
+		<div class="input-actions">
+			{#if gifEnabled}
+				<button
+					type="button"
+					class="gif-pill"
+					class:active={gifPickerOpen || !!attachedGif}
+					onclick={ongiftoggle}
+					aria-label={gifBtnLabel}
+				>
+					GIF
+				</button>
+			{/if}
+			<button
+				type="submit"
+				class="send-btn"
+				class:active={canSubmit}
+				disabled={!canSubmit || submitting}
+				aria-label="Send comment"
+			>
+				<PaperPlaneTiltIcon size={20} weight={canSubmit ? 'fill' : 'regular'} />
+			</button>
+		</div>
+	</div>
 </form>
 
 <style>
@@ -190,71 +206,117 @@
 
 	.input-bar {
 		display: flex;
-		align-items: flex-end;
-		gap: var(--space-sm);
 		padding: var(--space-md) var(--space-lg);
 		border-top: 1px solid var(--border);
 		background: var(--bg-surface);
-		padding-bottom: max(12px, env(safe-area-inset-bottom));
+		padding-bottom: max(var(--space-md), env(safe-area-inset-bottom));
 	}
-	.input-bar :global(.mention-input-wrap) {
+
+	.input-wrapper {
+		position: relative;
 		flex: 1;
 		min-width: 0;
 	}
-	.input-bar :global(.mention-input-wrap .input-container) {
+	.input-wrapper :global(.mention-input-wrap) {
+		width: 100%;
+	}
+	.input-wrapper :global(.input-container) {
 		border-radius: var(--radius-md);
 	}
-	.input-bar :global(.mention-input-wrap .overlay-input),
-	.input-bar :global(.mention-input-wrap .highlight-mirror) {
+	/* Vertical padding sets the single-line height; reserve right space for send icon.
+	 * padding-top is larger than padding-bottom to optically center the text — glyphs
+	 * sit above the geometric midpoint of their line box, so extra top padding shifts
+	 * the perceived text center down to match the vertically-centered icons. */
+	.input-wrapper :global(.overlay-input),
+	.input-wrapper :global(.highlight-mirror) {
 		font-size: 1rem;
+		padding-top: 11px;
+		padding-bottom: 7px;
+		padding-right: 38px;
+	}
+	/*
+	 * Pin the initial textarea height to exactly 1 line so UA stylesheets
+	 * can't inflate it and push icons below the text. autoResize() overrides
+	 * this via inline style once the user starts typing.
+	 */
+	.input-wrapper :global(textarea.overlay-input) {
+		height: calc(1.4em + 18px);
+		/* Strip macOS/iOS native appearance so our height rule takes full control */
+		-webkit-appearance: none;
+		appearance: none;
+	}
+	/* More right space when GIF pill is also showing */
+	.input-wrapper.has-gif :global(.overlay-input),
+	.input-wrapper.has-gif :global(.highlight-mirror) {
+		padding-right: 70px;
 	}
 
-	.gif-btn {
+	/* Actions row: centered vertically on single-line, bottom-anchored as input grows. */
+	.input-actions {
+		position: absolute;
+		top: 50%;
+		transform: translateY(-50%);
+		right: 8px;
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		z-index: 10;
+	}
+	.input-wrapper.multi-line .input-actions {
+		top: auto;
+		bottom: 7px;
+		transform: none;
+	}
+
+	.gif-pill {
+		padding: 3px 7px;
+		background: var(--bg-subtle);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-full);
+		font-size: 0.5625rem;
+		font-weight: 800;
+		letter-spacing: 0.06em;
+		line-height: 1.4;
+		color: var(--text-muted);
+		cursor: pointer;
+		transition:
+			background 0.15s,
+			color 0.15s,
+			border-color 0.15s;
+	}
+	.gif-pill.active {
+		background: color-mix(in srgb, var(--accent-primary) 18%, var(--bg-subtle));
+		border-color: color-mix(in srgb, var(--accent-primary) 40%, var(--border));
+		color: var(--accent-primary);
+	}
+	.gif-pill:active {
+		transform: scale(0.93);
+	}
+
+	.send-btn {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		flex-shrink: 0;
-		width: 32px;
-		height: 32px;
-		padding: 0;
-		background: none;
-		color: var(--text-muted);
-		border: none;
-		border-radius: var(--radius-full);
-		cursor: pointer;
-		transition: color 0.2s ease;
-	}
-	.gif-btn :global(svg) {
 		width: 26px;
 		height: 26px;
-	}
-	.gif-btn:active:not(:disabled) {
-		transform: scale(0.93);
-	}
-	.gif-btn.active {
-		color: var(--accent-primary);
-	}
-	.gif-btn:disabled {
-		opacity: 0.3;
-		cursor: not-allowed;
-	}
-
-	.input-bar button[type='submit'] {
-		padding: var(--space-sm) var(--space-lg);
-		background: var(--accent-primary);
-		color: var(--bg-primary);
+		padding: 0;
+		background: none;
 		border: none;
 		border-radius: var(--radius-full);
-		font-size: 0.8125rem;
-		font-weight: 700;
+		color: var(--text-muted);
 		cursor: pointer;
-		transition: transform 0.1s ease;
+		transition:
+			color 0.15s,
+			transform 0.1s;
+		flex-shrink: 0;
 	}
-	.input-bar button[type='submit']:active {
-		transform: scale(0.97);
+	.send-btn.active {
+		color: var(--accent-primary);
 	}
-	.input-bar button[type='submit']:disabled {
-		opacity: 0.4;
+	.send-btn:active:not(:disabled) {
+		transform: scale(0.88);
+	}
+	.send-btn:disabled {
 		cursor: not-allowed;
 	}
 </style>

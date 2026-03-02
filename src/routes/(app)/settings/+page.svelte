@@ -340,6 +340,8 @@
 						{pushLoading}
 						{prefs}
 						{prefsLoading}
+						isStandaloneMode={$isStandalone}
+						isIos={platform === 'ios'}
 						onTogglePush={togglePush}
 						onUpdatePref={handleUpdatePref}
 					/>

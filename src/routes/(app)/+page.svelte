@@ -1,7 +1,6 @@
 <script lang="ts">
 	/* eslint-disable max-lines */
 	import ReelItem from '$lib/components/ReelItem.svelte';
-	import AddVideoModal from '$lib/components/AddVideoModal.svelte';
 	import FilterBar from '$lib/components/FilterBar.svelte';
 	import SkeletonReel from '$lib/components/SkeletonReel.svelte';
 	import LinkIcon from 'phosphor-svelte/lib/LinkIcon';
@@ -11,9 +10,18 @@
 	import { addVideoModalOpen } from '$lib/stores/addVideoModal';
 	import ClipOverlay from '$lib/components/ClipOverlay.svelte';
 	import { addToast, toast, clipReadySignal, clipOverlaySignal } from '$lib/stores/toasts';
+	import {
+		isStandalone,
+		showInstallBanner,
+		showIosInstallBanner,
+		triggerInstall
+	} from '$lib/stores/pwa';
+	import { isPushSupported, getExistingSubscription, subscribeToPush } from '$lib/push';
 	import { homeTapSignal } from '$lib/stores/homeTap';
 	import { unwatchedCount, fetchUnwatchedCount } from '$lib/stores/notifications';
 	import { feedUiHidden } from '$lib/stores/uiHidden';
+	import { anySheetOpen } from '$lib/stores/sheetOpen';
+	import { get } from 'svelte/store';
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/state';
 	import type { FeedClip } from '$lib/types';
@@ -75,7 +83,7 @@
 	let dragCounter = 0;
 
 	// Horizontal swipe state
-	const FILTERS: FeedFilter[] = ['unwatched', 'watched', 'favorites'];
+	const FILTERS: FeedFilter[] = ['unwatched', 'watched'];
 	let swipeX = $state(0);
 	let swipeAnimating = $state(false);
 	let isHorizontalSwiping = $state(false);
@@ -93,6 +101,11 @@
 	const currentUserId = $derived(page.data.user?.id ?? '');
 	const autoScroll = $derived(page.data.user?.autoScroll ?? false);
 	const gifEnabled = $derived(!!page.data.gifEnabled);
+	const vapidPublicKey = $derived(page.data.vapidPublicKey as string);
+
+	let pushSupported = $state(false);
+	let pushEnabled = $state(false);
+	let pushEnabling = $state(false);
 
 	async function loadInitialClips() {
 		loading = true;
@@ -210,30 +223,33 @@
 		const el = feedWrapper;
 		const getScrollTop = () => scrollContainer?.scrollTop ?? 0;
 
-		function handleTouchStart(e: TouchEvent) {
+		function handlePointerDown(e: PointerEvent) {
+			if (e.pointerType !== 'touch') return;
+			if (get(anySheetOpen)) return;
 			if (getScrollTop() <= 0 && !isRefreshing) {
-				touchStartY = e.touches[0].clientY;
+				touchStartY = e.clientY;
 				isPullingActive = true;
 			}
 		}
 
-		function handleTouchMove(e: TouchEvent) {
+		function handlePointerMove(e: PointerEvent) {
+			if (e.pointerType !== 'touch') return;
 			if (!isPullingActive || isRefreshing || isHorizontalSwiping) return;
 			if (getScrollTop() > 0) {
 				isPullingActive = false;
 				pullDistance = 0;
 				return;
 			}
-			const delta = e.touches[0].clientY - touchStartY;
+			const delta = e.clientY - touchStartY;
 			if (delta > 0) {
 				pullDistance = Math.min(delta * 0.4, 120);
-				if (pullDistance > 10) e.preventDefault();
 			} else {
 				pullDistance = 0;
 			}
 		}
 
-		function handleTouchEnd() {
+		function handlePointerUp(e: PointerEvent) {
+			if (e.pointerType !== 'touch') return;
 			if (pullDistance > 0) endPull(pullDistance >= PULL_THRESHOLD && !isRefreshing);
 			isPullingActive = false;
 		}
@@ -270,14 +286,16 @@
 			}, 150);
 		}
 
-		el.addEventListener('touchstart', handleTouchStart, { passive: true });
-		el.addEventListener('touchmove', handleTouchMove, { passive: false });
-		el.addEventListener('touchend', handleTouchEnd, { passive: true });
+		el.addEventListener('pointerdown', handlePointerDown);
+		el.addEventListener('pointermove', handlePointerMove);
+		el.addEventListener('pointerup', handlePointerUp);
+		el.addEventListener('pointercancel', handlePointerUp);
 		el.addEventListener('wheel', handleWheel, { passive: false });
 		return () => {
-			el.removeEventListener('touchstart', handleTouchStart);
-			el.removeEventListener('touchmove', handleTouchMove);
-			el.removeEventListener('touchend', handleTouchEnd);
+			el.removeEventListener('pointerdown', handlePointerDown);
+			el.removeEventListener('pointermove', handlePointerMove);
+			el.removeEventListener('pointerup', handlePointerUp);
+			el.removeEventListener('pointercancel', handlePointerUp);
 			el.removeEventListener('wheel', handleWheel);
 			if (wheelTimer) clearTimeout(wheelTimer);
 		};
@@ -293,7 +311,7 @@
 		let decided = false;
 		let isHorizontal = false;
 
-		function onTouchStart(e: TouchEvent) {
+		function onPointerDown(e: PointerEvent) {
 			if (swipeAnimating) return;
 			const target = e.target as HTMLElement;
 			if (target.closest('.progress-bar')) {
@@ -301,17 +319,17 @@
 				return;
 			}
 			tracking = true;
-			startX = e.touches[0].clientX;
-			startY = e.touches[0].clientY;
+			startX = e.clientX;
+			startY = e.clientY;
 			decided = false;
 			isHorizontal = false;
 			isHorizontalSwiping = false;
 		}
 
-		function onTouchMove(e: TouchEvent) {
+		function onPointerMove(e: PointerEvent) {
 			if (!tracking || swipeAnimating) return;
-			const dx = e.touches[0].clientX - startX;
-			const dy = e.touches[0].clientY - startY;
+			const dx = e.clientX - startX;
+			const dy = e.clientY - startY;
 
 			if (!decided) {
 				if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
@@ -322,14 +340,13 @@
 			}
 
 			if (!isHorizontal) return;
-			e.preventDefault();
 
 			const atFirst = filterIndex === 0 && dx > 0;
 			const atLast = filterIndex === FILTERS.length - 1 && dx < 0;
 			swipeX = atFirst || atLast ? dx * 0.15 : dx;
 		}
 
-		function onTouchEnd() {
+		function onPointerUp() {
 			if (!tracking || !isHorizontal || swipeX === 0) {
 				tracking = false;
 				decided = false;
@@ -363,13 +380,15 @@
 			}, 250);
 		}
 
-		el.addEventListener('touchstart', onTouchStart, { passive: true });
-		el.addEventListener('touchmove', onTouchMove, { passive: false });
-		el.addEventListener('touchend', onTouchEnd, { passive: true });
+		el.addEventListener('pointerdown', onPointerDown);
+		el.addEventListener('pointermove', onPointerMove);
+		el.addEventListener('pointerup', onPointerUp);
+		el.addEventListener('pointercancel', onPointerUp);
 		return () => {
-			el.removeEventListener('touchstart', onTouchStart);
-			el.removeEventListener('touchmove', onTouchMove);
-			el.removeEventListener('touchend', onTouchEnd);
+			el.removeEventListener('pointerdown', onPointerDown);
+			el.removeEventListener('pointermove', onPointerMove);
+			el.removeEventListener('pointerup', onPointerUp);
+			el.removeEventListener('pointercancel', onPointerUp);
 		};
 	});
 
@@ -598,6 +617,18 @@
 		}
 	}
 
+	async function enablePush() {
+		if (pushEnabling || !vapidPublicKey) return;
+		pushEnabling = true;
+		try {
+			const sub = await subscribeToPush(vapidPublicKey);
+			pushEnabled = !!sub;
+			if (sub) addToast({ type: 'success', message: 'Notifications enabled', autoDismiss: 3000 });
+		} finally {
+			pushEnabling = false;
+		}
+	}
+
 	onMount(() => {
 		isDesktopFeed = matchMedia('(pointer: fine)').matches;
 		const shareUrl = extractShareTargetUrl();
@@ -637,10 +668,25 @@
 		}
 
 		loadInitialClips();
+
+		// Check push notification state for end-slide banner
+		pushSupported = isPushSupported();
+		if (pushSupported) {
+			getExistingSubscription().then((sub) => {
+				pushEnabled = !!sub;
+			});
+		}
+
+		// Mark <html> so the body background matches the reel context — this makes the iOS
+		// black-translucent status bar show a dark background rather than the light-mode white.
+		document.documentElement.classList.add('feed-context');
 	});
 
 	onDestroy(() => {
 		feedUiHidden.set(false);
+		if (typeof document !== 'undefined') {
+			document.documentElement.classList.remove('feed-context');
+		}
 	});
 </script>
 
@@ -780,6 +826,20 @@
 									Your favorite clips are above
 								{/if}
 							</p>
+							{#if $isStandalone && pushSupported && !pushEnabled}
+								<button class="end-slide-banner" onclick={enablePush} disabled={pushEnabling}>
+									🔔 {pushEnabling ? 'Enabling…' : 'Enable notifications'}
+								</button>
+							{:else if !$isStandalone && ($showInstallBanner || $showIosInstallBanner)}
+								<button
+									class="end-slide-banner"
+									onclick={async () => {
+										if ($showInstallBanner) await triggerInstall();
+									}}
+								>
+									📲 Add scrolly to your home screen
+								</button>
+							{/if}
 						</div>
 					</div>
 				{/if}
@@ -797,10 +857,6 @@
 		openComments={overlayOpenComments}
 		ondismiss={handleOverlayDismiss}
 	/>
-{/if}
-
-{#if $addVideoModalOpen}
-	<AddVideoModal ondismiss={() => addVideoModalOpen.set(false)} />
 {/if}
 
 <style>
@@ -835,7 +891,6 @@
 		height: 100dvh;
 		overflow-y: auto;
 		scroll-snap-type: y mandatory;
-		-webkit-overflow-scrolling: touch;
 		overscroll-behavior-y: none;
 		scrollbar-width: none;
 	}
@@ -878,7 +933,7 @@
 		align-items: center;
 		justify-content: center;
 		gap: var(--space-sm);
-		background: var(--bg-primary);
+		background: var(--reel-bg);
 		animation: empty-in 400ms cubic-bezier(0.32, 0.72, 0, 1);
 	}
 	@keyframes empty-in {
@@ -892,7 +947,7 @@
 		}
 	}
 	.empty-icon {
-		color: var(--text-muted);
+		color: var(--reel-text-subtle);
 		opacity: 0.5;
 		margin-bottom: var(--space-xs);
 	}
@@ -900,11 +955,11 @@
 		font-family: var(--font-display);
 		font-size: 1.25rem;
 		font-weight: 700;
-		color: var(--text-primary);
+		color: var(--reel-text);
 		margin: 0;
 	}
 	.empty-sub {
-		color: var(--text-muted);
+		color: var(--reel-text-subtle);
 		font-size: 0.875rem;
 		margin: 0 0 var(--space-md);
 	}
@@ -938,6 +993,7 @@
 	}
 	.feed-slide {
 		height: 100%;
+		touch-action: pan-y;
 	}
 	.feed-slide.animating {
 		transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
@@ -980,7 +1036,7 @@
 		margin: 0;
 	}
 	.end-slide {
-		background: var(--bg-primary);
+		background: var(--reel-bg);
 	}
 	.end-slide-content {
 		height: 100%;
@@ -1000,13 +1056,35 @@
 		font-family: var(--font-display);
 		font-size: 1.25rem;
 		font-weight: 700;
-		color: var(--text-primary);
+		color: var(--reel-text);
 		margin: 0;
 	}
 	.end-slide-sub {
-		color: var(--text-muted);
+		color: var(--reel-text-subtle);
 		font-size: 0.875rem;
 		margin: 0;
+	}
+	.end-slide-banner {
+		margin-top: var(--space-lg);
+		padding: var(--space-sm) var(--space-xl);
+		background: rgba(255, 255, 255, 0.1);
+		backdrop-filter: blur(8px);
+		border: 1px solid rgba(255, 255, 255, 0.15);
+		border-radius: var(--radius-full);
+		color: var(--reel-text);
+		font-family: var(--font-display);
+		font-size: 0.875rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: background 0.2s ease;
+	}
+	.end-slide-banner:active {
+		transform: scale(0.97);
+		background: rgba(255, 255, 255, 0.16);
+	}
+	.end-slide-banner:disabled {
+		opacity: 0.6;
+		cursor: default;
 	}
 	@keyframes fade-in {
 		from {
