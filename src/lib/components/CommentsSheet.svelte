@@ -24,7 +24,8 @@
 		gifEnabled = false,
 		autoFocus = false,
 		members = [],
-		ondismiss
+		ondismiss,
+		oncommentposted
 	}: {
 		clipId: string;
 		currentUserId: string;
@@ -32,6 +33,7 @@
 		autoFocus?: boolean;
 		members?: GroupMember[];
 		ondismiss: () => void;
+		oncommentposted?: () => void;
 	} = $props();
 
 	const memberUsernames = $derived(members.map((m) => m.username));
@@ -130,6 +132,7 @@
 			commentInput?.clear();
 			attachedGif = null;
 			showGifPicker = false;
+			oncommentposted?.();
 		} catch {
 			toast.error('Failed to post comment');
 		}

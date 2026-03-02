@@ -101,6 +101,8 @@
 	const localUnreadCount = $derived(
 		unreadOverride !== null ? unreadOverride : clip.unreadCommentCount
 	);
+	let extraCommentCount = $state(0);
+	const localCommentCount = $derived(clip.commentCount + extraCommentCount);
 	const isOwn = $derived(clip.addedBy === currentUserId);
 	const reactedEmoji = $derived(
 		Object.entries(clip.reactions).find(([, v]) => v.reacted)?.[0] ?? null
@@ -480,7 +482,7 @@
 	<div class="bottom-row" class:ui-hidden={uiHidden}>
 		{#if active}
 			<CommentPrompt
-				commentCount={clip.commentCount}
+				commentCount={localCommentCount}
 				onclick={(e) => {
 					e.stopPropagation();
 					commentsAutoFocus = true;
@@ -544,6 +546,9 @@
 		ondismiss={() => {
 			showComments = false;
 			unreadOverride = 0;
+		}}
+		oncommentposted={() => {
+			extraCommentCount += 1;
 		}}
 	/>
 {/if}
