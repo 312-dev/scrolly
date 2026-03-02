@@ -280,6 +280,8 @@
 		);
 	});
 
+	const NEGATIVE_EMOJIS = new Set(['👎', '❓']);
+
 	function handlePickEmoji(emoji: string) {
 		showPicker = false;
 		if (isOwn) return;
@@ -288,7 +290,7 @@
 		showerY = pickerY;
 		showShower = true;
 		if (!clip.reactions[emoji]?.reacted) onreaction(clip.id, emoji);
-		if (!clip.favorited) onfavorited(clip.id);
+		if (!clip.favorited && !NEGATIVE_EMOJIS.has(emoji)) onfavorited(clip.id);
 	}
 	function triggerReactionPickerHold(bx: number, by: number) {
 		if (isOwn) return;
@@ -369,7 +371,10 @@
 		{muted}
 		{uiHidden}
 		{isOwn}
-		onsave={() => onfavorited(clip.id)}
+		onsave={() => {
+			showPicker = false;
+			onfavorited(clip.id);
+		}}
 		oncomment={() => {
 			commentsAutoFocus = false;
 			showComments = true;
