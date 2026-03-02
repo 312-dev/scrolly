@@ -24,6 +24,37 @@
 	let closedViaBack = false;
 	let timers: ReturnType<typeof setTimeout>[] = [];
 
+	let handleEl: HTMLElement | null = $state(null);
+	let dragY = $state(0);
+	let dragging = $state(false);
+	let dragStartY = 0;
+	const DRAG_DISMISS_THRESHOLD = 120;
+
+	function startDrag(e: PointerEvent) {
+		if (!handleEl) return;
+		handleEl.setPointerCapture(e.pointerId);
+		dragging = true;
+		dragStartY = e.clientY;
+		dragY = 0;
+	}
+
+	function moveDrag(e: PointerEvent) {
+		if (!dragging) return;
+		dragY = Math.max(0, e.clientY - dragStartY);
+	}
+
+	function endDrag() {
+		if (!dragging) return;
+		const wasTap = dragY < 5;
+		dragging = false;
+		if (wasTap || dragY > DRAG_DISMISS_THRESHOLD) {
+			dragY = 0;
+			dismiss();
+		} else {
+			dragY = 0;
+		}
+	}
+
 	// Prevent history.back() in cleanup when a real navigation occurs (e.g. clicking a link inside the sheet)
 	beforeNavigate(() => {
 		closedViaBack = true;
@@ -68,11 +99,20 @@
 
 <div class="base-overlay" class:visible onclick={dismiss} role="presentation"></div>
 
-<div class="base-sheet" class:visible>
+<div
+	class="base-sheet"
+	class:visible
+	class:dragging
+	style:transform={dragY > 0 ? `translateY(${dragY}px)` : undefined}
+>
 	{#if showHandle}
 		<div
 			class="base-handle-bar"
-			onclick={dismiss}
+			bind:this={handleEl}
+			onpointerdown={startDrag}
+			onpointermove={moveDrag}
+			onpointerup={endDrag}
+			onpointercancel={endDrag}
 			onkeydown={(e) => {
 				if (e.key === 'Enter' || e.key === ' ') dismiss();
 			}}
@@ -123,12 +163,16 @@
 	.base-sheet.visible {
 		transform: translateY(0);
 	}
+	.base-sheet.dragging {
+		transition: none;
+	}
 
 	.base-handle-bar {
 		display: flex;
 		justify-content: center;
 		padding: var(--space-md);
 		cursor: pointer;
+		touch-action: none;
 	}
 	.base-handle {
 		width: 36px;
