@@ -2,6 +2,7 @@ import { db } from '$lib/server/db';
 import { users, notificationPreferences, notifications } from '$lib/server/db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
 import { sendNotification } from '$lib/server/push';
+import { env } from '$env/dynamic/private';
 import { v4 as uuid } from 'uuid';
 import { createLogger } from '$lib/server/logger';
 
@@ -29,6 +30,7 @@ export async function notifyMentions(opts: {
 	mentionedUsernames: string[];
 	actorId: string;
 	actorUsername: string;
+	actorAvatarPath?: string | null;
 	clipId: string;
 	groupId: string;
 	commentPreview: string;
@@ -58,11 +60,16 @@ export async function notifyMentions(opts: {
 
 		// Send push if preference allows (default true if no prefs row)
 		if (!prefs || prefs.mentions) {
+			const image =
+				opts.actorAvatarPath && env.ORIGIN
+					? `${env.ORIGIN}/api/profile/avatar/${opts.actorAvatarPath}`
+					: undefined;
 			sendNotification(recipient.id, {
 				title: `${opts.actorUsername} mentioned you`,
 				body: opts.commentPreview,
 				url: `/?clip=${opts.clipId}&comments=true`,
-				tag: `mention-${opts.clipId}`
+				tag: `mention-${opts.clipId}`,
+				...(image ? { image } : {})
 			}).catch((err) => log.error({ err }, 'mention push notification failed'));
 		}
 

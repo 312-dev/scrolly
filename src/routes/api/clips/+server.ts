@@ -122,7 +122,7 @@ function applySortOrder(
 	watchedRows: { clipId: string; watchedAt: Date }[]
 ): ClipRow[] {
 	if (filter === 'watched') {
-		// Watched tab: always sort by most-recently-watched
+		// Watched tab: sort by first-watched (watchedAt is never updated after initial watch)
 		const watchedAtMap = new Map(watchedRows.map((w) => [w.clipId, w.watchedAt.getTime()]));
 		return [...clipList].sort(
 			(a, b) => (watchedAtMap.get(b.id) ?? 0) - (watchedAtMap.get(a.id) ?? 0)

@@ -16,9 +16,9 @@ const log = createLogger('push');
 type NotificationPayload = {
 	title: string;
 	body: string;
-	icon?: string;
 	url?: string;
 	tag?: string;
+	image?: string;
 };
 
 /** Get the number of unwatched ready clips for a user in their group. */
@@ -115,6 +115,10 @@ export async function notifyNewClip(clipId: string): Promise<void> {
 	if (!uploader) return;
 
 	const label = clip.contentType === 'music' ? 'song' : 'video';
+	const image =
+		clip.thumbnailPath && env.ORIGIN
+			? `${env.ORIGIN}/api/thumbnails/${clip.thumbnailPath}`
+			: undefined;
 
 	await sendGroupNotification(
 		clip.groupId,
@@ -122,7 +126,8 @@ export async function notifyNewClip(clipId: string): Promise<void> {
 			title: `${uploader.username} added a ${label}`,
 			body: clip.title || 'Tap to watch',
 			url: `/?clip=${clipId}`,
-			tag: 'new-clip'
+			tag: 'new-clip',
+			...(image ? { image } : {})
 		},
 		'newAdds',
 		uploader.id
