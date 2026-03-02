@@ -12,31 +12,76 @@ import {
 	notifications
 } from '$lib/server/db/schema';
 import { eq, and, ne, count, inArray } from 'drizzle-orm';
-import { withClipAuth, parseBody, isResponse } from '$lib/server/api-utils';
+import {
+	withClipAuth,
+	parseBody,
+	isResponse,
+	mapUsersByIds,
+	groupReactions
+} from '$lib/server/api-utils';
 import { cleanupClipFiles } from '$lib/server/download-utils';
 
 export const GET: RequestHandler = withClipAuth(async ({ params }, { user, clip }) => {
-	// Check if anyone other than the uploader has watched this clip
-	let canEditCaption = false;
-	if (clip.addedBy === user.id) {
-		const [watchResult] = await db
-			.select({ count: count() })
-			.from(watched)
-			.where(and(eq(watched.clipId, params.id), ne(watched.userId, clip.addedBy)));
-		canEditCaption = watchResult.count === 0;
-	}
+	const clipId = params.id;
+	const userId = user.id;
+
+	// Fetch all related data in parallel
+	const [watchedRows, favRow, clipReactions, clipComments, userCommentView, uploaderInfo] =
+		await Promise.all([
+			db.query.watched.findMany({ where: eq(watched.clipId, clipId) }),
+			db.query.favorites.findFirst({
+				where: and(eq(favorites.clipId, clipId), eq(favorites.userId, userId))
+			}),
+			db.query.reactions.findMany({ where: eq(reactions.clipId, clipId) }),
+			db.query.comments.findMany({ where: eq(comments.clipId, clipId) }),
+			db.query.commentViews.findFirst({
+				where: and(eq(commentViews.clipId, clipId), eq(commentViews.userId, userId))
+			}),
+			mapUsersByIds([clip.addedBy])
+		]);
+
+	const isWatched = watchedRows.some((w) => w.userId === userId);
+	const isFavorited = !!favRow;
+	const viewCount = watchedRows.length;
+	const seenByOthers = watchedRows.some((w) => w.userId !== clip.addedBy);
+	const canEditCaption = clip.addedBy === userId && !seenByOthers;
+
+	const reactionData = groupReactions(clipReactions, userId);
+
+	const commentCount = clipComments.length;
+	const unreadCommentCount = userCommentView
+		? clipComments.filter((c) => c.createdAt > userCommentView.viewedAt).length
+		: commentCount;
+
+	const uploaderUser = uploaderInfo.get(clip.addedBy);
 
 	return json({
 		id: clip.id,
-		status: clip.status,
+		originalUrl: clip.originalUrl,
 		videoPath: clip.videoPath,
 		audioPath: clip.audioPath,
 		thumbnailPath: clip.thumbnailPath,
 		title: clip.title,
 		artist: clip.artist,
 		albumArt: clip.albumArt,
-		contentType: clip.contentType,
+		spotifyUrl: clip.spotifyUrl,
+		appleMusicUrl: clip.appleMusicUrl,
+		youtubeMusicUrl: clip.youtubeMusicUrl,
+		addedBy: clip.addedBy,
+		addedByUsername: uploaderUser?.username || 'Unknown',
+		addedByAvatar: uploaderUser?.avatarPath || null,
 		platform: clip.platform,
+		status: clip.status,
+		contentType: clip.contentType,
+		durationSeconds: clip.durationSeconds,
+		watched: isWatched,
+		favorited: isFavorited,
+		reactions: reactionData,
+		commentCount,
+		unreadCommentCount,
+		viewCount,
+		seenByOthers,
+		createdAt: clip.createdAt,
 		canEditCaption
 	});
 });

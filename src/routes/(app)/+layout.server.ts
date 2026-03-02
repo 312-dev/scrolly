@@ -1,4 +1,5 @@
 import { redirect } from '@sveltejs/kit';
+import { dev } from '$app/environment';
 import type { LayoutServerLoad } from './$types';
 import { env } from '$env/dynamic/private';
 
@@ -14,6 +15,6 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		user: locals.user,
 		group: locals.group,
 		vapidPublicKey: env.VAPID_PUBLIC_KEY || '',
-		gifEnabled: !!env.GIPHY_API_KEY
+		gifEnabled: !!env.GIPHY_API_KEY || dev
 	};
 };

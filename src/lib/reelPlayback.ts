@@ -55,6 +55,18 @@ export function sendWatchPercent(clipId: string, maxPercent: number): void {
 	}
 }
 
+export function startPeriodicWatchUpdate(
+	clipId: string,
+	getMaxPercent: () => number,
+	intervalMs = 5000
+): () => void {
+	const id = setInterval(() => {
+		const pct = getMaxPercent();
+		if (pct > 0) sendWatchPercent(clipId, pct);
+	}, intervalMs);
+	return () => clearInterval(id);
+}
+
 export function flashIndicator(
 	setter: (visible: boolean) => void,
 	currentTimer: ReturnType<typeof setTimeout> | null

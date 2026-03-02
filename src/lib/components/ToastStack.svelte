@@ -4,7 +4,7 @@
 		removeToast,
 		replaceToast,
 		clipReadySignal,
-		viewClipSignal,
+		clipOverlaySignal,
 		type Toast
 	} from '$lib/stores/toasts';
 	import { onDestroy } from 'svelte';
@@ -93,7 +93,7 @@
 
 	function handleView(toast: Toast) {
 		if (toast.clipId) {
-			viewClipSignal.set(toast.clipId);
+			clipOverlaySignal.set(toast.clipId);
 		}
 		handleDismiss(toast.id);
 	}

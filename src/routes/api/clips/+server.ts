@@ -36,6 +36,54 @@ import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('clips');
 
+/** Set clip status to 'downloading' and trigger the download pipeline. Marks as 'failed' on error. */
+async function startDownload(clipId: string, url: string, contentType: string, label: string) {
+	await db.update(clips).set({ status: 'downloading' }).where(eq(clips.id, clipId));
+
+	const onError = async (err: unknown) => {
+		log.error({ err, clipId }, `download failed (${label})`);
+		await db
+			.update(clips)
+			.set({ status: 'failed' })
+			.where(and(eq(clips.id, clipId), eq(clips.status, 'downloading')));
+	};
+
+	if (contentType === 'music') {
+		downloadMusic(clipId, url).catch(onError);
+	} else {
+		downloadVideo(clipId, url).catch(onError);
+	}
+}
+
+/** Validate a clip URL and return an error response, or null if valid. */
+function validateClipUrl(
+	videoUrl: string | undefined,
+	group: { platformFilterMode: string | null; platformFilterList: string | null }
+): Response | null {
+	if (!videoUrl) return json({ error: 'URL required' }, { status: 400 });
+
+	if (!isSupportedUrl(videoUrl)) {
+		return json(
+			{
+				error:
+					'Unsupported URL. Try a link from TikTok, YouTube, Instagram, X, Reddit, Spotify, or other supported platforms.'
+			},
+			{ status: 400 }
+		);
+	}
+
+	const platform = detectPlatform(videoUrl)!;
+	const filterList = group.platformFilterList ? JSON.parse(group.platformFilterList) : null;
+	if (!isPlatformAllowed(platform, group.platformFilterMode ?? 'all', filterList)) {
+		return json(
+			{ error: `${platformLabel(videoUrl) || platform} links are not allowed in this group` },
+			{ status: 400 }
+		);
+	}
+
+	return null;
+}
+
 const VALID_FILTERS = ['unwatched', 'watched', 'favorites'] as const;
 const VALID_SORTS = ['oldest', 'round-robin'] as const;
 
@@ -236,36 +284,29 @@ export const POST: RequestHandler = withAuth(async ({ request }, { user, group }
 	const message =
 		typeof body.message === 'string' ? body.message.trim().slice(0, 500) || null : null;
 
-	if (!videoUrl) return json({ error: 'URL required' }, { status: 400 });
+	const urlError = validateClipUrl(videoUrl, group);
+	if (urlError) return urlError;
+	const validUrl = videoUrl!;
 
-	if (!isSupportedUrl(videoUrl)) {
-		return json(
-			{
-				error:
-					'Unsupported URL. Try a link from TikTok, YouTube, Instagram, X, Reddit, Spotify, or other supported platforms.'
-			},
-			{ status: 400 }
-		);
-	}
-
-	const platform = detectPlatform(videoUrl)!;
-
-	// Enforce group platform filter
-	const filterList = group.platformFilterList ? JSON.parse(group.platformFilterList) : null;
-	if (!isPlatformAllowed(platform, group.platformFilterMode ?? 'all', filterList)) {
-		return json(
-			{ error: `${platformLabel(videoUrl) || platform} links are not allowed in this group` },
-			{ status: 400 }
-		);
-	}
-
+	const platform = detectPlatform(validUrl)!;
 	const contentType = getContentType(platform);
-	const normalizedUrl = normalizeUrl(videoUrl);
+	const normalizedUrl = normalizeUrl(validUrl);
 
 	// Check if this URL already exists in the group's feed
 	const existing = await db.query.clips.findFirst({
 		where: and(eq(clips.groupId, user.groupId), eq(clips.originalUrl, normalizedUrl))
 	});
+	if (existing && existing.status === 'failed') {
+		// Previous attempt failed — retry the download instead of rejecting
+		if (title) {
+			await db.update(clips).set({ title }).where(eq(clips.id, existing.id));
+		}
+		await startDownload(existing.id, validUrl, existing.contentType, 're-add retry');
+		return json(
+			{ clip: { id: existing.id, status: 'downloading', contentType: existing.contentType } },
+			{ status: 201 }
+		);
+	}
 	if (existing) {
 		return json({ error: 'This link has already been added to the feed.' }, { status: 409 });
 	}
@@ -301,19 +342,7 @@ export const POST: RequestHandler = withAuth(async ({ request }, { user, group }
 	});
 
 	// Route to appropriate download pipeline
-	const markFailedOnError = async (err: unknown) => {
-		log.error({ err, clipId }, 'download failed');
-		await db
-			.update(clips)
-			.set({ status: 'failed' })
-			.where(and(eq(clips.id, clipId), eq(clips.status, 'downloading')));
-	};
-
-	if (contentType === 'music') {
-		downloadMusic(clipId, videoUrl).catch(markFailedOnError);
-	} else {
-		downloadVideo(clipId, videoUrl).catch(markFailedOnError);
-	}
+	await startDownload(clipId, validUrl, contentType, 'new clip');
 
 	// Push notification is sent after download succeeds (see video/download.ts, music/download.ts)
 

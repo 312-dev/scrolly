@@ -8,6 +8,7 @@
 		members = [],
 		singleLine = false,
 		onchange,
+		onfocus,
 		onsubmit
 	}: {
 		placeholder?: string;
@@ -16,6 +17,7 @@
 		members?: GroupMember[];
 		singleLine?: boolean;
 		onchange?: (text: string) => void;
+		onfocus?: () => void;
 		onsubmit?: () => void;
 	} = $props();
 
@@ -198,7 +200,10 @@
 				oninput={handleInput}
 				onkeydown={handleKeydown}
 				onclick={handleClick}
-				onfocus={() => (isFocused = true)}
+				onfocus={() => {
+					isFocused = true;
+					onfocus?.();
+				}}
 				onblur={() => (isFocused = false)}
 				onscroll={syncScroll}
 			/>
@@ -215,7 +220,10 @@
 				oninput={handleInput}
 				onkeydown={handleKeydown}
 				onclick={handleClick}
-				onfocus={() => (isFocused = true)}
+				onfocus={() => {
+					isFocused = true;
+					onfocus?.();
+				}}
 				onblur={() => (isFocused = false)}
 				onscroll={syncScroll}
 			></textarea>

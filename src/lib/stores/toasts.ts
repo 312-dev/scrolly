@@ -14,7 +14,7 @@ export interface Toast {
 
 export const toasts = writable<Toast[]>([]);
 export const clipReadySignal = writable<string | null>(null);
-export const viewClipSignal = writable<string | null>(null);
+export const clipOverlaySignal = writable<string | null>(null);
 export const openCommentsSignal = writable<string | null>(null);
 
 let toastCounter = 0;

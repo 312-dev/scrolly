@@ -23,7 +23,29 @@
 	const hasMusicLinks = $derived(!!(spotifyUrl || appleMusicUrl || youtubeMusicUrl));
 </script>
 
+{#if showMusicLinks}
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div
+		class="music-links-backdrop"
+		onclick={() => (showMusicLinks = false)}
+		onkeydown={(e) => e.stopPropagation()}
+	></div>
+{/if}
+
 <div class="music-disc-area" class:ui-hidden={uiHidden}>
+	<button
+		type="button"
+		class="music-disc"
+		class:spinning={active && !paused && !showMusicLinks}
+		onclick={(e) => {
+			e.stopPropagation();
+			if (hasMusicLinks) showMusicLinks = !showMusicLinks;
+		}}
+		aria-label={showMusicLinks ? 'Close music links' : 'Open music links'}
+	>
+		<img src={albumArt} alt="" class="music-disc-img" />
+	</button>
+
 	{#if showMusicLinks && hasMusicLinks}
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
@@ -39,7 +61,8 @@
 					class="music-link-pill"
 					aria-label="Spotify"
 				>
-					<PlatformIcon platform="spotify" size={16} />
+					<PlatformIcon platform="spotify" size={18} />
+					<span class="music-link-label">Spotify</span>
 				</a>
 			{/if}
 			{#if appleMusicUrl}
@@ -50,7 +73,8 @@
 					class="music-link-pill"
 					aria-label="Apple Music"
 				>
-					<PlatformIcon platform="apple_music" size={16} />
+					<PlatformIcon platform="apple_music" size={18} />
+					<span class="music-link-label">Apple Music</span>
 				</a>
 			{/if}
 			{#if youtubeMusicUrl}
@@ -61,34 +85,25 @@
 					class="music-link-pill"
 					aria-label="YouTube Music"
 				>
-					<PlatformIcon platform="youtube" size={16} />
+					<PlatformIcon platform="youtube" size={18} />
+					<span class="music-link-label">YouTube</span>
 				</a>
 			{/if}
 		</div>
 	{/if}
-	<button
-		type="button"
-		class="music-disc"
-		class:spinning={active && !paused && !showMusicLinks}
-		onclick={(e) => {
-			e.stopPropagation();
-			if (hasMusicLinks) showMusicLinks = !showMusicLinks;
-		}}
-		aria-label={showMusicLinks ? 'Close music links' : 'Open music links'}
-	>
-		<img src={albumArt} alt="" class="music-disc-img" />
-	</button>
 </div>
 
 <style>
+	.music-links-backdrop {
+		position: absolute;
+		inset: 0;
+		z-index: 9;
+	}
 	.music-disc-area {
 		position: absolute;
 		right: var(--space-lg);
-		bottom: calc(var(--bottom-nav-height, 64px) + 10px);
-		display: flex;
-		align-items: center;
-		gap: var(--space-sm);
-		z-index: 5;
+		bottom: calc(var(--bottom-nav-height, 64px) + 28px);
+		z-index: 10;
 		transition: opacity 0.3s ease;
 	}
 	.music-disc-area.ui-hidden {
@@ -117,40 +132,46 @@
 		display: block;
 	}
 	.music-links-popout {
+		position: absolute;
+		right: calc(44px + var(--space-sm));
+		bottom: 0;
 		display: flex;
-		align-items: center;
-		gap: 6px;
+		flex-direction: column;
+		gap: 4px;
+		padding: var(--space-sm);
+		background: var(--bg-elevated);
+		border-radius: var(--radius-md);
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 		animation: links-slide-in 200ms cubic-bezier(0.32, 0.72, 0, 1);
 	}
 	@keyframes links-slide-in {
 		from {
 			opacity: 0;
-			transform: translateX(12px);
+			transform: translateX(12px) scale(0.95);
 		}
 		to {
 			opacity: 1;
-			transform: translateX(0);
+			transform: translateX(0) scale(1);
 		}
 	}
 	.music-link-pill {
 		display: flex;
 		align-items: center;
-		justify-content: center;
-		width: 36px;
-		height: 36px;
-		border-radius: var(--radius-full);
-		background: var(--reel-icon-circle-bg);
-		backdrop-filter: blur(6px);
-		-webkit-backdrop-filter: blur(6px);
-		color: var(--reel-text);
+		gap: var(--space-sm);
+		padding: var(--space-sm) var(--space-md);
+		border-radius: var(--radius-sm);
+		background: transparent;
+		color: var(--text-primary);
 		text-decoration: none;
-		transition:
-			background 0.15s ease,
-			transform 0.1s ease;
+		white-space: nowrap;
+		transition: background 0.15s ease;
 	}
 	.music-link-pill:active {
-		transform: scale(0.93);
-		background: var(--reel-icon-circle-active);
+		background: var(--bg-surface);
+	}
+	.music-link-label {
+		font-size: 0.8125rem;
+		font-weight: 600;
 	}
 	@keyframes spin-disc {
 		to {

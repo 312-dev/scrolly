@@ -13,11 +13,27 @@
 
 	const {
 		onselect,
-		ondismiss
+		onclose,
+		autoFocus = false
 	}: {
 		onselect: (gif: GifResult) => void;
-		ondismiss: () => void;
+		onclose?: () => void;
+		autoFocus?: boolean;
 	} = $props();
+
+	function handleSearchKeydown(e: KeyboardEvent) {
+		if (e.key === 'Escape') {
+			e.preventDefault();
+			searchInputEl?.blur();
+			onclose?.();
+		}
+	}
+
+	let searchInputEl = $state<HTMLInputElement | null>(null);
+
+	export function focusSearch() {
+		searchInputEl?.focus();
+	}
 
 	let query = $state('');
 	let gifs = $state<GifResult[]>([]);
@@ -41,6 +57,9 @@
 
 	$effect(() => {
 		loadGifs();
+		if (autoFocus) {
+			requestAnimationFrame(() => searchInputEl?.focus());
+		}
 		return () => {
 			if (debounceTimer) clearTimeout(debounceTimer);
 		};
@@ -108,9 +127,15 @@
 	<div class="picker-header">
 		<div class="search-field">
 			<MagnifyingGlassIcon size={16} weight="bold" />
-			<input type="text" bind:value={query} placeholder="Search GIPHY" inputmode="search" />
+			<input
+				bind:this={searchInputEl}
+				type="text"
+				bind:value={query}
+				placeholder="Search GIPHY"
+				inputmode="search"
+				onkeydown={handleSearchKeydown}
+			/>
 		</div>
-		<button class="close-btn" onclick={ondismiss}>&times;</button>
 	</div>
 
 	<div class="gif-grid" bind:this={gridEl}>
@@ -149,8 +174,8 @@
 	.gif-picker {
 		display: flex;
 		flex-direction: column;
-		height: 40vh;
-		border-top: 1px solid var(--border);
+		flex: 1;
+		min-height: 0;
 		background: var(--bg-elevated);
 	}
 
@@ -188,16 +213,6 @@
 	}
 	.search-field input::placeholder {
 		color: var(--text-muted);
-	}
-
-	.close-btn {
-		background: none;
-		border: none;
-		color: var(--text-muted);
-		font-size: 1.25rem;
-		cursor: pointer;
-		padding: var(--space-xs);
-		line-height: 1;
 	}
 
 	.gif-grid {

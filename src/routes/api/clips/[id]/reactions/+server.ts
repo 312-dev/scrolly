@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import { reactions } from '$lib/server/db/schema';
+import { reactions, notifications } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
 import {
@@ -37,18 +37,32 @@ export const POST: RequestHandler = withClipAuth(async ({ params, request }, { u
 		return badRequest('Invalid emoji');
 	}
 
-	// Toggle: if exists, delete; if not, insert
+	// Find any existing reaction by this user on this clip (one reaction per user per clip)
 	const existing = await db.query.reactions.findFirst({
-		where: and(
-			eq(reactions.clipId, clipId),
-			eq(reactions.userId, userId),
-			eq(reactions.emoji, emoji)
-		)
+		where: and(eq(reactions.clipId, clipId), eq(reactions.userId, userId))
 	});
 
+	const sameEmoji = existing?.emoji === emoji;
+
 	if (existing) {
+		// Remove the old reaction
 		await db.delete(reactions).where(eq(reactions.id, existing.id));
-	} else {
+
+		// Remove the old notification entry for this reaction
+		await db
+			.delete(notifications)
+			.where(
+				and(
+					eq(notifications.clipId, clipId),
+					eq(notifications.actorId, userId),
+					eq(notifications.type, 'reaction'),
+					eq(notifications.emoji, existing.emoji)
+				)
+			);
+	}
+
+	if (!sameEmoji) {
+		// Add the new reaction (either fresh or replacing a different emoji)
 		await db.insert(reactions).values({
 			id: uuid(),
 			clipId,
@@ -77,5 +91,8 @@ export const POST: RequestHandler = withClipAuth(async ({ params, request }, { u
 		where: eq(reactions.clipId, clipId)
 	});
 
-	return json({ reactions: groupReactions(allReactions, userId), toggled: !existing });
+	return json({
+		reactions: groupReactions(allReactions, userId),
+		toggled: !sameEmoji || !existing
+	});
 });

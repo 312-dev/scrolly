@@ -3,7 +3,7 @@
 	import { resolve } from '$app/paths';
 	import { relativeTime } from '$lib/utils';
 	import { fetchUnreadCount } from '$lib/stores/notifications';
-	import { viewClipSignal, openCommentsSignal } from '$lib/stores/toasts';
+	import { clipOverlaySignal, openCommentsSignal } from '$lib/stores/toasts';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import BellIcon from 'phosphor-svelte/lib/BellIcon';
 
@@ -126,7 +126,7 @@
 		visible = false;
 		setTimeout(() => {
 			ondismiss();
-			viewClipSignal.set(n.clipId);
+			clipOverlaySignal.set(n.clipId);
 			if (n.type !== 'reaction') {
 				openCommentsSignal.set(n.clipId);
 			}

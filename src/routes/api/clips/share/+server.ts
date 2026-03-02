@@ -20,6 +20,25 @@ import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('share');
 
+/** Set clip status to 'downloading' and trigger the download pipeline. Marks as 'failed' on error. */
+async function startDownload(clipId: string, url: string, contentType: string, label: string) {
+	await db.update(clips).set({ status: 'downloading' }).where(eq(clips.id, clipId));
+
+	const onError = async (err: unknown) => {
+		log.error({ err, clipId }, `download failed (${label})`);
+		await db
+			.update(clips)
+			.set({ status: 'failed' })
+			.where(and(eq(clips.id, clipId), eq(clips.status, 'downloading')));
+	};
+
+	if (contentType === 'music') {
+		downloadMusic(clipId, url).catch(onError);
+	} else {
+		downloadVideo(clipId, url).catch(onError);
+	}
+}
+
 /** Shortcut-friendly JSON response. Every response includes `success` (1|0) and `message`. */
 function shareResponse(
 	success: boolean,
@@ -169,6 +188,13 @@ export const POST: RequestHandler = async ({ request, url, locals }) => {
 	const existing = await db.query.clips.findFirst({
 		where: and(eq(clips.groupId, group.id), eq(clips.originalUrl, normalizedVideoUrl))
 	});
+	if (existing && existing.status === 'failed') {
+		// Previous attempt failed — retry the download instead of rejecting
+		await startDownload(existing.id, videoUrl, existing.contentType, 're-share retry');
+		return shareResponse(true, '✅  Clip shared! (retrying download)', 201, {
+			clipId: existing.id
+		});
+	}
 	if (existing) {
 		return shareResponse(false, '❌  This clip has already been shared!', 409);
 	}
@@ -196,19 +222,7 @@ export const POST: RequestHandler = async ({ request, url, locals }) => {
 	});
 
 	// 10. Async download
-	const markFailedOnError = async (err: unknown) => {
-		log.error({ err, clipId }, 'download failed');
-		await db
-			.update(clips)
-			.set({ status: 'failed' })
-			.where(and(eq(clips.id, clipId), eq(clips.status, 'downloading')));
-	};
-
-	if (contentType === 'music') {
-		downloadMusic(clipId, videoUrl).catch(markFailedOnError);
-	} else {
-		downloadVideo(clipId, videoUrl).catch(markFailedOnError);
-	}
+	await startDownload(clipId, videoUrl, contentType, 'new clip');
 
 	// Push notification is sent after download succeeds (see video/download.ts, music/download.ts)
 

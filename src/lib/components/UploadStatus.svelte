@@ -2,30 +2,25 @@
 	import { showShortcutNudge, dismissShortcutNudge } from '$lib/stores/shortcutNudge';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import LightbulbIcon from 'phosphor-svelte/lib/LightbulbIcon';
 
 	const {
 		phase,
 		clipContentType,
-		displayTitle,
 		serverArtist,
 		serverAlbumArt,
-		savingCaption,
 		ondismiss,
 		onretry,
 		onsaveandview,
-		oncaptioninput,
 		ondismissnudge
 	}: {
 		phase: 'uploading' | 'done' | 'failed';
 		clipContentType: string;
-		displayTitle: string;
 		serverArtist: string | null;
 		serverAlbumArt: string | null;
-		savingCaption: boolean;
 		ondismiss: () => void;
 		onretry: () => void;
 		onsaveandview: () => void;
-		oncaptioninput: (e: Event) => void;
 		ondismissnudge: () => void;
 	} = $props();
 
@@ -78,27 +73,15 @@
 			<p class="artist-label">{serverArtist}</p>
 		{/if}
 
-		<!-- Caption input -->
-		<div class="caption-field">
-			<input
-				type="text"
-				value={displayTitle}
-				oninput={oncaptioninput}
-				placeholder="Add a caption..."
-				maxlength={200}
-			/>
-		</div>
-
 		<!-- Action buttons -->
 		{#if phase === 'done'}
-			<button class="primary-btn" onclick={onsaveandview} disabled={savingCaption}>
-				{savingCaption ? 'Saving...' : 'View in feed'}
-			</button>
+			<button class="primary-btn" onclick={onsaveandview}>View in feed</button>
 
 			{#if $showShortcutNudge}
 				<div class="shortcut-nudge">
 					<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 					<a href="/share/setup" class="nudge-link" onclick={ondismissnudge}>
+						<LightbulbIcon size={14} />
 						Share clips faster from other apps
 					</a>
 					<button class="nudge-dismiss" onclick={dismissShortcutNudge} aria-label="Dismiss">
@@ -232,7 +215,7 @@
 		font-size: 1.125rem;
 		font-weight: 700;
 		color: var(--reel-text);
-		margin: 0 0 4px;
+		margin: 0;
 		text-align: center;
 	}
 	.artist-label {
@@ -241,34 +224,9 @@
 		margin: 0 0 var(--space-xl);
 	}
 
-	/* Caption field */
-	.caption-field {
-		width: 100%;
-		margin-top: var(--space-lg);
-		margin-bottom: var(--space-xl);
-	}
-	.caption-field input {
-		width: 100%;
-		padding: 12px var(--space-lg);
-		background: rgba(255, 255, 255, 0.08);
-		border: 1px solid rgba(255, 255, 255, 0.12);
-		border-radius: var(--radius-md);
-		color: var(--reel-text);
-		font-size: 1rem;
-		font-family: var(--font-body);
-		text-align: center;
-		outline: none;
-		transition: border-color 0.2s ease;
-	}
-	.caption-field input::placeholder {
-		color: rgba(255, 255, 255, 0.3);
-	}
-	.caption-field input:focus {
-		border-color: var(--accent-primary);
-	}
-
 	/* Primary button */
 	.primary-btn {
+		margin-top: var(--space-xl);
 		padding: 14px 32px;
 		background: var(--accent-primary);
 		color: var(--bg-primary);
@@ -298,10 +256,16 @@
 		animation: fade-in 0.3s ease 0.5s both;
 	}
 	.nudge-link {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-xs);
 		font-size: 0.75rem;
 		color: rgba(255, 255, 255, 0.5);
 		text-decoration: underline;
 		text-underline-offset: 2px;
+	}
+	.nudge-link :global(svg) {
+		flex-shrink: 0;
 	}
 	.nudge-dismiss {
 		background: none;

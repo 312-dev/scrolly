@@ -76,6 +76,20 @@
 		loadComments();
 	});
 
+	$effect(() => {
+		function handleKeydown(e: KeyboardEvent) {
+			if (e.key === 'Escape') {
+				if (showGifPicker) {
+					showGifPicker = false;
+				} else if (!attachedGif && commentInput?.isEmpty()) {
+					sheetRef?.dismiss();
+				}
+			}
+		}
+		document.addEventListener('keydown', handleKeydown);
+		return () => document.removeEventListener('keydown', handleKeydown);
+	});
+
 	async function loadComments() {
 		loading = true;
 		const result = await fetchComments(clipId);
@@ -234,86 +248,91 @@
 		sheetId="comments"
 		{ondismiss}
 	>
-		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
-		<div class="comments-list" role="list" aria-label="Comments" onclick={dismissHeartPopover}>
-			{#if loading}
-				<p class="empty">Loading...</p>
-			{:else if feedItems.length === 0}
-				<p class="empty">No comments yet</p>
+		<div class="content-area">
+			{#if showGifPicker}
+				<GifPicker
+					onselect={(gif) => {
+						attachedGif = gif;
+						showGifPicker = false;
+					}}
+					onclose={() => {
+						showGifPicker = false;
+						requestAnimationFrame(() => commentInput?.focus());
+					}}
+					autoFocus
+				/>
 			{:else}
-				{#each feedItems as item (item.type === 'comment' ? item.data.id : `reaction-${item.data.emoji}-${item.data.username}-${item.data.createdAt}`)}
-					{#if item.type === 'reaction'}
-						{@const r = item.data}
-						<div class="reaction-event" role="listitem">
-							<span class="reaction-emoji">{r.emoji}</span>
-							<span class="reaction-text">{r.username} reacted</span>
-							<span class="reaction-time">{relativeTime(r.createdAt)}</span>
-						</div>
+				<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
+				<div class="comments-list" role="list" aria-label="Comments" onclick={dismissHeartPopover}>
+					{#if loading}
+						<p class="empty">Loading...</p>
+					{:else if feedItems.length === 0}
+						<p class="empty">No comments yet</p>
 					{:else}
-						{@const comment = item.data}
-						<CommentRow
-							{comment}
-							{currentUserId}
-							{memberUsernames}
-							isEditing={editingId === comment.id}
-							bind:editText
-							isJustPosted={comment.id === justPostedId}
-							isJustHearted={justHeartedIds.has(comment.id)}
-							heartPopoverVisible={heartPopoverId === comment.id}
-							onreply={() => startReply(comment)}
-							ontoggleheart={() => toggleHeart(comment)}
-							onstartedit={() => startEdit(comment)}
-							onsaveedit={() => handleEdit(comment.id)}
-							oncanceledit={cancelEdit}
-							ondelete={() => handleDelete(comment.id)}
-							onstartlongpress={() => startHeartLongPress(comment.id)}
-							oncancellongpress={cancelHeartLongPress}
-						/>
-						{#if comment.replies && comment.replies.length > 0}
-							<div class="replies" role="list" aria-label="Replies to {comment.username}">
-								{#each comment.replies as reply (reply.id)}
-									<CommentRow
-										comment={reply}
-										{currentUserId}
-										{memberUsernames}
-										isReply
-										isEditing={editingId === reply.id}
-										bind:editText
-										isJustHearted={justHeartedIds.has(reply.id)}
-										heartPopoverVisible={heartPopoverId === reply.id}
-										ontoggleheart={() => toggleHeart(reply)}
-										onstartedit={() => startEdit(reply)}
-										onsaveedit={() => handleEdit(reply.id)}
-										oncanceledit={cancelEdit}
-										ondelete={() => handleDelete(reply.id)}
-										onstartlongpress={() => startHeartLongPress(reply.id)}
-										oncancellongpress={cancelHeartLongPress}
-									/>
-								{/each}
-							</div>
-						{/if}
+						{#each feedItems as item (item.type === 'comment' ? item.data.id : `reaction-${item.data.emoji}-${item.data.username}-${item.data.createdAt}`)}
+							{#if item.type === 'reaction'}
+								{@const r = item.data}
+								<div class="reaction-event" role="listitem">
+									<span class="reaction-emoji">{r.emoji}</span>
+									<span class="reaction-text">{r.username} reacted</span>
+									<span class="reaction-time">{relativeTime(r.createdAt)}</span>
+								</div>
+							{:else}
+								{@const comment = item.data}
+								<CommentRow
+									{comment}
+									{currentUserId}
+									{memberUsernames}
+									isEditing={editingId === comment.id}
+									bind:editText
+									isJustPosted={comment.id === justPostedId}
+									isJustHearted={justHeartedIds.has(comment.id)}
+									heartPopoverVisible={heartPopoverId === comment.id}
+									onreply={() => startReply(comment)}
+									ontoggleheart={() => toggleHeart(comment)}
+									onstartedit={() => startEdit(comment)}
+									onsaveedit={() => handleEdit(comment.id)}
+									oncanceledit={cancelEdit}
+									ondelete={() => handleDelete(comment.id)}
+									onstartlongpress={() => startHeartLongPress(comment.id)}
+									oncancellongpress={cancelHeartLongPress}
+								/>
+								{#if comment.replies && comment.replies.length > 0}
+									<div class="replies" role="list" aria-label="Replies to {comment.username}">
+										{#each comment.replies as reply (reply.id)}
+											<CommentRow
+												comment={reply}
+												{currentUserId}
+												{memberUsernames}
+												isReply
+												isEditing={editingId === reply.id}
+												bind:editText
+												isJustHearted={justHeartedIds.has(reply.id)}
+												heartPopoverVisible={heartPopoverId === reply.id}
+												ontoggleheart={() => toggleHeart(reply)}
+												onstartedit={() => startEdit(reply)}
+												onsaveedit={() => handleEdit(reply.id)}
+												oncanceledit={cancelEdit}
+												ondelete={() => handleDelete(reply.id)}
+												onstartlongpress={() => startHeartLongPress(reply.id)}
+												oncancellongpress={cancelHeartLongPress}
+											/>
+										{/each}
+									</div>
+								{/if}
+							{/if}
+						{/each}
 					{/if}
-				{/each}
+				</div>
 			{/if}
 		</div>
-
-		{#if showGifPicker}
-			<GifPicker
-				onselect={(gif) => {
-					attachedGif = gif;
-					showGifPicker = false;
-				}}
-				ondismiss={() => {
-					showGifPicker = false;
-				}}
-			/>
-		{/if}
 
 		<CommentInput
 			bind:this={commentInput}
 			{replyingTo}
 			{submitting}
 			{gifEnabled}
+			gifPickerOpen={showGifPicker}
 			{attachedGif}
 			{members}
 			onsubmit={handleSubmit}
@@ -322,6 +341,9 @@
 			}}
 			ongiftoggle={() => {
 				showGifPicker = !showGifPicker;
+				if (!showGifPicker) {
+					requestAnimationFrame(() => commentInput?.focus());
+				}
 			}}
 			onremovegif={() => {
 				attachedGif = null;
@@ -336,7 +358,14 @@
 	}
 	.comments-sheet-wrapper :global(.base-sheet) {
 		height: 70vh;
+		height: 70dvh;
 		background: rgba(0, 0, 0, 0.93);
+	}
+	.content-area {
+		flex: 1;
+		min-height: 0;
+		display: flex;
+		flex-direction: column;
 	}
 	.comments-list {
 		flex: 1;
