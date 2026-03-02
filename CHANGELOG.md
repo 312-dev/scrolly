@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.7.0...scrolly-v1.8.0) (2026-03-02)
+
+
+### Features
+
+* clip overlay, reel polish, and UX improvements ([#35](https://github.com/312-dev/scrolly/issues/35)) ([ddf3bff](https://github.com/312-dev/scrolly/commit/ddf3bff80c21fcd4b5f7a6b68153f7b81a3fea4f))
+
 ## [1.7.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.6.0...scrolly-v1.7.0) (2026-03-01)
 
 
