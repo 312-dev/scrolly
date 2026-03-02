@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
+	import { pushState } from '$app/navigation';
 	import { page } from '$app/state';
 	import type { FeedClip } from '$lib/types';
 	import {
@@ -26,6 +27,17 @@
 	let reelContainer: HTMLDivElement | null = $state(null);
 	let showViewers = $state(false);
 
+	// History management — push a state entry when the reel opens so the
+	// Android back gesture (and browser back button) closes it instead of
+	// navigating away from the favorites page entirely.
+	let reelClosedViaBack = false;
+	let reelDismissed = false;
+
+	function onReelPopState() {
+		reelClosedViaBack = true;
+		closeReel();
+	}
+
 	// Close viewers sheet when scrolling to a different clip
 	$effect(() => {
 		// eslint-disable-next-line sonarjs/void-use -- read activeIndex to re-run on scroll
@@ -47,7 +59,11 @@
 
 	async function openReel(index: number) {
 		activeIndex = index;
+		reelClosedViaBack = false;
+		reelDismissed = false;
 		viewMode = 'reel';
+		pushState('', { favReel: true });
+		window.addEventListener('popstate', onReelPopState);
 		await tick();
 		if (reelContainer) {
 			reelContainer.scrollTop = index * window.innerHeight;
@@ -55,6 +71,10 @@
 	}
 
 	async function closeReel() {
+		if (reelDismissed) return;
+		reelDismissed = true;
+		window.removeEventListener('popstate', onReelPopState);
+		if (!reelClosedViaBack) history.back();
 		viewMode = 'grid';
 		// Re-fetch to remove any clips un-favorited while browsing the reel
 		await loadFavorites();
@@ -197,7 +217,6 @@
 
 {#if viewMode === 'reel'}
 	<div class="faves-reel">
-		<!-- Full-width top bar: back button left, view badge right (no overlap) -->
 		<div class="reel-topbar">
 			<button class="reel-close" onclick={closeReel} aria-label="Back to grid">
 				<ArrowLeftIcon size={22} />
@@ -259,14 +278,12 @@
 
 <style>
 	.faves-page {
-		/* Extend to full width by negating layout's side padding */
 		margin-left: calc(-1 * var(--space-sm));
 		margin-right: calc(-1 * var(--space-sm));
 		margin-top: calc(-1 * var(--space-lg));
 		min-height: calc(100dvh - var(--bottom-nav-height, 64px));
 	}
 
-	/* Grid */
 	.grid {
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);
@@ -287,20 +304,17 @@
 	.grid-cell:active {
 		opacity: 0.85;
 	}
-
 	.grid-thumb {
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
 		display: block;
 	}
-
 	.grid-thumb-placeholder {
 		width: 100%;
 		height: 100%;
 		background: var(--bg-surface);
 	}
-
 	.grid-content-type {
 		position: absolute;
 		bottom: var(--space-xs);
@@ -310,7 +324,6 @@
 		color: rgba(255, 255, 255, 0.85);
 		filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
 	}
-
 	.grid-avatar {
 		position: absolute;
 		top: var(--space-xs);
@@ -326,7 +339,6 @@
 		background: var(--bg-surface);
 		filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5));
 	}
-
 	.grid-avatar-img {
 		width: 100%;
 		height: 100%;
@@ -341,7 +353,6 @@
 		line-height: 1;
 	}
 
-	/* Loading & empty states */
 	.loading-state,
 	.empty-state {
 		display: flex;
@@ -370,14 +381,12 @@
 		font-weight: 700;
 		color: var(--text-primary);
 	}
-
 	.empty-sub {
 		margin: 0;
 		color: var(--text-muted);
 		font-size: 0.875rem;
 		max-width: 200px;
 	}
-
 	.spinner {
 		display: inline-block;
 		width: 28px;
@@ -394,26 +403,21 @@
 		}
 	}
 
-	/* Reel overlay */
 	.faves-reel {
 		position: fixed;
 		inset: 0;
 		z-index: 40;
 		background: var(--bg-primary);
-		/* No tab bar here — set a baseline that clears the iOS home indicator.
-		   +14px cancels ProgressBar's -14px tuck so it lands exactly at the safe area edge. */
+		overscroll-behavior-x: none;
 		--bottom-nav-height: calc(env(safe-area-inset-bottom, 0px) + 14px);
 	}
 
-	/* Full-width top bar: close button left, ViewBadge right */
 	.reel-topbar {
 		position: absolute;
 		top: 0;
 		left: 0;
 		right: 0;
-		padding-top: max(var(--space-md), env(safe-area-inset-top));
-		padding-left: var(--space-lg);
-		padding-right: var(--space-lg);
+		padding: max(var(--space-md), env(safe-area-inset-top)) var(--space-lg) 0;
 		z-index: 10;
 		display: flex;
 		align-items: flex-end;
@@ -449,7 +453,6 @@
 		height: 22px;
 	}
 
-	/* ViewBadge sits in pointer-events:none bar — re-enable for its button */
 	.reel-topbar :global(.view-badge) {
 		pointer-events: auto;
 	}

@@ -150,7 +150,15 @@
 	async function toggleFavorite(clipId: string) {
 		const data = await toggleClipFavorite(clipId);
 		if (data) {
-			clips = clips.map((c) => (c.id === clipId ? { ...c, favorited: data.favorited } : c));
+			clips = clips.map((c) =>
+				c.id === clipId
+					? {
+							...c,
+							favorited: data.favorited,
+							favoriteCount: c.favoriteCount + (data.favorited ? 1 : -1)
+						}
+					: c
+			);
 		} else {
 			toast.error('Failed to update favorite');
 		}

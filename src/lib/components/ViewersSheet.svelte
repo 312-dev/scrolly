@@ -55,7 +55,11 @@
 				{#each viewers as viewer (viewer.userId)}
 					<div class="viewer-row">
 						<div class="viewer-avatar">
-							<span class="avatar-initial">{viewer.username.charAt(0).toUpperCase()}</span>
+							{#if viewer.avatarPath}
+								<img src="/api/profile/avatar/{viewer.avatarPath}" alt="" class="avatar-img" />
+							{:else}
+								<span class="avatar-initial">{viewer.username.charAt(0).toUpperCase()}</span>
+							{/if}
 						</div>
 						<div class="viewer-info">
 							<span class="viewer-name">{viewer.username}</span>
@@ -117,6 +121,13 @@
 		align-items: center;
 		justify-content: center;
 		flex-shrink: 0;
+	}
+
+	.avatar-img {
+		width: 100%;
+		height: 100%;
+		border-radius: var(--radius-full);
+		object-fit: cover;
 	}
 
 	.avatar-initial {

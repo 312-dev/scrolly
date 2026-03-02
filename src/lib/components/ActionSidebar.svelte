@@ -10,7 +10,8 @@
 	const {
 		favorited,
 		reactedEmoji = null,
-		commentCount,
+		reactionCount = 0,
+		commentCount = 0,
 		unreadCommentCount = 0,
 		originalUrl,
 		muted = true,
@@ -29,7 +30,8 @@
 	}: {
 		favorited: boolean;
 		reactedEmoji?: string | null;
-		commentCount: number;
+		reactionCount?: number;
+		commentCount?: number;
 		unreadCommentCount?: number;
 		originalUrl: string;
 		muted?: boolean;
@@ -67,6 +69,11 @@
 		prevFavorited = favorited;
 	});
 
+	function formatCount(n: number): string {
+		if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k`;
+		return String(n);
+	}
+
 	function stop(e: MouseEvent | PointerEvent) {
 		e.stopPropagation();
 	}
@@ -93,11 +100,6 @@
 			onsave();
 		}
 		holdFired = false;
-	}
-
-	function formatCount(n: number): string {
-		if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k`;
-		return String(n);
 	}
 </script>
 
@@ -139,6 +141,9 @@
 				<HeartIcon size={24} weight={favorited ? 'fill' : 'regular'} />
 			{/if}
 		</span>
+		{#if reactionCount > 0}
+			<span class="sidebar-count">{formatCount(reactionCount)}</span>
+		{/if}
 	</button>
 
 	<button

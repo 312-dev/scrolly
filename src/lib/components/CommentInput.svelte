@@ -131,6 +131,7 @@
 				class:active={canSubmit}
 				disabled={!canSubmit || submitting}
 				aria-label="Send comment"
+				onmousedown={(e) => e.preventDefault()}
 			>
 				<PaperPlaneTiltIcon size={20} weight={canSubmit ? 'fill' : 'regular'} />
 			</button>

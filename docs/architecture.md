@@ -227,6 +227,33 @@ This only affects form submissions (SvelteKit form actions). API endpoints (`/ap
 
 **Troubleshooting:** If you see unexplained 403 errors on POST requests that don't appear in your app logs, check that `ORIGIN` matches the URL users access in their browser (protocol + domain, no trailing slash).
 
+### Nginx Proxy Buffer Size (502 for Authenticated Users)
+
+Nginx's default `proxy_buffer_size` is 4KB. Scrolly sets a signed session cookie plus additional preference cookies (theme, etc.) on every authenticated response. If the combined `Set-Cookie` response headers exceed 4KB, nginx fails to forward the response and returns an **instant 502** — only for users who already have a session cookie. Users without cookies (unauthenticated) are unaffected, and direct connections to the app bypass nginx and work fine.
+
+**Symptom:** Authenticated users get 502s through the proxy. Deleting cookies in the browser immediately resolves it. Nginx error log shows:
+```
+upstream sent too big header while reading response header from upstream
+```
+
+**Fix — standard nginx config:**
+```nginx
+proxy_buffer_size        32k;
+proxy_buffers            4 32k;
+proxy_busy_buffers_size  64k;
+large_client_header_buffers 4 32k;
+```
+
+**Fix — Nginx Proxy Manager (GUI):**
+
+Edit your proxy host → Advanced tab → paste into Custom Nginx Configuration:
+```nginx
+proxy_buffer_size        32k;
+proxy_buffers            4 32k;
+proxy_busy_buffers_size  64k;
+large_client_header_buffers 4 32k;
+```
+
 ## PWA Configuration
 
 **manifest.json:**
