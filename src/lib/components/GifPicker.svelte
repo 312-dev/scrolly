@@ -26,6 +26,9 @@
 			e.preventDefault();
 			searchInputEl?.blur();
 			onclose?.();
+		} else if (e.key === 'Enter') {
+			e.preventDefault();
+			searchInputEl?.blur();
 		}
 	}
 
@@ -88,6 +91,10 @@
 	// IntersectionObserver: auto-play visible GIFs, show stills for off-screen
 	$effect(() => {
 		if (!gridEl) return;
+		// Track gifs so this effect re-runs when results change
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions -- reactive dependency
+		gifs.length;
+
 		const io = new IntersectionObserver(
 			(entries) => {
 				for (const entry of entries) {
@@ -101,10 +108,16 @@
 			{ root: gridEl, rootMargin: '100px 0px' }
 		);
 
-		const imgs = gridEl.querySelectorAll<HTMLImageElement>('img[data-animated]');
-		imgs.forEach((img) => io.observe(img));
+		// Delay observation until after Svelte renders new images
+		const raf = requestAnimationFrame(() => {
+			const imgs = gridEl!.querySelectorAll<HTMLImageElement>('img[data-animated]');
+			imgs.forEach((img) => io.observe(img));
+		});
 
-		return () => io.disconnect();
+		return () => {
+			cancelAnimationFrame(raf);
+			io.disconnect();
+		};
 	});
 
 	async function loadGifs(q?: string) {
