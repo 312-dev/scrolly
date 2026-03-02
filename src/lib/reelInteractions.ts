@@ -4,11 +4,12 @@ const IGNORE_SELECTORS = [
 	'.action-sidebar',
 	'.reel-overlay',
 	'.progress-bar',
-	'.speed-pill',
 	'.comment-prompt',
 	'.play-btn',
 	'.progress-row',
-	'.platform-links'
+	'.platform-links',
+	'.music-disc-area',
+	'.music-links-backdrop'
 ];
 
 function shouldIgnoreTarget(e: { clientX: number; clientY: number }): boolean {
@@ -115,9 +116,6 @@ export function setupMobileGestures(
 export interface KeyboardCallbacks {
 	toggleMute: () => void;
 	togglePlayPause: () => void;
-	stepSpeedUp: () => void;
-	stepSpeedDown: () => void;
-	showSpeedChange: () => void;
 	seek: (seconds: number) => void;
 }
 
@@ -133,14 +131,6 @@ export function setupReelKeyboard(
 			case 'm':
 			case 'M':
 				callbacks.toggleMute();
-				break;
-			case '[':
-				callbacks.stepSpeedDown();
-				callbacks.showSpeedChange();
-				break;
-			case ']':
-				callbacks.stepSpeedUp();
-				callbacks.showSpeedChange();
 				break;
 		}
 

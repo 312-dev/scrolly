@@ -4,14 +4,19 @@
 	import { fetchUnreadCount } from '$lib/stores/notifications';
 	import { openCommentsSignal } from '$lib/stores/toasts';
 	import { globalMuted } from '$lib/stores/mute';
-	import { globalPlaybackSpeed, stepSpeedUp, stepSpeedDown } from '$lib/stores/playbackSpeed';
+
 	import { connectNormalizer } from '$lib/audio/normalizer';
 	import {
 		setupDesktopGestures,
 		setupMobileGestures,
 		setupReelKeyboard
 	} from '$lib/reelInteractions';
-	import { trackVideoTime, sendWatchPercent, flashIndicator } from '$lib/reelPlayback';
+	import {
+		trackVideoTime,
+		sendWatchPercent,
+		flashIndicator,
+		startPeriodicWatchUpdate
+	} from '$lib/reelPlayback';
 	import { feedUiHidden } from '$lib/stores/uiHidden';
 	import { groupMembers } from '$lib/stores/members';
 	import ReelVideo from './ReelVideo.svelte';
@@ -26,7 +31,7 @@
 	import ViewersSheet from './ViewersSheet.svelte';
 	import ReelIndicators from './ReelIndicators.svelte';
 	import MusicDisc from './MusicDisc.svelte';
-	import SpeedPill from './SpeedPill.svelte';
+
 	import type { FeedClip } from '$lib/types';
 
 	const {
@@ -38,6 +43,7 @@
 		gifEnabled = false,
 		canEditCaption = false,
 		seenByOthers = false,
+		hideViewBadge = false,
 		onwatched,
 		onfavorited,
 		onreaction,
@@ -54,6 +60,7 @@
 		gifEnabled?: boolean;
 		canEditCaption?: boolean;
 		seenByOthers?: boolean;
+		hideViewBadge?: boolean;
 		onwatched: (id: string) => void;
 		onfavorited: (id: string) => void;
 		onreaction: (clipId: string, emoji: string) => Promise<void>;
@@ -68,9 +75,7 @@
 	let muted = $derived($globalMuted);
 	let showMuteIndicator = $state(false);
 	let muteIndicatorTimer: ReturnType<typeof setTimeout> | null = null;
-	let speed = $derived($globalPlaybackSpeed);
 	let showSpeedIndicator = $state(false);
-	let speedIndicatorTimer: ReturnType<typeof setTimeout> | null = null;
 
 	let isDesktop = $state(false);
 	let videoEl: HTMLVideoElement | null = $state(null);
@@ -111,7 +116,6 @@
 	});
 	onDestroy(() => {
 		if (muteIndicatorTimer) clearTimeout(muteIndicatorTimer);
-		if (speedIndicatorTimer) clearTimeout(speedIndicatorTimer);
 		if (playIndicatorTimer) clearTimeout(playIndicatorTimer);
 		if (scrubberTimerId) clearTimeout(scrubberTimerId);
 		sendWatchPercent(clip.id, maxPercent);
@@ -151,6 +155,11 @@
 			sendWatchPercent(clip.id, maxPercent);
 			maxPercent = 0;
 		}
+	});
+	// Send watch percent to server periodically while active
+	$effect(() => {
+		if (!active) return;
+		return startPeriodicWatchUpdate(clip.id, () => maxPercent);
 	});
 	// Deep-link: open comments sheet when signaled (e.g., from push notification)
 	$effect(() => {
@@ -232,9 +241,6 @@
 		if (videoEl) connectNormalizer(videoEl);
 		muteIndicatorTimer = flashIndicator((v) => (showMuteIndicator = v), muteIndicatorTimer);
 	}
-	function showSpeedChange() {
-		speedIndicatorTimer = flashIndicator((v) => (showSpeedIndicator = v), speedIndicatorTimer);
-	}
 	function seekMedia(time: number, relative = false) {
 		const el = videoEl ?? audioEl;
 		if (el)
@@ -268,9 +274,6 @@
 			{
 				toggleMute,
 				togglePlayPause,
-				stepSpeedUp,
-				stepSpeedDown,
-				showSpeedChange,
 				seek: (s: number) => seekMedia(s, true)
 			},
 			() => showComments || showPicker
@@ -299,39 +302,26 @@
 <div class="reel-item" data-index={index} bind:this={itemEl}>
 	<div class="bottom-gradient" class:ui-hidden={uiHidden}></div>
 	<div class="top-left-row" class:ui-hidden={uiHidden}>
-		{#if clip.viewCount > 0}
-			<ViewBadge viewCount={clip.viewCount} ontap={() => (showViewers = true)} />
+		{#if !hideViewBadge && clip.viewCount > 0}
+			<ViewBadge
+				viewCount={clip.viewCount}
+				ontap={() => {
+					sendWatchPercent(clip.id, maxPercent);
+					showViewers = true;
+				}}
+			/>
 		{/if}
-		<SpeedPill {active} onspeedchange={showSpeedChange} />
 	</div>
 
 	{#if clip.contentType === 'music'}
-		<ReelMusic
-			{clip}
-			{active}
-			{muted}
-			{autoScroll}
-			playbackRate={speed}
-			{onretry}
-			{onended}
-			bind:audioEl
-		/>
+		<ReelMusic {clip} {active} {muted} {autoScroll} {onretry} {onended} bind:audioEl />
 	{:else}
-		<ReelVideo
-			{clip}
-			{active}
-			{muted}
-			{autoScroll}
-			playbackRate={speed}
-			{onretry}
-			{onended}
-			bind:videoEl
-		/>
+		<ReelVideo {clip} {active} {muted} {autoScroll} {onretry} {onended} bind:videoEl />
 	{/if}
 
 	<ReelIndicators
 		{showSpeedIndicator}
-		{speed}
+		speed={1}
 		{showMuteIndicator}
 		{muted}
 		{showPlayIndicator}
@@ -368,37 +358,37 @@
 				showComments = true;
 			}}
 		/>
-
-		<ActionSidebar
-			favorited={clip.favorited}
-			{reactedEmoji}
-			commentCount={clip.commentCount}
-			unreadCommentCount={localUnreadCount}
-			originalUrl={clip.originalUrl}
-			{muted}
-			{uiHidden}
-			{isOwn}
-			onsave={() => onfavorited(clip.id)}
-			oncomment={() => {
-				commentsAutoFocus = false;
-				showComments = true;
-			}}
-			onreactionhold={triggerReactionPickerHold}
-			onmute={toggleMute}
-		/>
-
-		{#if clip.contentType === 'music' && clip.albumArt}
-			<MusicDisc
-				albumArt={clip.albumArt}
-				spotifyUrl={clip.spotifyUrl}
-				appleMusicUrl={clip.appleMusicUrl}
-				youtubeMusicUrl={clip.youtubeMusicUrl}
-				{active}
-				{paused}
-				{uiHidden}
-			/>
-		{/if}
 	</div>
+
+	<ActionSidebar
+		favorited={clip.favorited}
+		{reactedEmoji}
+		commentCount={clip.commentCount}
+		unreadCommentCount={localUnreadCount}
+		originalUrl={clip.originalUrl}
+		{muted}
+		{uiHidden}
+		{isOwn}
+		onsave={() => onfavorited(clip.id)}
+		oncomment={() => {
+			commentsAutoFocus = false;
+			showComments = true;
+		}}
+		onreactionhold={triggerReactionPickerHold}
+		onmute={toggleMute}
+	/>
+
+	{#if clip.contentType === 'music' && clip.albumArt}
+		<MusicDisc
+			albumArt={clip.albumArt}
+			spotifyUrl={clip.spotifyUrl}
+			appleMusicUrl={clip.appleMusicUrl}
+			youtubeMusicUrl={clip.youtubeMusicUrl}
+			{active}
+			{paused}
+			{uiHidden}
+		/>
+	{/if}
 </div>
 
 {#if showPicker}
