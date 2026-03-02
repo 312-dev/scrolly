@@ -223,12 +223,15 @@
 	.input-wrapper :global(.input-container) {
 		border-radius: var(--radius-md);
 	}
-	/* Tighter vertical padding and reserve right space for send icon */
+	/* Vertical padding sets the single-line height; reserve right space for send icon.
+	 * padding-top is larger than padding-bottom to optically center the text — glyphs
+	 * sit above the geometric midpoint of their line box, so extra top padding shifts
+	 * the perceived text center down to match the vertically-centered icons. */
 	.input-wrapper :global(.overlay-input),
 	.input-wrapper :global(.highlight-mirror) {
 		font-size: 1rem;
-		padding-top: 6px;
-		padding-bottom: 6px;
+		padding-top: 11px;
+		padding-bottom: 7px;
 		padding-right: 38px;
 	}
 	/*
@@ -237,7 +240,7 @@
 	 * this via inline style once the user starts typing.
 	 */
 	.input-wrapper :global(textarea.overlay-input) {
-		height: calc(1.4em + 12px);
+		height: calc(1.4em + 18px);
 		/* Strip macOS/iOS native appearance so our height rule takes full control */
 		-webkit-appearance: none;
 		appearance: none;
@@ -261,7 +264,7 @@
 	}
 	.input-wrapper.multi-line .input-actions {
 		top: auto;
-		bottom: 6px;
+		bottom: 7px;
 		transform: none;
 	}
 
