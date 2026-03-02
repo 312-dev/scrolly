@@ -231,6 +231,14 @@
 		padding-bottom: 6px;
 		padding-right: 38px;
 	}
+	/*
+	 * Pin the initial textarea height to exactly 1 line so UA stylesheets
+	 * can't inflate it and push icons below the text. autoResize() overrides
+	 * this via inline style once the user starts typing.
+	 */
+	.input-wrapper :global(textarea.overlay-input) {
+		height: calc(1.4em + 12px);
+	}
 	/* More right space when GIF pill is also showing */
 	.input-wrapper.has-gif :global(.overlay-input),
 	.input-wrapper.has-gif :global(.highlight-mirror) {
