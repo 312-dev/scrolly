@@ -14,6 +14,8 @@
 	import { homeTapSignal } from '$lib/stores/homeTap';
 	import { unwatchedCount, fetchUnwatchedCount } from '$lib/stores/notifications';
 	import { feedUiHidden } from '$lib/stores/uiHidden';
+	import { anySheetOpen } from '$lib/stores/sheetOpen';
+	import { get } from 'svelte/store';
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/state';
 	import type { FeedClip } from '$lib/types';
@@ -211,6 +213,7 @@
 		const getScrollTop = () => scrollContainer?.scrollTop ?? 0;
 
 		function handleTouchStart(e: TouchEvent) {
+			if (get(anySheetOpen)) return;
 			if (getScrollTop() <= 0 && !isRefreshing) {
 				touchStartY = e.touches[0].clientY;
 				isPullingActive = true;

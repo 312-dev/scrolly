@@ -10,6 +10,7 @@
 	import { initAudioContext } from '$lib/audio/normalizer';
 	import { feedUiHidden } from '$lib/stores/uiHidden';
 	import { fetchGroupMembers } from '$lib/stores/members';
+	import { anySheetOpen } from '$lib/stores/sheetOpen';
 	import ActivitySheet from '$lib/components/ActivitySheet.svelte';
 	import BellIcon from 'phosphor-svelte/lib/BellIcon';
 	import HouseIcon from 'phosphor-svelte/lib/HouseIcon';
@@ -129,6 +130,7 @@
 		class="bottom-tabs"
 		class:overlay-mode={isFeed}
 		class:ui-hidden={isFeed && $feedUiHidden}
+		class:sheet-hidden={$anySheetOpen}
 		bind:this={bottomTabsEl}
 	>
 		{#if isFeed}
@@ -302,6 +304,10 @@
 	.bottom-tabs.ui-hidden {
 		opacity: 0;
 		pointer-events: none;
+	}
+
+	.bottom-tabs.sheet-hidden {
+		display: none;
 	}
 
 	.bottom-tabs.overlay-mode {

@@ -2,6 +2,7 @@
 	import type { Snippet } from 'svelte';
 	import { pushState, beforeNavigate } from '$app/navigation';
 	import { onDestroy } from 'svelte';
+	import { openSheet, closeSheet } from '$lib/stores/sheetOpen';
 
 	let {
 		title = '',
@@ -36,6 +37,7 @@
 
 	// Animate in, lock scroll, manage history
 	$effect(() => {
+		openSheet();
 		requestAnimationFrame(() => {
 			visible = true;
 		});
@@ -49,6 +51,7 @@
 		window.addEventListener('popstate', handlePopState);
 
 		return () => {
+			closeSheet();
 			document.body.style.overflow = '';
 			window.removeEventListener('popstate', handlePopState);
 			if (!closedViaBack) history.back();

@@ -76,6 +76,14 @@
 		loadComments();
 	});
 
+	// Auto-focus the input independently of data loading so iOS doesn't lose
+	// the gesture context by the time the fetch finishes.
+	$effect(() => {
+		if (!autoFocus) return;
+		const t = safeTimeout(() => commentInput?.focus(), 350);
+		return () => clearTimeout(t);
+	});
+
 	$effect(() => {
 		function handleKeydown(e: KeyboardEvent) {
 			if (e.key === 'Escape') {
@@ -97,7 +105,6 @@
 		reactionEvents = result.reactionEvents;
 		loading = false;
 		markCommentsRead(clipId);
-		if (autoFocus) safeTimeout(() => commentInput?.focus(), 350);
 	}
 
 	async function handleSubmit(text: string, gifUrl?: string) {
