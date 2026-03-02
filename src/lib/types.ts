@@ -19,6 +19,7 @@ export interface FeedClip {
 	durationSeconds: number | null;
 	watched: boolean;
 	favorited: boolean;
+	favoriteCount: number;
 	commentCount: number;
 	unreadCommentCount: number;
 	viewCount: number;

@@ -107,9 +107,6 @@
 	const reactedEmoji = $derived(
 		Object.entries(clip.reactions).find(([, v]) => v.reacted)?.[0] ?? null
 	);
-	const totalReactionCount = $derived(
-		Object.values(clip.reactions).reduce((sum, r) => sum + r.count, 0)
-	);
 	let showViewers = $state(false);
 	let maxPercent = $state(0);
 	let wasActive = $state(false);
@@ -498,7 +495,7 @@
 	<ActionSidebar
 		favorited={clip.favorited}
 		{reactedEmoji}
-		reactionCount={totalReactionCount}
+		reactionCount={clip.favoriteCount}
 		commentCount={localCommentCount}
 		unreadCommentCount={localUnreadCount}
 		originalUrl={clip.originalUrl}

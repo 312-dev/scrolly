@@ -246,6 +246,15 @@ export const GET: RequestHandler = withAuth(async ({ url }, { user }) => {
 			: [];
 	const viewCounts = countByClipId(clipWatchedRows, clipIdSet);
 
+	// Get favorite counts (all users) for paginated clips
+	const allFavRows =
+		clipIds.length > 0
+			? await db.query.favorites.findMany({
+					where: inArray(favorites.clipId, clipIds)
+				})
+			: [];
+	const favCounts = countByClipId(allFavRows, clipIdSet);
+
 	// Compute which clips have been watched by someone other than the uploader
 	const uploaderMap = new Map(paginatedClips.map((c) => [c.id, c.addedBy]));
 	const seenByOthersSet = new Set<string>();
@@ -268,6 +277,7 @@ export const GET: RequestHandler = withAuth(async ({ url }, { user }) => {
 		commentCount: commentCounts.get(c.id) || 0,
 		unreadCommentCount: unreadCommentCounts.get(c.id) || 0,
 		viewCount: viewCounts.get(c.id) || 0,
+		favoriteCount: favCounts.get(c.id) || 0,
 		seenByOthers: seenByOthersSet.has(c.id)
 	}));
 

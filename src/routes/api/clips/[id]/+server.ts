@@ -26,22 +26,31 @@ export const GET: RequestHandler = withClipAuth(async ({ params }, { user, clip 
 	const userId = user.id;
 
 	// Fetch all related data in parallel
-	const [watchedRows, favRow, clipReactions, clipComments, userCommentView, uploaderInfo] =
-		await Promise.all([
-			db.query.watched.findMany({ where: eq(watched.clipId, clipId) }),
-			db.query.favorites.findFirst({
-				where: and(eq(favorites.clipId, clipId), eq(favorites.userId, userId))
-			}),
-			db.query.reactions.findMany({ where: eq(reactions.clipId, clipId) }),
-			db.query.comments.findMany({ where: eq(comments.clipId, clipId) }),
-			db.query.commentViews.findFirst({
-				where: and(eq(commentViews.clipId, clipId), eq(commentViews.userId, userId))
-			}),
-			mapUsersByIds([clip.addedBy])
-		]);
+	const [
+		watchedRows,
+		favRow,
+		allFavRows,
+		clipReactions,
+		clipComments,
+		userCommentView,
+		uploaderInfo
+	] = await Promise.all([
+		db.query.watched.findMany({ where: eq(watched.clipId, clipId) }),
+		db.query.favorites.findFirst({
+			where: and(eq(favorites.clipId, clipId), eq(favorites.userId, userId))
+		}),
+		db.query.favorites.findMany({ where: eq(favorites.clipId, clipId) }),
+		db.query.reactions.findMany({ where: eq(reactions.clipId, clipId) }),
+		db.query.comments.findMany({ where: eq(comments.clipId, clipId) }),
+		db.query.commentViews.findFirst({
+			where: and(eq(commentViews.clipId, clipId), eq(commentViews.userId, userId))
+		}),
+		mapUsersByIds([clip.addedBy])
+	]);
 
 	const isWatched = watchedRows.some((w) => w.userId === userId);
 	const isFavorited = !!favRow;
+	const favoriteCount = allFavRows.length;
 	const viewCount = watchedRows.length;
 	const seenByOthers = watchedRows.some((w) => w.userId !== clip.addedBy);
 	const canEditCaption = clip.addedBy === userId && !seenByOthers;
@@ -77,6 +86,7 @@ export const GET: RequestHandler = withClipAuth(async ({ params }, { user, clip 
 		durationSeconds: clip.durationSeconds,
 		watched: isWatched,
 		favorited: isFavorited,
+		favoriteCount,
 		reactions: reactionData,
 		commentCount,
 		unreadCommentCount,
