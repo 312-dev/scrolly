@@ -1,6 +1,4 @@
 <script lang="ts">
-	import GifIcon from 'phosphor-svelte/lib/GifIcon';
-	import KeyboardIcon from 'phosphor-svelte/lib/KeyboardIcon';
 	import MentionInput from './MentionInput.svelte';
 	import type { GroupMember } from '$lib/types';
 
@@ -88,37 +86,35 @@
 {/if}
 
 <form class="input-bar" onsubmit={handleSubmit}>
-	<button
-		type="button"
-		class="gif-btn"
-		class:active={gifPickerOpen || !!attachedGif}
-		disabled={!gifEnabled}
-		onclick={ongiftoggle}
-		aria-label={gifBtnLabel}
-		title={gifEnabled ? '' : 'Host must configure GIPHY API key'}
-	>
-		{#if gifPickerOpen}
-			<KeyboardIcon size={26} />
-		{:else}
-			<GifIcon size={26} />
+	<div class="input-wrapper" class:has-gif={gifEnabled}>
+		<MentionInput
+			bind:this={mentionInputRef}
+			placeholder={replyingTo ? `Reply to ${replyingTo.username}...` : 'Add a comment...'}
+			maxlength={500}
+			disabled={submitting}
+			{members}
+			maxRows={3}
+			onchange={(t) => {
+				text = t;
+			}}
+			onfocus={handleInputFocus}
+			onsubmit={() => {
+				if (canSubmit && !submitting)
+					onsubmit(stripEmptyLines(text.trim()), attachedGif?.shareUrl || attachedGif?.url);
+			}}
+		/>
+		{#if gifEnabled}
+			<button
+				type="button"
+				class="gif-pill"
+				class:active={gifPickerOpen || !!attachedGif}
+				onclick={ongiftoggle}
+				aria-label={gifBtnLabel}
+			>
+				GIF
+			</button>
 		{/if}
-	</button>
-	<MentionInput
-		bind:this={mentionInputRef}
-		placeholder={replyingTo ? `Reply to ${replyingTo.username}...` : 'Add a comment...'}
-		maxlength={500}
-		disabled={submitting}
-		{members}
-		maxRows={3}
-		onchange={(t) => {
-			text = t;
-		}}
-		onfocus={handleInputFocus}
-		onsubmit={() => {
-			if (canSubmit && !submitting)
-				onsubmit(stripEmptyLines(text.trim()), attachedGif?.shareUrl || attachedGif?.url);
-		}}
-	/>
+	</div>
 	<button type="submit" disabled={!canSubmit || submitting}>Send</button>
 </form>
 
@@ -197,46 +193,55 @@
 		background: var(--bg-surface);
 		padding-bottom: max(12px, env(safe-area-inset-bottom));
 	}
-	.input-bar :global(.mention-input-wrap) {
+
+	.input-wrapper {
+		position: relative;
 		flex: 1;
 		min-width: 0;
 	}
-	.input-bar :global(.mention-input-wrap .input-container) {
+	.input-wrapper :global(.mention-input-wrap) {
+		width: 100%;
+	}
+	.input-wrapper :global(.input-container) {
 		border-radius: var(--radius-md);
 	}
-	.input-bar :global(.mention-input-wrap .overlay-input),
-	.input-bar :global(.mention-input-wrap .highlight-mirror) {
+	.input-wrapper :global(.overlay-input),
+	.input-wrapper :global(.highlight-mirror) {
 		font-size: 1rem;
 	}
+	/* Add right padding so text doesn't run under the GIF pill */
+	.input-wrapper.has-gif :global(.overlay-input),
+	.input-wrapper.has-gif :global(.highlight-mirror) {
+		padding-right: 44px;
+	}
 
-	.gif-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-		width: 32px;
-		height: 32px;
-		padding: 0;
-		background: none;
-		color: var(--text-muted);
-		border: none;
+	.gif-pill {
+		position: absolute;
+		top: 7px;
+		right: 8px;
+		z-index: 10;
+		padding: 3px 7px;
+		background: var(--bg-subtle);
+		border: 1px solid var(--border);
 		border-radius: var(--radius-full);
+		font-size: 0.5625rem;
+		font-weight: 800;
+		letter-spacing: 0.06em;
+		line-height: 1.4;
+		color: var(--text-muted);
 		cursor: pointer;
-		transition: color 0.2s ease;
+		transition:
+			background 0.15s,
+			color 0.15s,
+			border-color 0.15s;
 	}
-	.gif-btn :global(svg) {
-		width: 26px;
-		height: 26px;
-	}
-	.gif-btn:active:not(:disabled) {
-		transform: scale(0.93);
-	}
-	.gif-btn.active {
+	.gif-pill.active {
+		background: color-mix(in srgb, var(--accent-primary) 18%, var(--bg-subtle));
+		border-color: color-mix(in srgb, var(--accent-primary) 40%, var(--border));
 		color: var(--accent-primary);
 	}
-	.gif-btn:disabled {
-		opacity: 0.3;
-		cursor: not-allowed;
+	.gif-pill:active {
+		transform: scale(0.93);
 	}
 
 	.input-bar button[type='submit'] {

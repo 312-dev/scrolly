@@ -360,13 +360,27 @@
 </div>
 
 <style>
+	.comments-sheet-wrapper {
+		--_sheet-bg: rgba(0, 0, 0, 0.93);
+	}
+	@media (prefers-color-scheme: light) {
+		.comments-sheet-wrapper {
+			--_sheet-bg: var(--bg-elevated);
+		}
+	}
+	:global([data-theme='dark']) .comments-sheet-wrapper {
+		--_sheet-bg: rgba(0, 0, 0, 0.93);
+	}
+	:global([data-theme='light']) .comments-sheet-wrapper {
+		--_sheet-bg: var(--bg-elevated);
+	}
 	.comments-sheet-wrapper :global(.base-overlay) {
 		background: transparent;
 	}
 	.comments-sheet-wrapper :global(.base-sheet) {
 		height: 70vh;
 		height: 70dvh;
-		background: rgba(0, 0, 0, 0.93);
+		background: var(--_sheet-bg);
 	}
 	.content-area {
 		flex: 1;
