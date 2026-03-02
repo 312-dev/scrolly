@@ -324,7 +324,6 @@
 		color: rgba(255, 255, 255, 0.85);
 		filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
 	}
-
 	.grid-avatar {
 		position: absolute;
 		top: var(--space-xs);
@@ -382,14 +381,12 @@
 		font-weight: 700;
 		color: var(--text-primary);
 	}
-
 	.empty-sub {
 		margin: 0;
 		color: var(--text-muted);
 		font-size: 0.875rem;
 		max-width: 200px;
 	}
-
 	.spinner {
 		display: inline-block;
 		width: 28px;
