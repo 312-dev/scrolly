@@ -4,15 +4,11 @@ on:
   push:
     branches: [main]
 
-# Note: release-please uses GITHUB_TOKEN, which doesn't trigger other workflows.
-# CI/CodeQL checks on release PRs are handled by release-pr-checks.yml using
-# pull_request_target. The close/reopen step below ensures the `reopened` event
-# fires reliably (force-push `synchronize` events are inconsistent with GITHUB_TOKEN).
-# Docker publishing is handled by docker-publish.yml using workflow_run.
-#
-# Ideal fix: use a fine-grained PAT (repo secret RELEASE_TOKEN) with contents:write
-# and pull-requests:write. This makes release-please PRs trigger normal pull_request
-# events, eliminating the need for release-pr-checks.yml entirely.
+# Note: release-please uses GITHUB_TOKEN, which can't trigger other workflows
+# (GitHub limitation). CI checks on release PRs are handled by
+# release-pr-checks.yml via workflow_run (fires when this workflow completes).
+# That workflow posts commit statuses to the PR head SHA so branch protection
+# sees the results. Docker publishing uses docker-publish.yml (also workflow_run).
 
 permissions:
   contents: write
@@ -31,60 +27,3 @@ jobs:
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-
-  # When release-please creates or updates a PR via GITHUB_TOKEN, the
-  # pull_request_target `synchronize` event doesn't always fire. Closing
-  # and reopening the PR ensures the `reopened` event triggers CI checks.
-  # We verify both state transitions and retry once on failure.
-  trigger-pr-checks:
-    needs: [release-please]
-    if: needs.release-please.outputs.pr != '' && needs.release-please.outputs.release_created != 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Close and reopen release PR to trigger checks
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ fromJSON(needs.release-please.outputs.pr).number }}
-        run: |
-          trigger_checks() {
-            echo "Closing release PR #$PR_NUMBER..."
-            gh pr close "$PR_NUMBER" --repo "$GITHUB_REPOSITORY"
-
-            # Wait and verify closed state
-            for i in 1 2 3; do
-              sleep 3
-              STATE=$(gh pr view "$PR_NUMBER" --json state --jq '.state' --repo "$GITHUB_REPOSITORY")
-              if [ "$STATE" = "CLOSED" ]; then break; fi
-              echo "  Waiting for close to propagate (attempt $i)..."
-            done
-
-            echo "Reopening release PR #$PR_NUMBER..."
-            gh pr reopen "$PR_NUMBER" --repo "$GITHUB_REPOSITORY"
-
-            # Verify reopened state
-            sleep 3
-            STATE=$(gh pr view "$PR_NUMBER" --json state --jq '.state' --repo "$GITHUB_REPOSITORY")
-            if [ "$STATE" = "OPEN" ]; then
-              echo "Release PR #$PR_NUMBER successfully reopened"
-              return 0
-            else
-              echo "WARNING: PR state is $STATE after reopen attempt"
-              return 1
-            fi
-          }
-
-          # First attempt
-          if trigger_checks; then
-            exit 0
-          fi
-
-          echo "First attempt failed, retrying in 10s..."
-          sleep 10
-
-          # Retry once
-          if trigger_checks; then
-            exit 0
-          fi
-
-          echo "ERROR: Failed to reopen PR after 2 attempts"
-          exit 1

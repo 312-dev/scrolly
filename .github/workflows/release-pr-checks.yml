@@ -1,16 +1,19 @@
 # Runs CI and CodeQL on release-please PRs.
 #
 # Why this exists: release-please creates PRs using GITHUB_TOKEN, which does
-# NOT trigger other workflows (pull_request events). pull_request_target IS
-# triggered by GITHUB_TOKEN events because it runs in the base branch context.
-# Without this, release PRs have no status checks and can't be merged when
-# branch protection requires them.
+# NOT trigger other workflows (pull_request events). Without this workflow,
+# release PRs have no status checks and can't be merged when branch protection
+# requires them.
 #
-# Triggers:
-# 1. pull_request_target (opened/synchronize/reopened) — fired by close/reopen
-#    in release.yml or by direct PR updates
-# 2. workflow_run (Release workflow completed) — fallback if close/reopen fails
-#    to fire pull_request_target events
+# How it works:
+# 1. workflow_run trigger fires reliably when the Release workflow completes.
+#    This is the primary mechanism — it always fires regardless of token type.
+# 2. pull_request_target is a secondary trigger for manual close/reopen from
+#    the GitHub UI (useful as a manual fallback if needed).
+# 3. When triggered via workflow_run, check runs are associated with the main
+#    branch commit (not the PR head). Branch protection can't see them, so the
+#    ci job posts commit statuses to the PR head SHA matching the required
+#    check names ("ci" and "lint-and-check").
 #
 # Security: restricted to release-please branches only. The checkout uses the
 # PR's HEAD SHA, which is safe because release-please PRs come from within the
@@ -26,7 +29,10 @@ on:
     workflows: [Release]
     types: [completed]
 
-permissions: read-all
+permissions:
+  contents: read
+  statuses: write
+  security-events: write
 
 jobs:
   # Gate: only run for release-please PRs. Finds PR details from either trigger.
@@ -111,6 +117,33 @@ jobs:
             exit 1
           fi
           echo "CI passed"
+
+      # When triggered via workflow_run, check runs are associated with the main
+      # branch commit, not the PR head. Branch protection can't see them, so we
+      # post commit statuses to the PR head SHA matching the required check names.
+      - name: Report status to release PR
+        if: needs.should-run.outputs.head_sha != '' && github.event_name == 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          HEAD_SHA="${{ needs.should-run.outputs.head_sha }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          if [[ "${{ needs.lint-and-check.result }}" == "failure" || "${{ needs.lint-and-check.result }}" == "cancelled" ]]; then
+            STATE="failure"
+            DESC="Release PR checks failed"
+          else
+            STATE="success"
+            DESC="Release PR checks passed"
+          fi
+
+          echo "Posting $STATE status to $HEAD_SHA for required checks..."
+          for CHECK in "ci" "lint-and-check"; do
+            gh api "repos/${{ github.repository }}/statuses/$HEAD_SHA" \
+              -f state="$STATE" -f context="$CHECK" \
+              -f description="$DESC" -f target_url="$RUN_URL"
+            echo "  Posted $CHECK: $STATE"
+          done
 
   codeql:
     needs: [should-run]
