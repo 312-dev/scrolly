@@ -24,30 +24,47 @@
 	let closedViaBack = false;
 	let timers: ReturnType<typeof setTimeout>[] = [];
 
-	let handleEl: HTMLElement | null = $state(null);
+	let dragZoneEl: HTMLElement | null = $state(null);
 	let dragY = $state(0);
 	let dragging = $state(false);
+	let dragTracking = false;
 	let dragStartY = 0;
+	let dragStartX = 0;
+	const DRAG_COMMIT_THRESHOLD = 6; // px of downward motion before locking to a drag
 	const DRAG_DISMISS_THRESHOLD = 120;
 
 	function startDrag(e: PointerEvent) {
-		if (!handleEl) return;
-		handleEl.setPointerCapture(e.pointerId);
-		dragging = true;
+		dragTracking = true;
 		dragStartY = e.clientY;
+		dragStartX = e.clientX;
 		dragY = 0;
 	}
 
 	function moveDrag(e: PointerEvent) {
-		if (!dragging) return;
-		dragY = Math.max(0, e.clientY - dragStartY);
+		if (!dragTracking) return;
+		const dy = e.clientY - dragStartY;
+		const dx = e.clientX - dragStartX;
+
+		if (!dragging) {
+			// Commit to drag only when moving clearly downward
+			if (dy > DRAG_COMMIT_THRESHOLD && dy > Math.abs(dx)) {
+				dragging = true;
+				dragZoneEl?.setPointerCapture(e.pointerId);
+			} else if (Math.abs(dx) > DRAG_COMMIT_THRESHOLD || dy < -DRAG_COMMIT_THRESHOLD) {
+				dragTracking = false;
+			}
+			return;
+		}
+
+		dragY = Math.max(0, dy);
 	}
 
 	function endDrag() {
+		if (!dragTracking) return;
+		dragTracking = false;
 		if (!dragging) return;
-		const wasTap = dragY < 5;
 		dragging = false;
-		if (wasTap || dragY > DRAG_DISMISS_THRESHOLD) {
+		if (dragY > DRAG_DISMISS_THRESHOLD) {
 			dragY = 0;
 			dismiss();
 		} else {
@@ -105,31 +122,37 @@
 	class:dragging
 	style:transform={dragY > 0 ? `translateY(${dragY}px)` : undefined}
 >
-	{#if showHandle}
-		<div
-			class="base-handle-bar"
-			bind:this={handleEl}
-			onpointerdown={startDrag}
-			onpointermove={moveDrag}
-			onpointerup={endDrag}
-			onpointercancel={endDrag}
-			onkeydown={(e) => {
-				if (e.key === 'Enter' || e.key === ' ') dismiss();
-			}}
-			role="button"
-			tabindex="-1"
-		>
-			<div class="base-handle"></div>
-		</div>
-	{/if}
+	<div
+		class="base-drag-zone"
+		bind:this={dragZoneEl}
+		onpointerdown={startDrag}
+		onpointermove={moveDrag}
+		onpointerup={endDrag}
+		onpointercancel={endDrag}
+		role="presentation"
+	>
+		{#if showHandle}
+			<div
+				class="base-handle-bar"
+				onclick={dismiss}
+				onkeydown={(e) => {
+					if (e.key === 'Enter' || e.key === ' ') dismiss();
+				}}
+				role="button"
+				tabindex="-1"
+			>
+				<div class="base-handle"></div>
+			</div>
+		{/if}
 
-	{#if header}
-		{@render header()}
-	{:else if title}
-		<div class="base-header">
-			<span class="base-title">{title}</span>
-		</div>
-	{/if}
+		{#if header}
+			{@render header()}
+		{:else if title}
+			<div class="base-header">
+				<span class="base-title">{title}</span>
+			</div>
+		{/if}
+	</div>
 
 	{@render children()}
 </div>
@@ -167,12 +190,15 @@
 		transition: none;
 	}
 
+	.base-drag-zone {
+		touch-action: none;
+	}
+
 	.base-handle-bar {
 		display: flex;
 		justify-content: center;
 		padding: var(--space-md);
 		cursor: pointer;
-		touch-action: none;
 	}
 	.base-handle {
 		width: 36px;
