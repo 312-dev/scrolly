@@ -29,8 +29,12 @@
 
 	let text = $state('');
 	let mentionInputRef = $state<ReturnType<typeof MentionInput> | null>(null);
+	let inputWrapperHeight = $state(0);
 
 	const canSubmit = $derived(text.trim().length > 0 || !!attachedGif);
+	// Switch from centered to bottom-anchored once the input grows past 1 line.
+	// Single-line height is ~36px; threshold of 50px gives plenty of buffer.
+	const isMultiLine = $derived(inputWrapperHeight > 50);
 
 	export function focus() {
 		mentionInputRef?.focus();
@@ -87,7 +91,12 @@
 {/if}
 
 <form class="input-bar" onsubmit={handleSubmit}>
-	<div class="input-wrapper" class:has-gif={gifEnabled}>
+	<div
+		class="input-wrapper"
+		class:has-gif={gifEnabled}
+		class:multi-line={isMultiLine}
+		bind:offsetHeight={inputWrapperHeight}
+	>
 		<MentionInput
 			bind:this={mentionInputRef}
 			placeholder={replyingTo ? `Reply to ${replyingTo.username}...` : 'Add a comment...'}
@@ -228,15 +237,25 @@
 		padding-right: 70px;
 	}
 
-	/* Row of actions pinned to bottom-right of the growing input */
+	/* Actions row: centered vertically on single-line, bottom-anchored on multi-line */
 	.input-actions {
 		position: absolute;
-		bottom: 6px;
+		top: 50%;
+		transform: translateY(-50%);
 		right: 8px;
 		display: flex;
 		align-items: center;
 		gap: 4px;
 		z-index: 10;
+		transition:
+			top 0.12s ease,
+			bottom 0.12s ease,
+			transform 0.12s ease;
+	}
+	.input-wrapper.multi-line .input-actions {
+		top: auto;
+		bottom: 6px;
+		transform: none;
 	}
 
 	.gif-pill {
