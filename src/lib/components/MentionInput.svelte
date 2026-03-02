@@ -7,6 +7,7 @@
 		disabled = false,
 		members = [],
 		singleLine = false,
+		maxRows = 0,
 		onchange,
 		onfocus,
 		onsubmit
@@ -16,6 +17,7 @@
 		disabled?: boolean;
 		members?: GroupMember[];
 		singleLine?: boolean;
+		maxRows?: number;
 		onchange?: (text: string) => void;
 		onfocus?: () => void;
 		onsubmit?: () => void;
@@ -64,6 +66,16 @@
 		onchange?.(text);
 		checkForMention();
 		syncScroll();
+		if (maxRows > 0) autoResize();
+	}
+
+	function autoResize() {
+		const el = inputEl as HTMLTextAreaElement | null;
+		if (!el) return;
+		el.style.height = 'auto';
+		const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 22;
+		const maxHeight = lineHeight * maxRows;
+		el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
 	}
 
 	function syncScroll() {
@@ -125,7 +137,8 @@
 			}
 		}
 
-		if (singleLine && e.key === 'Enter' && !showDropdown) {
+		if (e.key === 'Enter' && !showDropdown && (singleLine || maxRows > 0)) {
+			if (e.shiftKey && maxRows > 0) return; // Shift+Enter inserts newline in multi-line mode
 			e.preventDefault();
 			onsubmit?.();
 		}
@@ -143,6 +156,10 @@
 	export function clear() {
 		text = '';
 		onchange?.('');
+		if (maxRows > 0) {
+			const el = inputEl as HTMLTextAreaElement | null;
+			if (el) el.style.height = 'auto';
+		}
 	}
 
 	export function getText(): string {
@@ -216,7 +233,7 @@
 				{placeholder}
 				{maxlength}
 				{disabled}
-				rows="2"
+				rows={maxRows > 0 ? 1 : 2}
 				oninput={handleInput}
 				onkeydown={handleKeydown}
 				onclick={handleClick}

@@ -46,10 +46,17 @@
 		return text.trim().length === 0;
 	}
 
+	function stripEmptyLines(s: string): string {
+		return s
+			.split('\n')
+			.filter((line) => line.trim().length > 0)
+			.join('\n');
+	}
+
 	function handleSubmit(e: SubmitEvent) {
 		e.preventDefault();
 		if (!canSubmit || submitting) return;
-		onsubmit(text.trim(), attachedGif?.shareUrl || attachedGif?.url);
+		onsubmit(stripEmptyLines(text.trim()), attachedGif?.shareUrl || attachedGif?.url);
 	}
 
 	function getGifBtnLabel() {
@@ -102,14 +109,14 @@
 		maxlength={500}
 		disabled={submitting}
 		{members}
-		singleLine
+		maxRows={3}
 		onchange={(t) => {
 			text = t;
 		}}
 		onfocus={handleInputFocus}
 		onsubmit={() => {
 			if (canSubmit && !submitting)
-				onsubmit(text.trim(), attachedGif?.shareUrl || attachedGif?.url);
+				onsubmit(stripEmptyLines(text.trim()), attachedGif?.shareUrl || attachedGif?.url);
 		}}
 	/>
 	<button type="submit" disabled={!canSubmit || submitting}>Send</button>
@@ -183,7 +190,7 @@
 
 	.input-bar {
 		display: flex;
-		align-items: center;
+		align-items: flex-end;
 		gap: var(--space-sm);
 		padding: var(--space-md) var(--space-lg);
 		border-top: 1px solid var(--border);
@@ -195,7 +202,7 @@
 		min-width: 0;
 	}
 	.input-bar :global(.mention-input-wrap .input-container) {
-		border-radius: var(--radius-full);
+		border-radius: var(--radius-md);
 	}
 	.input-bar :global(.mention-input-wrap .overlay-input),
 	.input-bar :global(.mention-input-wrap .highlight-mirror) {
