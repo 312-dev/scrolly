@@ -134,6 +134,27 @@ for (const g of groupsWithoutToken) {
 	db.update(schema.groups).set({ shortcutToken: uuid() }).where(eq(schema.groups.id, g.id)).run();
 }
 
+// Remove favorites that were auto-created by negative-only reactions (👎, ❓)
+// A favorite is removed if the user has reactions on that clip but ALL are negative
+const NEGATIVE_EMOJIS = ['👎', '❓'];
+const negativeFavCleanup = sqlite // eslint-disable-line sonarjs/sql-queries -- static placeholders only
+	.prepare(
+		`DELETE FROM favorites WHERE rowid IN (
+		SELECT f.rowid FROM favorites f
+		INNER JOIN reactions r ON r.clip_id = f.clip_id AND r.user_id = f.user_id
+		WHERE NOT EXISTS (
+			SELECT 1 FROM reactions r2
+			WHERE r2.clip_id = f.clip_id AND r2.user_id = f.user_id
+			AND r2.emoji NOT IN (${NEGATIVE_EMOJIS.map(() => '?').join(',')})
+		)
+		GROUP BY f.clip_id, f.user_id
+	)`
+	)
+	.run(...NEGATIVE_EMOJIS);
+if (negativeFavCleanup.changes > 0) {
+	log.info({ removed: negativeFavCleanup.changes }, 'Cleaned up negative-reaction-only favorites');
+}
+
 // Auto-create the group on first run if the database is empty
 const groupCount = db.select({ id: schema.groups.id }).from(schema.groups).limit(1).all();
 if (groupCount.length === 0) {
