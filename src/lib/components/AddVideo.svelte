@@ -8,22 +8,21 @@
 		isPlatformAllowed
 	} from '$lib/url-validation';
 	import { addToast } from '$lib/stores/toasts';
+	import { showShortcutNudge } from '$lib/stores/shortcutNudge';
 	import { page } from '$app/stores';
 	import type { GroupMember } from '$lib/types';
 	import DownloadSimpleIcon from 'phosphor-svelte/lib/DownloadSimpleIcon';
 	import ClipboardIcon from 'phosphor-svelte/lib/ClipboardIcon';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
+	import LightbulbIcon from 'phosphor-svelte/lib/LightbulbIcon';
 
 	const {
 		onsubmitted,
 		initialUrl,
 		members = []
 	}: {
-		onsubmitted?: (
-			clip: { id: string; status: string; contentType: string },
-			caption: string
-		) => void;
+		onsubmitted?: (clip: { id: string; status: string; contentType: string }) => void;
 		initialUrl?: string;
 		members?: GroupMember[];
 	} = $props();
@@ -132,7 +131,7 @@
 				contentType: data.clip.contentType,
 				autoDismiss: 0
 			});
-			onsubmitted?.(data.clip, '');
+			onsubmitted?.(data.clip);
 		} catch {
 			error = 'Something went wrong';
 		} finally {
@@ -229,6 +228,14 @@
 			<p class="platform-blocked">{platformLabel(url.trim())} links aren't allowed in this group</p>
 		{/if}
 		<InlineError message={error} />
+
+		{#if $showShortcutNudge}
+			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+			<a href="/share/setup" class="share-hint">
+				<LightbulbIcon size={14} />
+				Share clips faster from other apps
+			</a>
+		{/if}
 	</form>
 {/if}
 
@@ -240,7 +247,6 @@
 		gap: var(--space-md);
 		padding: var(--space-sm) var(--space-lg) var(--space-lg);
 	}
-
 	.clipboard-suggestion {
 		display: flex;
 		align-items: center;
@@ -326,8 +332,6 @@
 			transform: translateY(0);
 		}
 	}
-
-	/* iMessage-style compose fields */
 	.compose-fields {
 		width: 100%;
 		background: var(--bg-elevated);
@@ -338,25 +342,21 @@
 			border-color 0.2s ease,
 			box-shadow 0.2s ease;
 	}
-
 	.compose-fields:focus-within {
 		border-color: var(--accent-primary);
 		box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 15%, transparent);
 	}
-
 	.field-row {
 		display: flex;
 		align-items: center;
 		gap: var(--space-sm);
 		padding: var(--space-xs) var(--space-md);
 	}
-
 	.message-row {
 		align-items: flex-start;
 		padding-top: var(--space-sm);
 		padding-bottom: var(--space-sm);
 	}
-
 	.field-label {
 		font-size: 0.8125rem;
 		font-weight: 600;
@@ -364,28 +364,23 @@
 		flex-shrink: 0;
 		min-width: 56px;
 	}
-
 	.message-row .field-label {
 		padding-top: var(--space-xs);
 	}
-
 	.field-divider {
 		height: 1px;
 		background: var(--border);
 		margin: 0 var(--space-md);
 	}
-
 	.field-input-wrap {
 		display: flex;
 		align-items: center;
 		flex: 1;
 		min-width: 0;
 	}
-
 	.field-input-wrap.has-error input {
 		color: var(--error);
 	}
-
 	.field-input-wrap input {
 		flex: 1;
 		padding: 10px 0;
@@ -439,16 +434,13 @@
 		width: 18px;
 		height: 18px;
 	}
-
 	.submit-btn:active {
 		transform: scale(0.92);
 	}
-
 	.submit-btn:disabled {
 		opacity: 0.35;
 		cursor: not-allowed;
 	}
-
 	.spinner {
 		width: 16px;
 		height: 16px;
@@ -457,13 +449,11 @@
 		border-radius: var(--radius-full);
 		animation: spin 0.6s linear infinite;
 	}
-
 	@keyframes spin {
 		to {
 			transform: rotate(360deg);
 		}
 	}
-
 	.platform-blocked {
 		margin: 0;
 		font-size: 0.8125rem;
@@ -476,7 +466,6 @@
 		text-align: center;
 		padding: var(--space-2xl) var(--space-lg);
 	}
-
 	.no-provider-state :global(.no-provider-icon) {
 		width: 40px;
 		height: 40px;
@@ -484,7 +473,6 @@
 		opacity: 0.4;
 		margin-bottom: var(--space-md);
 	}
-
 	.no-provider-title {
 		font-family: var(--font-display);
 		font-size: 1rem;
@@ -496,5 +484,17 @@
 		font-size: 0.875rem;
 		color: var(--text-muted);
 		margin: 0;
+	}
+	.share-hint {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-xs);
+		font-size: 0.75rem;
+		color: var(--text-muted);
+		text-decoration: underline;
+		text-underline-offset: 2px;
+	}
+	.share-hint :global(svg) {
+		flex-shrink: 0;
 	}
 </style>
