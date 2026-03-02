@@ -135,6 +135,12 @@
 		code = input.value.replace(/\D/g, '').slice(0, 6);
 		input.value = code;
 	}
+
+	function scrollToInput(e: FocusEvent) {
+		setTimeout(() => {
+			(e.target as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center' });
+		}, 350);
+	}
 </script>
 
 <svelte:head>
@@ -175,6 +181,7 @@
 							value={phoneDisplay}
 							oninput={handlePhoneInput}
 							onkeydown={handlePhoneKeydown}
+							onfocus={scrollToInput}
 							placeholder="(555) 123-4567"
 							autocomplete="tel"
 							disabled={loading}
@@ -231,6 +238,7 @@
 							autocomplete="one-time-code"
 							value={code}
 							oninput={handleCodeInput}
+							onfocus={scrollToInput}
 							disabled={loading}
 							class="code-hidden-input"
 							bind:this={codeInputEl}
@@ -297,7 +305,7 @@
 		padding: var(--space-xl);
 		padding-bottom: calc(var(--space-xl) + 72px);
 		background: var(--bg-primary);
-		overflow: hidden;
+		overflow-y: auto;
 	}
 
 	/* --- Background grain texture --- */

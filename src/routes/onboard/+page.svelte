@@ -118,6 +118,12 @@
 		}
 	}
 
+	function scrollToInput(e: FocusEvent) {
+		setTimeout(() => {
+			(e.target as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center' });
+		}, 350);
+	}
+
 	async function handleResend() {
 		error = '';
 		loading = true;
@@ -163,6 +169,7 @@
 				<input
 					type="text"
 					bind:value={username}
+					onfocus={scrollToInput}
 					placeholder="Your name"
 					autocomplete="name"
 					disabled={loading}
@@ -178,6 +185,7 @@
 						value={phoneDisplay}
 						oninput={handlePhoneInput}
 						onkeydown={handlePhoneKeydown}
+						onfocus={scrollToInput}
 						placeholder="(555) 123-4567"
 						autocomplete="tel"
 						disabled={loading}
@@ -227,6 +235,7 @@
 					type="text"
 					value={code}
 					oninput={handleCodeInput}
+					onfocus={scrollToInput}
 					placeholder="000000"
 					autocomplete="one-time-code"
 					inputmode="numeric"
@@ -270,6 +279,7 @@
 		padding: var(--space-lg);
 		padding-bottom: calc(var(--space-lg) + 72px);
 		background: var(--bg-primary);
+		overflow-y: auto;
 	}
 
 	h1 {
