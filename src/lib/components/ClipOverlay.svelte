@@ -215,17 +215,19 @@
 >
 	<!-- Top bar: back button + view badge -->
 	<div class="overlay-top-bar">
-		<button class="back-btn" onclick={handleDismiss} aria-label="Go back">
-			<CaretLeftIcon size={22} weight="bold" />
-		</button>
-		{#if clip && clip.viewCount > 0}
-			<ViewBadge
-				viewCount={clip.viewCount}
-				ontap={() => {
-					showViewers = true;
-				}}
-			/>
-		{/if}
+		<div class="overlay-top-row">
+			<button class="back-btn" onclick={handleDismiss} aria-label="Go back">
+				<CaretLeftIcon size={22} weight="bold" />
+			</button>
+			{#if clip && clip.viewCount > 0}
+				<ViewBadge
+					viewCount={clip.viewCount}
+					ontap={() => {
+						showViewers = true;
+					}}
+				/>
+			{/if}
+		</div>
 	</div>
 
 	{#if loading}
@@ -270,9 +272,9 @@
 		inset: 0;
 		z-index: 40;
 		background: var(--bg-primary);
-		/* No tab bar here — use just the safe area inset as the baseline.
-		   Comment bar sits at +8px above this, progress bar at +36px, captions at +92px. */
-		--bottom-nav-height: env(safe-area-inset-bottom, 0px);
+		/* No tab bar — baseline is safe area minus the 4px bar gap, so the comment bar
+		   lands flush at the safe area edge. Clamped at 0 for devices with no safe area. */
+		--bottom-nav-height: max(0px, calc(env(safe-area-inset-bottom, 0px) - 4px));
 	}
 
 	.clip-overlay.animating {
@@ -288,11 +290,13 @@
 		padding-left: var(--space-lg);
 		padding-right: var(--space-lg);
 		z-index: 6;
-		display: flex;
-		align-items: flex-end;
-		justify-content: space-between;
-		min-height: calc(max(var(--space-md), env(safe-area-inset-top)) + 40px);
 		pointer-events: none;
+	}
+	.overlay-top-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		min-height: 40px;
 	}
 
 	.back-btn {
