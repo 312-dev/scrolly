@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.8.0...scrolly-v1.9.0) (2026-03-02)
+
+
+### Features
+
+* reaction icons, GIF playback, comment UX polish ([#38](https://github.com/312-dev/scrolly/issues/38)) ([ed6417f](https://github.com/312-dev/scrolly/commit/ed6417feb05bea0b2882be623f617648927d3041))
+
 ## [1.8.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.7.0...scrolly-v1.8.0) (2026-03-02)
 
 
