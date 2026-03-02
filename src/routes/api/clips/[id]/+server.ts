@@ -50,8 +50,9 @@ export const GET: RequestHandler = withClipAuth(async ({ params }, { user, clip 
 
 	const commentCount = clipComments.length;
 	const unreadCommentCount = userCommentView
-		? clipComments.filter((c) => c.createdAt > userCommentView.viewedAt).length
-		: commentCount;
+		? clipComments.filter((c) => c.userId !== userId && c.createdAt > userCommentView.viewedAt)
+				.length
+		: clipComments.filter((c) => c.userId !== userId).length;
 
 	const uploaderUser = uploaderInfo.get(clip.addedBy);
 

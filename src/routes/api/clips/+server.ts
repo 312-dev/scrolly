@@ -98,13 +98,15 @@ function countByClipId(items: { clipId: string }[], clipIds: Set<string>): Map<s
 }
 
 function countUnreadComments(
-	allComments: { clipId: string; createdAt: Date }[],
+	allComments: { clipId: string; userId: string; createdAt: Date }[],
 	clipIds: Set<string>,
-	viewedAtMap: Map<string, Date>
+	viewedAtMap: Map<string, Date>,
+	currentUserId: string
 ): Map<string, number> {
 	const counts = new Map<string, number>();
 	for (const c of allComments) {
 		if (!clipIds.has(c.clipId)) continue;
+		if (c.userId === currentUserId) continue;
 		const viewedAt = viewedAtMap.get(c.clipId);
 		if (!viewedAt || c.createdAt > viewedAt) {
 			counts.set(c.clipId, (counts.get(c.clipId) || 0) + 1);
@@ -119,8 +121,14 @@ function applySortOrder(
 	clipList: ClipRow[],
 	sort: string,
 	filter: string | null,
-	watchedRows: { clipId: string; watchedAt: Date }[]
+	watchedRows: { clipId: string; watchedAt: Date }[],
+	favRows: { clipId: string; createdAt: Date }[]
 ): ClipRow[] {
+	if (filter === 'favorites') {
+		// Favorites tab: sort by most recently favorited
+		const favAtMap = new Map(favRows.map((f) => [f.clipId, f.createdAt.getTime()]));
+		return [...clipList].sort((a, b) => (favAtMap.get(b.id) ?? 0) - (favAtMap.get(a.id) ?? 0));
+	}
 	if (filter === 'watched') {
 		// Watched tab: sort by first-watched (watchedAt is never updated after initial watch)
 		const watchedAtMap = new Map(watchedRows.map((w) => [w.clipId, w.watchedAt.getTime()]));
@@ -194,7 +202,7 @@ export const GET: RequestHandler = withAuth(async ({ url }, { user }) => {
 		allClips = allClips.filter((c) => favIds.has(c.id));
 	}
 
-	allClips = applySortOrder(allClips, sort, filter, watchedRows);
+	allClips = applySortOrder(allClips, sort, filter, watchedRows, favRows);
 
 	const total = allClips.length;
 	const paginatedClips = allClips.slice(offset, offset + limit);
@@ -227,7 +235,7 @@ export const GET: RequestHandler = withAuth(async ({ url }, { user }) => {
 	for (const cv of userCommentViews) {
 		viewedAtMap.set(cv.clipId, cv.viewedAt);
 	}
-	const unreadCommentCounts = countUnreadComments(clipComments, clipIdSet, viewedAtMap);
+	const unreadCommentCounts = countUnreadComments(clipComments, clipIdSet, viewedAtMap, userId);
 
 	// Get view counts for paginated clips only
 	const clipWatchedRows =

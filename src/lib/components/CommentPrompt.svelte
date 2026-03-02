@@ -2,15 +2,21 @@
 	import ChatIcon from 'phosphor-svelte/lib/ChatIcon';
 
 	const {
+		commentCount = 0,
 		onclick
 	}: {
+		commentCount?: number;
 		onclick: (e: MouseEvent) => void;
 	} = $props();
 </script>
 
 <button type="button" class="comment-prompt" {onclick}>
 	<ChatIcon size={18} />
-	<span>Add a comment...</span>
+	{#if commentCount > 0}
+		<span>{commentCount} comment{commentCount === 1 ? '' : 's'}</span>
+	{:else}
+		<span>Add a comment...</span>
+	{/if}
 </button>
 
 <style>

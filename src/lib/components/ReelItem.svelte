@@ -480,6 +480,7 @@
 	<div class="bottom-row" class:ui-hidden={uiHidden}>
 		{#if active}
 			<CommentPrompt
+				commentCount={clip.commentCount}
 				onclick={(e) => {
 					e.stopPropagation();
 					commentsAutoFocus = true;
@@ -492,7 +493,6 @@
 	<ActionSidebar
 		favorited={clip.favorited}
 		{reactedEmoji}
-		commentCount={clip.commentCount}
 		unreadCommentCount={localUnreadCount}
 		originalUrl={clip.originalUrl}
 		{muted}
