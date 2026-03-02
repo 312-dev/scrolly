@@ -102,7 +102,7 @@
 	.music-disc-area {
 		position: absolute;
 		right: var(--space-lg);
-		bottom: calc(var(--bottom-nav-height, 64px) + 28px);
+		bottom: calc(var(--bottom-nav-height, 64px) + 8px);
 		z-index: 10;
 		transition: opacity 0.3s ease;
 	}

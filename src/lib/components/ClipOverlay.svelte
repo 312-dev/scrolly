@@ -270,6 +270,9 @@
 		inset: 0;
 		z-index: 40;
 		background: var(--bg-primary);
+		/* No tab bar here — use just the safe area inset as the baseline.
+		   Comment bar sits at +8px above this, progress bar at +36px, captions at +92px. */
+		--bottom-nav-height: env(safe-area-inset-bottom, 0px);
 	}
 
 	.clip-overlay.animating {
@@ -278,13 +281,18 @@
 
 	.overlay-top-bar {
 		position: absolute;
-		top: max(var(--space-md), env(safe-area-inset-top));
-		left: var(--space-lg);
+		top: 0;
+		left: 0;
+		right: 0;
+		padding-top: max(var(--space-md), env(safe-area-inset-top));
+		padding-left: var(--space-lg);
+		padding-right: var(--space-lg);
 		z-index: 6;
 		display: flex;
-		align-items: center;
-		gap: var(--space-sm);
-		min-height: 40px;
+		align-items: flex-end;
+		justify-content: space-between;
+		min-height: calc(max(var(--space-md), env(safe-area-inset-top)) + 40px);
+		pointer-events: none;
 	}
 
 	.back-btn {
@@ -301,6 +309,7 @@
 		color: var(--reel-text);
 		cursor: pointer;
 		transition: transform 0.1s ease;
+		pointer-events: auto;
 	}
 
 	.back-btn:active {
@@ -309,6 +318,11 @@
 
 	.back-btn :global(svg) {
 		filter: drop-shadow(0 1px 2px var(--reel-text-shadow));
+	}
+
+	/* ViewBadge sits in the pointer-events:none bar — re-enable for its button */
+	.overlay-top-bar :global(.view-badge) {
+		pointer-events: auto;
 	}
 
 	.overlay-reel {

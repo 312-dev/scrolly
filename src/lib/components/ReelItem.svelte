@@ -24,6 +24,7 @@
 	import ActionSidebar from './ActionSidebar.svelte';
 	import ReelOverlay from './ReelOverlay.svelte';
 	import ReactionPicker from './ReactionPicker.svelte';
+	import CommentPrompt from './CommentPrompt.svelte';
 	import EmojiShower from './EmojiShower.svelte';
 	import CommentsSheet from './CommentsSheet.svelte';
 	import ProgressBar from './ProgressBar.svelte';
@@ -350,17 +351,23 @@
 			{canEditCaption}
 			{seenByOthers}
 			clipId={clip.id}
-			{active}
 			{oncaptionedit}
 			{ondelete}
 			{uiHidden}
-			hasDiscOverlap={clip.contentType === 'music' && !!clip.albumArt}
-			oncomment={() => {
+		/>
+	</div>
+
+	{#if active}
+		<CommentPrompt
+			discInset={clip.contentType === 'music' && !!clip.albumArt}
+			{uiHidden}
+			onclick={(e) => {
+				e.stopPropagation();
 				commentsAutoFocus = true;
 				showComments = true;
 			}}
 		/>
-	</div>
+	{/if}
 
 	<ActionSidebar
 		favorited={clip.favorited}

@@ -121,9 +121,7 @@
 	>
 		<span class="icon-circle" class:pop={justSaved}>
 			{#if reactedEmoji && reactedEmoji !== '❤️' && REACTION_MAP.has(reactedEmoji)}
-				{@const def = REACTION_MAP.get(reactedEmoji)!}
-				{@const ReactionIcon = def.component}
-				<ReactionIcon size={24} weight={def.weight} />
+				<span class="reaction-emoji">{reactedEmoji}</span>
 			{:else}
 				<HeartIcon size={24} weight={favorited ? 'fill' : 'regular'} />
 			{/if}
@@ -167,7 +165,7 @@
 	.action-sidebar {
 		position: absolute;
 		right: var(--space-lg);
-		bottom: calc(var(--bottom-nav-height, 64px) + 88px);
+		bottom: calc(var(--bottom-nav-height, 64px) + 92px);
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -219,6 +217,13 @@
 		width: 24px;
 		height: 24px;
 		filter: drop-shadow(0 1px 2px var(--reel-icon-shadow));
+	}
+
+	.reaction-emoji {
+		font-size: 22px;
+		line-height: 1;
+		user-select: none;
+		pointer-events: none;
 	}
 
 	.sidebar-btn.active .icon-circle {
