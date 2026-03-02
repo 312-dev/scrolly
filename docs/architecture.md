@@ -76,6 +76,7 @@ scrolly/
 │   │   │   ├── ReelMusic.svelte     # Music player within a reel
 │   │   │   ├── ReelOverlay.svelte   # Bottom overlay (user info, caption)
 │   │   │   ├── ActionSidebar.svelte # Right-side action buttons
+│   │   │   ├── ClipOverlay.svelte  # Full-screen single-clip overlay view
 │   │   │   ├── CommentsSheet.svelte # Bottom sheet for comments
 │   │   │   ├── ViewersSheet.svelte  # Bottom sheet for view list
 │   │   │   ├── AddVideoModal.svelte # Modal to paste/submit URLs

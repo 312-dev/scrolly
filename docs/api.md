@@ -89,6 +89,12 @@ Request:  { "url": "https://tiktok.com/...", "phone": "+1234567890" }
 Response: { "ok": true, "clipId": "...", "status": "downloading" }   (201 Created)
 ```
 
+### GET /api/clips/[id]
+Returns full clip detail with user context, interaction state, and metadata.
+```
+Response: { id, originalUrl, videoPath, audioPath, thumbnailPath, title, artist, albumArt, spotifyUrl, appleMusicUrl, youtubeMusicUrl, addedBy, addedByUsername, addedByAvatar, platform, status, contentType, durationSeconds, watched, favorited, reactions, commentCount, unreadCommentCount, viewCount, seenByOthers, createdAt, canEditCaption }
+```
+
 ### PATCH /api/clips/[id]
 ```
 Request:  { "title": "new caption" }
@@ -157,9 +163,10 @@ Response: { "heartCount": 3, "hearted": true }
 ```
 
 ### POST /api/clips/[id]/reactions
+Enforces one reaction per user per clip. Posting a different emoji replaces the user's previous reaction. Posting the same emoji removes it.
 ```
 Request:  { "emoji": "🔥" }
-Response: { "reactions": { "🔥": { "count": 2, "reacted": true } } }
+Response: { "reactions": { "🔥": { "count": 2, "reacted": true } }, "toggled": true }
 ```
 Allowed emojis: ❤️ 👍 👎 😂 ‼️ ❓
 
