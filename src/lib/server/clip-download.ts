@@ -12,7 +12,8 @@ export async function startDownload(
 	clipId: string,
 	url: string,
 	contentType: string,
-	label: string
+	label: string,
+	options?: { skipTrim?: boolean }
 ) {
 	await db.update(clips).set({ status: 'downloading' }).where(eq(clips.id, clipId));
 
@@ -25,7 +26,7 @@ export async function startDownload(
 	};
 
 	if (contentType === 'music') {
-		downloadMusic(clipId, url).catch(onError);
+		downloadMusic(clipId, url, { skipTrim: options?.skipTrim }).catch(onError);
 	} else {
 		downloadVideo(clipId, url).catch(onError);
 	}

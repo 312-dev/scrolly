@@ -1,12 +1,12 @@
 import { db } from './db';
 import { clips } from './db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('download');
 
 export interface DownloadResult {
-	status: 'ready' | 'failed';
+	status: 'ready' | 'failed' | 'pending_trim';
 	videoPath: string | null;
 	thumbnailPath: string | null;
 	audioPath: string | null;
@@ -55,7 +55,7 @@ export function normalizeUrl(url: string): string {
 
 function clipToResult(clip: typeof clips.$inferSelect): DownloadResult {
 	return {
-		status: clip.status as 'ready' | 'failed',
+		status: clip.status as DownloadResult['status'],
 		videoPath: clip.videoPath,
 		thumbnailPath: clip.thumbnailPath,
 		audioPath: clip.audioPath,
@@ -102,7 +102,11 @@ export async function deduplicatedDownload(
 
 	// Phase 1: Check DB for an already-completed clip with this URL
 	const readyClip = await db.query.clips.findFirst({
-		where: and(eq(clips.originalUrl, normalized), eq(clips.status, 'ready'))
+		where: and(
+			eq(clips.originalUrl, normalized),
+			// Both 'ready' and 'pending_trim' indicate a successful download
+			sql`${clips.status} IN ('ready', 'pending_trim')`
+		)
 	});
 
 	if (readyClip) {
@@ -121,7 +125,7 @@ export async function deduplicatedDownload(
 	if (inflight) {
 		log.info({ url }, 'waiting on active download');
 		const result = await inflight;
-		if (result.status === 'ready') {
+		if (result.status === 'ready' || result.status === 'pending_trim') {
 			try {
 				await copyResultToClip(clipId, result);
 				return;
@@ -148,7 +152,7 @@ export async function deduplicatedDownload(
 		});
 
 		const result: DownloadResult =
-			completed?.status === 'ready'
+			completed?.status === 'ready' || completed?.status === 'pending_trim'
 				? clipToResult(completed)
 				: {
 						status: 'failed',

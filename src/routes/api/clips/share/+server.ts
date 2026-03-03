@@ -213,8 +213,8 @@ export const POST: RequestHandler = async ({ request, url, locals }) => {
 		return shareResponse(false, 'Something went wrong. Try sharing again.', 500);
 	}
 
-	// 10. Async download
-	await startDownload(clipId, videoUrl, contentType, 'new clip');
+	// 10. Async download (skip trim for shortcut shares — no UI available)
+	await startDownload(clipId, videoUrl, contentType, 'new clip', { skipTrim: true });
 
 	// Push notification is sent after download succeeds (see video/download.ts, music/download.ts)
 

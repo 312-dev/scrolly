@@ -6,9 +6,11 @@ import {
 	notificationPreferences,
 	notifications
 } from '$lib/server/db/schema';
-import { eq, and, sql, isNull, gte } from 'drizzle-orm';
+import { eq, and, sql, isNull, gte, lte } from 'drizzle-orm';
 import { sendNotification } from '$lib/server/push';
 import { runBackup } from '$lib/server/backup';
+import { publishMusicClip } from '$lib/server/music/publish';
+import { deleteWaveform } from '$lib/server/audio/waveform';
 import { createLogger } from '$lib/server/logger';
 import { v4 as uuid } from 'uuid';
 
@@ -18,6 +20,7 @@ let lastBackupDate: string | null = null;
 let lastReminderDate: string | null = null;
 
 const CHECK_INTERVAL = 60 * 60 * 1000; // 1 hour
+const TRIM_CHECK_INTERVAL = 10 * 1000; // 10 seconds
 const REMINDER_HOUR = 9; // 9 AM server time
 const BACKUP_HOUR = 2; // 2 AM server time
 const REMINDER_BODIES = [
@@ -31,8 +34,10 @@ const REMINDER_BODIES = [
 export function startScheduler(): void {
 	checkAndSendReminders();
 	checkAndRunBackup();
+	checkAndAutoPublish();
 	setInterval(checkAndSendReminders, CHECK_INTERVAL);
 	setInterval(checkAndRunBackup, CHECK_INTERVAL);
+	setInterval(checkAndAutoPublish, TRIM_CHECK_INTERVAL);
 	log.info('scheduler started');
 }
 
@@ -147,5 +152,30 @@ async function sendDailyReminders(): Promise<void> {
 
 	if (sent > 0) {
 		log.info({ sent }, `sent daily reminders to ${sent} user(s)`);
+	}
+}
+
+async function checkAndAutoPublish(): Promise<void> {
+	try {
+		const now = new Date();
+		const pendingClips = db
+			.select({ id: clips.id })
+			.from(clips)
+			.where(and(eq(clips.status, 'pending_trim'), lte(clips.trimDeadline, now)))
+			.all();
+
+		for (const clip of pendingClips) {
+			try {
+				const published = await publishMusicClip(clip.id);
+				if (published) {
+					log.info({ clipId: clip.id }, 'auto-published expired trim');
+					await deleteWaveform(clip.id);
+				}
+			} catch (err) {
+				log.error({ err, clipId: clip.id }, 'auto-publish failed');
+			}
+		}
+	} catch (err) {
+		log.error({ err }, 'trim check failed');
 	}
 }
