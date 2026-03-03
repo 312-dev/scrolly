@@ -73,8 +73,11 @@
 		const el = inputEl as HTMLTextAreaElement | null;
 		if (!el) return;
 		el.style.height = 'auto';
-		const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 22;
-		const maxHeight = lineHeight * maxRows;
+		const styles = getComputedStyle(el);
+		const lineHeight = parseFloat(styles.lineHeight) || 22;
+		const paddingTop = parseFloat(styles.paddingTop) || 0;
+		const paddingBottom = parseFloat(styles.paddingBottom) || 0;
+		const maxHeight = lineHeight * maxRows + paddingTop + paddingBottom;
 		el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
 	}
 
@@ -298,9 +301,11 @@
 	}
 
 	.overlay-input {
+		display: block;
 		position: relative;
 		z-index: 2;
 		width: 100%;
+		margin: 0;
 		padding: var(--space-sm) var(--space-md);
 		border: none;
 		background: transparent;
@@ -323,6 +328,7 @@
 	textarea.overlay-input {
 		resize: none;
 		line-height: 1.4;
+		margin: 0;
 	}
 
 	.mention-dropdown {

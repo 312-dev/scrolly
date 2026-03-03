@@ -29,12 +29,8 @@
 
 	let text = $state('');
 	let mentionInputRef = $state<ReturnType<typeof MentionInput> | null>(null);
-	let inputWrapperHeight = $state(0);
 
 	const canSubmit = $derived(text.trim().length > 0 || !!attachedGif);
-	// Switch from centered to bottom-anchored once the input grows past 1 line.
-	// Single-line height is ~36px; threshold of 50px gives plenty of buffer.
-	const isMultiLine = $derived(inputWrapperHeight > 50);
 
 	export function focus() {
 		mentionInputRef?.focus();
@@ -91,12 +87,7 @@
 {/if}
 
 <form class="input-bar" onsubmit={handleSubmit}>
-	<div
-		class="input-wrapper"
-		class:has-gif={gifEnabled}
-		class:multi-line={isMultiLine}
-		bind:offsetHeight={inputWrapperHeight}
-	>
+	<div class="input-pill" class:focused={false}>
 		<MentionInput
 			bind:this={mentionInputRef}
 			placeholder={replyingTo ? `Reply to ${replyingTo.username}...` : 'Add a comment...'}
@@ -213,60 +204,53 @@
 		padding-bottom: max(var(--space-md), env(safe-area-inset-bottom));
 	}
 
-	.input-wrapper {
-		position: relative;
+	/* The pill is the visible rounded container — holds both the textarea and the action icons. */
+	.input-pill {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		align-items: center;
+		background: var(--bg-elevated);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		transition: border-color 0.2s ease;
+	}
+	.input-pill.focused {
+		border-color: var(--accent-primary);
+	}
+
+	/* Strip visual chrome from MentionInput's container — the pill handles it now. */
+	.input-pill :global(.mention-input-wrap) {
 		flex: 1;
 		min-width: 0;
 	}
-	.input-wrapper :global(.mention-input-wrap) {
-		width: 100%;
+	.input-pill :global(.input-container) {
+		background: transparent;
+		border: none;
+		border-radius: 0;
 	}
-	.input-wrapper :global(.input-container) {
-		border-radius: var(--radius-md);
+	.input-pill :global(.input-container.focused) {
+		border-color: transparent;
 	}
-	/* Vertical padding sets the single-line height; reserve right space for send icon.
-	 * padding-top is larger than padding-bottom to optically center the text — glyphs
-	 * sit above the geometric midpoint of their line box, so extra top padding shifts
-	 * the perceived text center down to match the vertically-centered icons. */
-	.input-wrapper :global(.overlay-input),
-	.input-wrapper :global(.highlight-mirror) {
+	.input-pill :global(.overlay-input),
+	.input-pill :global(.highlight-mirror) {
 		font-size: 1rem;
-		padding-top: 11px;
-		padding-bottom: 7px;
-		padding-right: 38px;
+		padding: 12px var(--space-md);
 	}
-	/*
-	 * Pin the initial textarea height to exactly 1 line so UA stylesheets
-	 * can't inflate it and push icons below the text. autoResize() overrides
-	 * this via inline style once the user starts typing.
-	 */
-	.input-wrapper :global(textarea.overlay-input) {
-		height: calc(1.4em + 18px);
-		/* Strip macOS/iOS native appearance so our height rule takes full control */
+	.input-pill :global(textarea.overlay-input) {
+		height: calc(1.4em + 24px);
 		-webkit-appearance: none;
 		appearance: none;
 	}
-	/* More right space when GIF pill is also showing */
-	.input-wrapper.has-gif :global(.overlay-input),
-	.input-wrapper.has-gif :global(.highlight-mirror) {
-		padding-right: 70px;
-	}
 
-	/* Actions row: centered vertically on single-line, bottom-anchored as input grows. */
+	/* Action buttons sit to the right of the textarea, vertically centered by the flex parent. */
 	.input-actions {
-		position: absolute;
-		top: 50%;
-		transform: translateY(-50%);
-		right: 8px;
 		display: flex;
 		align-items: center;
+		align-self: center;
 		gap: 4px;
-		z-index: 10;
-	}
-	.input-wrapper.multi-line .input-actions {
-		top: auto;
-		bottom: 7px;
-		transform: none;
+		padding-right: 8px;
+		flex-shrink: 0;
 	}
 
 	.gif-pill {
