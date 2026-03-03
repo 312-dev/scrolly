@@ -5,7 +5,6 @@
 		clipId,
 		caption,
 		canDelete,
-		canEditCaption = false,
 		expanded,
 		onexpandtoggle,
 		oncaptionedit,
@@ -16,7 +15,6 @@
 		clipId: string;
 		caption: string | null;
 		canDelete: boolean;
-		canEditCaption?: boolean;
 		expanded: boolean;
 		onexpandtoggle: () => void;
 		oncaptionedit?: (clipId: string, newCaption: string | null) => void;
@@ -153,29 +151,12 @@
 				class="overlay-caption"
 				onclick={(e) => {
 					e.stopPropagation();
-					if (canEditCaption) {
-						editing = true;
-					} else {
-						onexpandtoggle();
-					}
+					onexpandtoggle();
 				}}
 			>
 				{caption}
 			</button>
 		{/if}
-	</div>
-{:else if canEditCaption}
-	<div class="caption-area">
-		<button
-			type="button"
-			class="overlay-caption placeholder"
-			onclick={(e) => {
-				e.stopPropagation();
-				editing = true;
-			}}
-		>
-			Add a caption…
-		</button>
 	</div>
 {/if}
 {#if confirmingDelete && canDelete}
@@ -240,10 +221,6 @@
 		display: block;
 		overflow: visible;
 		cursor: pointer;
-	}
-	.overlay-caption.placeholder {
-		color: var(--reel-text-ghost);
-		font-style: italic;
 	}
 	.caption-edit {
 		animation: fade-in 0.15s ease;
