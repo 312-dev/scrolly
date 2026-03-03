@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { pushState, beforeNavigate } from '$app/navigation';
+	import { page } from '$app/state';
 	import { onDestroy } from 'svelte';
 	import { openSheet, closeSheet } from '$lib/stores/sheetOpen';
 	import { createSafeTimeout } from '$lib/safeTimeout';
@@ -87,15 +88,25 @@
 
 		pushState('', { sheet: sheetId });
 		const handlePopState = () => {
+			// Defer so SvelteKit updates page.state before we check.
+			// If our sheet is still in the state, a child sheet closed — not us.
+			setTimeout(() => {
+				if (page.state?.sheet === sheetId) return;
+				closedViaBack = true;
+				ondismiss();
+			}, 0);
+		};
+		const handleBeforeUnload = () => {
 			closedViaBack = true;
-			ondismiss();
 		};
 		window.addEventListener('popstate', handlePopState);
+		window.addEventListener('beforeunload', handleBeforeUnload);
 
 		return () => {
 			closeSheet();
 			document.body.style.overflow = '';
 			window.removeEventListener('popstate', handlePopState);
+			window.removeEventListener('beforeunload', handleBeforeUnload);
 			if (!closedViaBack) history.back();
 		};
 	});
