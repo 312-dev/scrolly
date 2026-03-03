@@ -26,7 +26,10 @@ export const GET: RequestHandler = withAuth(async ({ url }, { user }) => {
 		where: (c, { inArray }) => inArray(c.id, clipIds)
 	});
 	const clipMap = new Map(
-		clipRows.map((c) => [c.id, { thumbnailPath: c.thumbnailPath, title: c.title }])
+		clipRows.map((c) => [
+			c.id,
+			{ thumbnailPath: c.thumbnailPath, title: c.title, contentType: c.contentType }
+		])
 	);
 
 	const result = rows.map((n) => ({
@@ -39,6 +42,7 @@ export const GET: RequestHandler = withAuth(async ({ url }, { user }) => {
 		actorAvatar: actorMap.get(n.actorId)?.avatarPath || null,
 		clipThumbnail: clipMap.get(n.clipId)?.thumbnailPath || null,
 		clipTitle: clipMap.get(n.clipId)?.title || null,
+		clipContentType: clipMap.get(n.clipId)?.contentType || 'video',
 		read: !!n.readAt,
 		createdAt: n.createdAt.toISOString()
 	}));
