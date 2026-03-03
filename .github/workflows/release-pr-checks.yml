@@ -137,7 +137,7 @@ jobs:
           fi
 
           echo "Posting $STATE status to $HEAD_SHA for required checks..."
-          for CHECK in "ci" "lint-and-check"; do
+          for CHECK in "ci" "lint-and-check" "security-status"; do
             gh api "repos/${{ github.repository }}/statuses/$HEAD_SHA" \
               -f state="$STATE" -f context="$CHECK" \
               -f description="$DESC" -f target_url="$RUN_URL"
