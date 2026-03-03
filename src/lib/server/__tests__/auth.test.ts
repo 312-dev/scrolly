@@ -11,7 +11,7 @@ const { db } = await import('$lib/server/db');
 const data = await seed(db as any);
 
 // Import after mocks
-const { createSessionCookie, getUserIdFromCookies, getUser, getUserWithGroup, validateInviteCode } =
+const { createSessionCookie, getUserIdFromCookies, getUserWithGroup, validateInviteCode } =
 	await import('../auth');
 
 describe('createSessionCookie', () => {
@@ -69,19 +69,6 @@ describe('getUserIdFromCookies', () => {
 		const token = cookie.split('=')[1].split(';')[0];
 		const multiCookie = `theme=dark; scrolly_session=${token}; other=value`;
 		expect(getUserIdFromCookies(multiCookie)).toBe(userId);
-	});
-});
-
-describe('getUser', () => {
-	it('returns user when exists', async () => {
-		const user = await getUser(data.host.id);
-		expect(user).not.toBeNull();
-		expect(user!.username).toBe('hostuser');
-	});
-
-	it('returns null when not found', async () => {
-		const user = await getUser('nonexistent-id');
-		expect(user).toBeNull();
 	});
 });
 

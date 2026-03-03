@@ -71,7 +71,7 @@ function setThemeCookies(event: RequestEvent, response: Response): void {
 	if (event.locals.user?.themePreference && !cookies.includes('scrolly_theme=')) {
 		response.headers.append(
 			'Set-Cookie',
-			`scrolly_theme=${event.locals.user.themePreference};Path=/;Max-Age=31536000;SameSite=Lax`
+			`scrolly_theme=${event.locals.user.themePreference};Path=/;Max-Age=31536000;SameSite=Lax;Secure`
 		);
 	}
 
@@ -80,7 +80,7 @@ function setThemeCookies(event: RequestEvent, response: Response): void {
 		const accentValue = encodeURIComponent(JSON.stringify({ hex: accent.hex, dark: accent.dark }));
 		response.headers.append(
 			'Set-Cookie',
-			`scrolly_accent=${accentValue};Path=/;Max-Age=31536000;SameSite=Lax`
+			`scrolly_accent=${accentValue};Path=/;Max-Age=31536000;SameSite=Lax;Secure`
 		);
 	}
 }
@@ -98,7 +98,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 	if (userId) {
 		const data = await getUserWithGroup(userId);
 		if (data && !data.user.removedAt) {
-			event.locals.user = data.user;
+			// Only expose authenticated user to routes if onboarding is complete.
+			// Users with empty username haven't finished onboarding and should not
+			// have access to group data via API routes. The /api/auth onboarding
+			// actions read the cookie directly via getUserIdFromCookies, so they
+			// still work without locals.user.
+			if (data.user.username) {
+				event.locals.user = data.user;
+			}
 			event.locals.group = data.group;
 		}
 	}

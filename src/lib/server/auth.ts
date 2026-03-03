@@ -24,13 +24,16 @@ function verify(token: string): string | null {
 	if (lastDot === -1) return null;
 	const payload = token.substring(0, lastDot);
 	const expected = sign(payload);
-	if (!crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected))) return null;
+	const tokenBuf = Buffer.from(token);
+	const expectedBuf = Buffer.from(expected);
+	if (tokenBuf.length !== expectedBuf.length) return null;
+	if (!crypto.timingSafeEqual(tokenBuf, expectedBuf)) return null;
 	return payload;
 }
 
 export function createSessionCookie(userId: string): string {
 	const token = sign(userId);
-	return `${COOKIE_NAME}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${MAX_AGE}`;
+	return `${COOKIE_NAME}=${token}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${MAX_AGE}`;
 }
 
 export function getUserIdFromCookies(cookieHeader: string | null): string | null {
@@ -47,22 +50,15 @@ export function getUserIdFromCookies(cookieHeader: string | null): string | null
 	return verify(token);
 }
 
-export async function getUser(userId: string) {
-	const result = await db.query.users.findFirst({
-		where: eq(users.id, userId)
-	});
-	return result ?? null;
-}
-
 export async function getUserWithGroup(userId: string) {
-	const user = await db.query.users.findFirst({
-		where: eq(users.id, userId)
-	});
-	if (!user) return null;
-	const group = await db.query.groups.findFirst({
-		where: eq(groups.id, user.groupId)
-	});
-	return { user, group: group ?? null };
+	const row = db
+		.select({ user: users, group: groups })
+		.from(users)
+		.innerJoin(groups, eq(users.groupId, groups.id))
+		.where(eq(users.id, userId))
+		.get();
+	if (!row) return null;
+	return { user: row.user, group: row.group };
 }
 
 export async function validateInviteCode(code: string) {
