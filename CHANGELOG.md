@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.1](https://github.com/312-dev/scrolly/compare/scrolly-v1.15.0...scrolly-v1.15.1) (2026-03-03)
+
+
+### Documentation
+
+* update data model, architecture, and API for v1.15.0 ([#66](https://github.com/312-dev/scrolly/issues/66)) ([ec6c875](https://github.com/312-dev/scrolly/commit/ec6c87594b59169e4cc8b2fe204c869cee6c074a))
+
 ## [1.15.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.14.1...scrolly-v1.15.0) (2026-03-03)
 
 
