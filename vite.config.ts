@@ -7,6 +7,11 @@ const version = process.env.APP_VERSION || pkg.version;
 
 export default defineConfig({
 	plugins: [sveltekit()],
+	build: {
+		modulePreload: {
+			resolveDependencies: (_filename, deps) => deps.filter((d) => !d.endsWith('.css'))
+		}
+	},
 	server: {
 		host: '0.0.0.0'
 	},

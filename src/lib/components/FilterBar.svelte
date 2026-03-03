@@ -150,6 +150,11 @@
 		color: var(--reel-text);
 	}
 
+	.tab-label {
+		display: inline-flex;
+		align-items: center;
+	}
+
 	.badge {
 		display: inline-flex;
 		align-items: center;
@@ -165,7 +170,6 @@
 		font-weight: 700;
 		line-height: 1;
 		border-radius: var(--radius-full);
-		vertical-align: middle;
 		box-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
 	}
 
