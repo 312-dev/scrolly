@@ -111,7 +111,7 @@
 							class:viewed={viewer.status === 'viewed'}
 							class:skipped={viewer.status === 'skipped'}
 						>
-							Viewed
+							{viewer.status === 'skipped' ? 'Skipped' : 'Viewed'}
 						</span>
 					</div>
 				{/each}
