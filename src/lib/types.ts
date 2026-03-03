@@ -14,6 +14,8 @@ export interface FeedClip {
 	addedByUsername: string;
 	addedByAvatar: string | null;
 	platform: string;
+	creatorName: string | null;
+	creatorUrl: string | null;
 	status: string;
 	contentType: string;
 	durationSeconds: number | null;

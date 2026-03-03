@@ -58,6 +58,8 @@ export const clips = sqliteTable(
 		appleMusicUrl: text('apple_music_url'),
 		youtubeMusicUrl: text('youtube_music_url'),
 		fileSizeBytes: integer('file_size_bytes'),
+		creatorName: text('creator_name'),
+		creatorUrl: text('creator_url'),
 		createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
 	},
 	(table) => [uniqueIndex('clips_group_url').on(table.groupId, table.originalUrl)]

@@ -84,7 +84,9 @@ async function downloadVideoInner(clipId: string, url: string): Promise<void> {
 				.set({
 					status: 'failed',
 					title: `Exceeds ${sizeMb} MB limit`,
-					durationSeconds: result.duration
+					durationSeconds: result.duration,
+					creatorName: result.creatorName,
+					creatorUrl: result.creatorUrl
 				})
 				.where(eq(clips.id, clipId));
 			// Still notify — clip is viewable via external link
@@ -108,7 +110,9 @@ async function downloadVideoInner(clipId: string, url: string): Promise<void> {
 				thumbnailPath: result.thumbnailPath,
 				title,
 				durationSeconds: result.duration,
-				fileSizeBytes: fileSizeBytes || null
+				fileSizeBytes: fileSizeBytes || null,
+				creatorName: result.creatorName,
+				creatorUrl: result.creatorUrl
 			})
 			.where(eq(clips.id, clipId));
 

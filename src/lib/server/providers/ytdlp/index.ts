@@ -143,6 +143,8 @@ export class YtDlpProvider implements DownloadProvider {
 
 		let title: string | null = null;
 		let duration: number | null = null;
+		let creatorName: string | null = null;
+		let creatorUrl: string | null = null;
 
 		if (infoFile) {
 			try {
@@ -150,6 +152,10 @@ export class YtDlpProvider implements DownloadProvider {
 				const info = JSON.parse(await readFile(`${outputDir}/${infoFile}`, 'utf-8'));
 				title = info.title || info.fulltitle || null;
 				duration = typeof info.duration === 'number' ? Math.round(info.duration) : null;
+
+				const rawName = info.uploader || info.channel || info.uploader_id || null;
+				creatorName = rawName ? String(rawName).replace(/^@/, '') : null;
+				creatorUrl = info.uploader_url || info.channel_url || null;
 			} catch {
 				// Info file parsing is best-effort
 			}
@@ -159,7 +165,9 @@ export class YtDlpProvider implements DownloadProvider {
 			videoPath: `${outputDir}/${videoFile}`,
 			thumbnailPath: thumbFile ? `${outputDir}/${thumbFile}` : null,
 			title,
-			duration
+			duration,
+			creatorName,
+			creatorUrl
 		};
 	}
 

@@ -3,6 +3,8 @@ export interface VideoDownloadResult {
 	thumbnailPath: string | null;
 	title: string | null;
 	duration: number | null;
+	creatorName: string | null;
+	creatorUrl: string | null;
 }
 
 export interface AudioDownloadResult {
