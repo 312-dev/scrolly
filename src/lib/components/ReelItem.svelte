@@ -28,7 +28,7 @@
 		flashIndicator,
 		startPeriodicWatchUpdate
 	} from '$lib/reelPlayback';
-	import { feedUiHidden } from '$lib/stores/uiHidden';
+	import { feedUiHidden, filterBarDimmed } from '$lib/stores/uiHidden';
 	import { groupMembers } from '$lib/stores/members';
 	import ReelVideo from './ReelVideo.svelte';
 	import ReelMusic from './ReelMusic.svelte';
@@ -125,6 +125,7 @@
 	// Contributor pill expand/collapse
 	let pillExpanded = $state(false);
 	let pillTimer: ReturnType<typeof setTimeout> | null = null;
+	let pillEl: HTMLDivElement | null = $state(null);
 
 	// Auto-scroll engagement deferral
 	let pendingAutoScroll = $state(false);
@@ -198,6 +199,20 @@
 		}
 	});
 
+	function checkPillOverlap() {
+		if (!pillEl) return;
+		const filterBar = document.querySelector('.filter-tabs');
+		if (!filterBar) return;
+		const pillRect = pillEl.getBoundingClientRect();
+		const barRect = filterBar.getBoundingClientRect();
+		const overlaps =
+			pillRect.right > barRect.left &&
+			pillRect.left < barRect.right &&
+			pillRect.bottom > barRect.top &&
+			pillRect.top < barRect.bottom;
+		filterBarDimmed.set(overlaps);
+	}
+
 	// Contributor pill: expand when a different contributor's clip becomes active
 	$effect(() => {
 		if (!active) {
@@ -206,24 +221,32 @@
 				pillTimer = null;
 			}
 			pillExpanded = false;
+			filterBarDimmed.set(false);
 			return;
 		}
 		const contributor = clip.addedByUsername;
 		if (contributor !== lastActiveContributor) {
 			lastActiveContributor = contributor;
-			pillExpanded = true;
 			pillTimer = setTimeout(() => {
-				pillExpanded = false;
-				pillTimer = null;
-			}, 2500);
+				pillExpanded = true;
+				// Check overlap after transition completes
+				setTimeout(checkPillOverlap, 1050);
+				pillTimer = setTimeout(() => {
+					pillExpanded = false;
+					filterBarDimmed.set(false);
+					pillTimer = null;
+				}, 4500);
+			}, 1000);
 		} else {
 			pillExpanded = false;
+			filterBarDimmed.set(false);
 		}
 		return () => {
 			if (pillTimer) {
 				clearTimeout(pillTimer);
 				pillTimer = null;
 			}
+			filterBarDimmed.set(false);
 		};
 	});
 
@@ -486,6 +509,7 @@
 	<div
 		class="top-left-row"
 		class:ui-hidden={uiHidden}
+		bind:this={pillEl}
 		onpointerdown={(e) => e.stopPropagation()}
 		ontouchstart={(e) => e.stopPropagation()}
 		ontouchmove={(e) => e.stopPropagation()}

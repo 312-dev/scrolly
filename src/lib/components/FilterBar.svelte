@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { FeedFilter } from '$lib/feed';
+	import { filterBarDimmed } from '$lib/stores/uiHidden';
 
 	const {
 		filter,
@@ -66,6 +67,7 @@
 <div
 	class="filter-bar"
 	class:ui-hidden={hidden}
+	class:dimmed={$filterBarDimmed}
 	class:pull-snapping={pullOffset === 0}
 	style:transform={pullOffset > 0 ? `translateY(${pullOffset}px)` : undefined}
 >
@@ -105,6 +107,11 @@
 
 	.filter-bar.ui-hidden {
 		opacity: 0;
+	}
+
+	.filter-bar.dimmed {
+		opacity: 0.25;
+		pointer-events: none;
 	}
 
 	.filter-bar.pull-snapping {

@@ -133,9 +133,9 @@
 		padding-right: 0;
 		opacity: 0;
 		transition:
-			max-width 0.4s cubic-bezier(0.32, 0.72, 0, 1),
-			padding 0.4s cubic-bezier(0.32, 0.72, 0, 1),
-			opacity 0.3s ease;
+			max-width 1s cubic-bezier(0.32, 0.72, 0, 1),
+			padding 1s cubic-bezier(0.32, 0.72, 0, 1),
+			opacity 1s ease;
 	}
 
 	.expanded .pill-name {
