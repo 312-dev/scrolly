@@ -5,25 +5,17 @@
 	import PauseIcon from 'phosphor-svelte/lib/PauseIcon';
 
 	const {
-		showSpeedIndicator,
-		speed,
 		showMuteIndicator,
 		muted,
 		showPlayIndicator,
 		paused
 	}: {
-		showSpeedIndicator: boolean;
-		speed: number;
 		showMuteIndicator: boolean;
 		muted: boolean;
 		showPlayIndicator: boolean;
 		paused: boolean;
 	} = $props();
 </script>
-
-{#if showSpeedIndicator}
-	<div class="center-indicator">{speed}x</div>
-{/if}
 
 {#if showMuteIndicator}
 	<div class="center-indicator icon">

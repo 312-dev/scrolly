@@ -8,7 +8,6 @@
 		muted,
 		autoScroll,
 		forceLoop = false,
-		playbackRate = 1,
 		onretry,
 		onended,
 		audioEl = $bindable(null)
@@ -27,7 +26,6 @@
 		muted: boolean;
 		autoScroll: boolean;
 		forceLoop?: boolean;
-		playbackRate?: number;
 		onretry: (id: string) => void;
 		onended: () => void;
 		audioEl: HTMLAudioElement | null;
@@ -56,13 +54,6 @@
 	$effect(() => {
 		if (audioEl) {
 			audioEl.muted = muted;
-		}
-	});
-
-	// Sync playback rate
-	$effect(() => {
-		if (audioEl) {
-			audioEl.playbackRate = playbackRate;
 		}
 	});
 </script>
