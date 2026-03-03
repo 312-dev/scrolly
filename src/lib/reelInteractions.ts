@@ -9,7 +9,10 @@ const IGNORE_SELECTORS = [
 	'.progress-row',
 	'.platform-links',
 	'.music-disc-area',
-	'.music-links-backdrop'
+	'.music-links-backdrop',
+	'.top-left-row',
+	'.top-right-row',
+	'.bottom-row'
 ];
 
 function shouldIgnoreTarget(e: { clientX: number; clientY: number }): boolean {

@@ -22,13 +22,12 @@
 	import { feedUiHidden } from '$lib/stores/uiHidden';
 	import { anySheetOpen } from '$lib/stores/sheetOpen';
 	import { get } from 'svelte/store';
-	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/state';
+	import { basename } from '$lib/utils';
 	import type { FeedClip } from '$lib/types';
 	import type { FeedFilter, FeedSort } from '$lib/feed';
 	import {
 		fetchClips,
-		fetchMoreClips,
 		markClipWatched,
 		toggleClipFavorite,
 		retryClipDownload,
@@ -54,6 +53,14 @@
 
 	let isDesktopFeed = $state(false);
 	const renderWindow = $derived(isDesktopFeed ? 3 : 2);
+
+	// Defer watched marking for the last unwatched clip
+	const isLastUnwatched = $derived(
+		filter === 'unwatched' &&
+			!hasMore &&
+			clips.length > 0 &&
+			clips.filter((c) => !c.watched).length === 1
+	);
 
 	// Clip overlay (dedicated single-clip view)
 	let overlayClipId = $state<string | null>(null);
@@ -125,7 +132,7 @@
 	async function loadMore() {
 		if (loadingMore || !hasMore || loading) return;
 		loadingMore = true;
-		const data = await fetchMoreClips(filter, currentOffset, PAGE_SIZE, sort);
+		const data = await fetchClips(filter, PAGE_SIZE, sort, currentOffset);
 		if (data) {
 			const existingIds = new Set(clips.map((c) => c.id));
 			const newClips = data.clips.filter((c) => !existingIds.has(c.id));
@@ -498,6 +505,14 @@
 			loadMore();
 	});
 
+	// Mark deferred last clip as watched when user swipes to end slide
+	$effect(() => {
+		if (filter === 'unwatched' && !hasMore && activeIndex === clips.length && clips.length > 0) {
+			const lastClip = clips[clips.length - 1];
+			if (!lastClip.watched) markWatched(lastClip.id);
+		}
+	});
+
 	$effect(() => {
 		function handleKeydown(e: KeyboardEvent) {
 			if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -573,10 +588,6 @@
 		fetchUnwatchedCount();
 	}
 
-	function handleCaptionEdit(clipId: string, newCaption: string) {
-		clips = clips.map((c) => (c.id === clipId ? { ...c, title: newCaption } : c));
-	}
-
 	function handleDelete(clipId: string) {
 		const idx = clips.findIndex((c) => c.id === clipId);
 		clips = clips.filter((c) => c.id !== clipId);
@@ -643,7 +654,7 @@
 		}
 	}
 
-	onMount(() => {
+	$effect(() => {
 		isDesktopFeed = matchMedia('(pointer: fine)').matches;
 		const shareUrl = extractShareTargetUrl();
 		if (shareUrl) {
@@ -694,13 +705,11 @@
 		// Mark <html> so the body background matches the reel context — this makes the iOS
 		// black-translucent status bar show a dark background rather than the light-mode white.
 		document.documentElement.classList.add('feed-context');
-	});
 
-	onDestroy(() => {
-		feedUiHidden.set(false);
-		if (typeof document !== 'undefined') {
+		return () => {
+			feedUiHidden.set(false);
 			document.documentElement.classList.remove('feed-context');
-		}
+		};
 	});
 </script>
 
@@ -787,21 +796,20 @@
 								index={i}
 								{autoScroll}
 								{gifEnabled}
-								canEditCaption={clip.addedBy === currentUserId}
 								seenByOthers={clip.seenByOthers}
+								deferWatched={isLastUnwatched && !clip.watched}
 								onwatched={markWatched}
 								onfavorited={toggleFavorite}
 								onreaction={handleReaction}
 								onretry={retryDownload}
 								onended={() => scrollToIndex(i + 1)}
-								oncaptionedit={handleCaptionEdit}
 								ondelete={handleDelete}
 							/>
 						{:else}
 							<div class="reel-placeholder">
 								{#if clip.thumbnailPath}
 									<img
-										src="/api/thumbnails/{clip.thumbnailPath.split('/').pop()}"
+										src="/api/thumbnails/{basename(clip.thumbnailPath)}"
 										alt=""
 										class="placeholder-thumb"
 										loading="lazy"

@@ -7,6 +7,7 @@
 	import { globalMuted } from '$lib/stores/mute';
 
 	import { connectNormalizer } from '$lib/audio/normalizer';
+	import { fetchComments } from '$lib/commentsApi';
 	import {
 		setupDesktopGestures,
 		setupMobileGestures,
@@ -32,6 +33,10 @@
 	import ViewBadge from './ViewBadge.svelte';
 	import ViewersSheet from './ViewersSheet.svelte';
 	import ReelIndicators from './ReelIndicators.svelte';
+	import ContributorPill from './ContributorPill.svelte';
+
+	// Module-level: track last active contributor across all ReelItem instances
+	let lastActiveContributor = '';
 
 	import type { FeedClip } from '$lib/types';
 
@@ -42,15 +47,14 @@
 		index,
 		autoScroll,
 		gifEnabled = false,
-		canEditCaption = false,
 		seenByOthers = false,
 		hideViewBadge = false,
+		deferWatched = false,
 		onwatched,
 		onfavorited,
 		onreaction,
 		onretry,
 		onended,
-		oncaptionedit,
 		ondelete
 	}: {
 		clip: FeedClip;
@@ -59,15 +63,14 @@
 		index: number;
 		autoScroll: boolean;
 		gifEnabled?: boolean;
-		canEditCaption?: boolean;
 		seenByOthers?: boolean;
 		hideViewBadge?: boolean;
+		deferWatched?: boolean;
 		onwatched: (id: string) => void;
 		onfavorited: (id: string) => void;
 		onreaction: (clipId: string, emoji: string) => Promise<void>;
 		onretry: (id: string) => void;
 		onended: () => void;
-		oncaptionedit?: (clipId: string, newCaption: string) => void;
 		ondelete?: (clipId: string) => void;
 	} = $props();
 
@@ -76,8 +79,6 @@
 	let muted = $derived($globalMuted);
 	let showMuteIndicator = $state(false);
 	let muteIndicatorTimer: ReturnType<typeof setTimeout> | null = null;
-	let showSpeedIndicator = $state(false);
-
 	let isDesktop = $state(false);
 	let videoEl: HTMLVideoElement | null = $state(null);
 	let audioEl: HTMLAudioElement | null = $state(null);
@@ -110,6 +111,14 @@
 	let showViewers = $state(false);
 	let maxPercent = $state(0);
 	let wasActive = $state(false);
+
+	// Comment previews for cycling prompt bar
+	let commentPreviews = $state<{ username: string; text: string }[]>([]);
+	let commentPreviewsLoaded = $state(false);
+
+	// Contributor pill expand/collapse
+	let pillExpanded = $state(false);
+	let pillTimer: ReturnType<typeof setTimeout> | null = null;
 
 	// Auto-scroll engagement deferral
 	let pendingAutoScroll = $state(false);
@@ -176,20 +185,60 @@
 		if (playIndicatorTimer) clearTimeout(playIndicatorTimer);
 		if (scrubberTimerId) clearTimeout(scrubberTimerId);
 		if (postEngagementTimer) clearTimeout(postEngagementTimer);
+		if (pillTimer) clearTimeout(pillTimer);
 		scrubSeekedCleanup?.();
-		sendWatchPercent(clip.id, maxPercent);
+		if (!deferWatched || hasMarkedWatched) {
+			sendWatchPercent(clip.id, maxPercent);
+		}
+	});
+
+	// Contributor pill: expand when a different contributor's clip becomes active
+	$effect(() => {
+		if (!active) {
+			if (pillTimer) {
+				clearTimeout(pillTimer);
+				pillTimer = null;
+			}
+			pillExpanded = false;
+			return;
+		}
+		const contributor = clip.addedByUsername;
+		if (contributor !== lastActiveContributor) {
+			lastActiveContributor = contributor;
+			pillExpanded = true;
+			pillTimer = setTimeout(() => {
+				pillExpanded = false;
+				pillTimer = null;
+			}, 2500);
+		} else {
+			pillExpanded = false;
+		}
+		return () => {
+			if (pillTimer) {
+				clearTimeout(pillTimer);
+				pillTimer = null;
+			}
+		};
 	});
 
 	$effect(() => {
 		if (active) feedUiHidden.set(uiHidden);
 	});
 	$effect(() => {
-		if (!active || clip.watched || hasMarkedWatched) return;
+		if (!active || clip.watched || hasMarkedWatched || deferWatched) return;
 		const timer = setTimeout(() => {
 			hasMarkedWatched = true;
 			onwatched(clip.id);
 		}, 3000);
 		return () => clearTimeout(timer);
+	});
+	// Deferred watch: mark watched when 50% or 10s threshold is met
+	$effect(() => {
+		if (!deferWatched || !active || clip.watched || hasMarkedWatched) return;
+		if ((duration > 0 && currentTime / duration >= 0.5) || currentTime >= 10) {
+			hasMarkedWatched = true;
+			onwatched(clip.id);
+		}
 	});
 	let hasMarkedReactionsRead = $state(false);
 	$effect(() => {
@@ -211,14 +260,37 @@
 			wasActive = true;
 		} else if (wasActive) {
 			wasActive = false;
-			sendWatchPercent(clip.id, maxPercent);
+			if (!deferWatched || hasMarkedWatched) {
+				sendWatchPercent(clip.id, maxPercent);
+			}
 			maxPercent = 0;
 		}
 	});
 	// Send watch percent to server periodically while active
 	$effect(() => {
-		if (!active) return;
+		if (!active || (deferWatched && !hasMarkedWatched)) return;
 		return startPeriodicWatchUpdate(clip.id, () => maxPercent);
+	});
+	// Fetch comment previews for cycling prompt bar
+	$effect(() => {
+		if (!active || localCommentCount === 0 || commentPreviewsLoaded) return;
+		let cancelled = false;
+		const timer = setTimeout(async () => {
+			try {
+				const { comments } = await fetchComments(clip.id);
+				if (cancelled) return;
+				commentPreviews = comments
+					.filter((c) => !c.parentId && c.text.trim())
+					.map((c) => ({ username: c.username, text: c.text }));
+				commentPreviewsLoaded = true;
+			} catch {
+				// silently fail — just show default text
+			}
+		}, 500);
+		return () => {
+			cancelled = true;
+			clearTimeout(timer);
+		};
 	});
 	// Deep-link: open comments sheet when signaled (e.g., from push notification)
 	$effect(() => {
@@ -404,8 +476,39 @@
 </script>
 
 <div class="reel-item" data-index={index} bind:this={itemEl}>
-	<div class="top-left-row" class:ui-hidden={uiHidden}>
-		{#if !hideViewBadge && clip.viewCount > 0}
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div
+		class="top-left-row"
+		class:ui-hidden={uiHidden}
+		onpointerdown={(e) => e.stopPropagation()}
+		ontouchstart={(e) => e.stopPropagation()}
+		ontouchmove={(e) => e.stopPropagation()}
+		ontouchend={(e) => e.stopPropagation()}
+	>
+		<ContributorPill
+			username={clip.addedByUsername}
+			avatarPath={clip.addedByAvatar}
+			expanded={pillExpanded}
+			ontap={() => {
+				if (pillTimer) {
+					clearTimeout(pillTimer);
+					pillTimer = null;
+				}
+				pillExpanded = !pillExpanded;
+			}}
+		/>
+	</div>
+
+	{#if !hideViewBadge && clip.viewCount > 0}
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div
+			class="top-right-row"
+			class:ui-hidden={uiHidden}
+			onpointerdown={(e) => e.stopPropagation()}
+			ontouchstart={(e) => e.stopPropagation()}
+			ontouchmove={(e) => e.stopPropagation()}
+			ontouchend={(e) => e.stopPropagation()}
+		>
 			<ViewBadge
 				viewCount={clip.viewCount}
 				ontap={() => {
@@ -413,8 +516,8 @@
 					showViewers = true;
 				}}
 			/>
-		{/if}
-	</div>
+		</div>
+	{/if}
 
 	{#if clip.contentType === 'music'}
 		<ReelMusic
@@ -440,14 +543,7 @@
 		/>
 	{/if}
 
-	<ReelIndicators
-		{showSpeedIndicator}
-		speed={1}
-		{showMuteIndicator}
-		{muted}
-		{showPlayIndicator}
-		{paused}
-	/>
+	<ReelIndicators {showMuteIndicator} {muted} {showPlayIndicator} {paused} />
 
 	{#if duration > 0}
 		<ProgressBar
@@ -462,30 +558,32 @@
 		/>
 	{/if}
 
-	<!-- Centered content frame for overlay + sidebar -->
-	<div class="reel-content-frame">
-		<ReelOverlay
-			username={clip.addedByUsername}
-			avatarPath={clip.addedByAvatar}
-			platform={clip.platform}
-			creatorName={clip.creatorName}
-			creatorUrl={clip.creatorUrl}
-			contentType={clip.contentType}
-			caption={clip.title}
-			{canEditCaption}
-			{seenByOthers}
-			clipId={clip.id}
-			{oncaptionedit}
-			{ondelete}
-			{uiHidden}
-		/>
-	</div>
+	<ReelOverlay
+		platform={clip.platform}
+		creatorName={clip.creatorName}
+		creatorUrl={clip.creatorUrl}
+		contentType={clip.contentType}
+		caption={clip.title}
+		canDelete={clip.addedBy === currentUserId && !seenByOthers}
+		clipId={clip.id}
+		{ondelete}
+		{uiHidden}
+	/>
 
 	<!-- Shared bottom row: comment prompt grows left, music disc anchors right -->
-	<div class="bottom-row" class:ui-hidden={uiHidden}>
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div
+		class="bottom-row"
+		class:ui-hidden={uiHidden}
+		onpointerdown={(e) => e.stopPropagation()}
+		ontouchstart={(e) => e.stopPropagation()}
+		ontouchmove={(e) => e.stopPropagation()}
+		ontouchend={(e) => e.stopPropagation()}
+	>
 		{#if active}
 			<CommentPrompt
 				commentCount={localCommentCount}
+				previews={commentPreviews}
 				onclick={(e) => {
 					e.stopPropagation();
 					commentsAutoFocus = true;
@@ -569,17 +667,6 @@
 		overflow: hidden;
 		background: var(--bg-primary);
 	}
-	.reel-content-frame {
-		position: absolute;
-		inset: 0;
-		max-width: 480px;
-		margin: 0 auto;
-		z-index: 5;
-		pointer-events: none;
-	}
-	.reel-content-frame > :global(*) {
-		pointer-events: auto;
-	}
 	.top-left-row {
 		position: absolute;
 		top: max(var(--space-md), env(safe-area-inset-top));
@@ -592,6 +679,20 @@
 		transition: opacity 0.3s ease;
 	}
 	.top-left-row.ui-hidden {
+		opacity: 0;
+		pointer-events: none;
+	}
+	.top-right-row {
+		position: absolute;
+		top: max(var(--space-md), env(safe-area-inset-top));
+		right: calc(var(--space-lg) + 40px + var(--space-sm));
+		z-index: 6;
+		display: flex;
+		align-items: center;
+		min-height: 40px;
+		transition: opacity 0.3s ease;
+	}
+	.top-right-row.ui-hidden {
 		opacity: 0;
 		pointer-events: none;
 	}

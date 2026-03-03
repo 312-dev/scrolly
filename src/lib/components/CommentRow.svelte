@@ -163,7 +163,7 @@
 	.reply-avatar {
 		border-radius: var(--radius-full);
 		background: var(--accent-magenta);
-		color: white;
+		color: var(--constant-white);
 		display: flex;
 		align-items: center;
 		justify-content: center;

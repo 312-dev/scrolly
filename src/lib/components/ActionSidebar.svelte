@@ -104,7 +104,14 @@
 </script>
 
 <!-- eslint-disable svelte/no-navigation-without-resolve -- only external URLs in this component -->
-<div class="action-sidebar" class:ui-hidden={uiHidden}>
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+	class="action-sidebar"
+	class:ui-hidden={uiHidden}
+	ontouchstart={(e) => e.stopPropagation()}
+	ontouchmove={(e) => e.stopPropagation()}
+	ontouchend={(e) => e.stopPropagation()}
+>
 	{#if onmute}
 		<button
 			class="sidebar-btn"
@@ -152,6 +159,7 @@
 			stop(e);
 			oncomment();
 		}}
+		aria-label="Comments"
 	>
 		<span class="icon-circle">
 			<ChatIcon size={24} />

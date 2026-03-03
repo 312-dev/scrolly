@@ -20,7 +20,7 @@
 	} = $props();
 
 	const filters: FeedFilter[] = ['unwatched', 'watched'];
-	const labels = ['New', 'Seen'];
+	const labels = ['For Us', 'Replay'];
 	const activeIndex = $derived(filters.indexOf(filter));
 
 	let containerEl: HTMLDivElement | undefined = $state();
@@ -150,7 +150,7 @@
 		padding: 0 5px;
 		margin-left: 4px;
 		background: var(--accent-magenta);
-		color: #fff;
+		color: var(--constant-white);
 		font-family: var(--font-body);
 		font-size: 0.6875rem;
 		font-weight: 700;
