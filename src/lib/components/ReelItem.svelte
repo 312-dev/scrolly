@@ -14,6 +14,7 @@
 	import { fetchUnreadCount } from '$lib/stores/notifications';
 	import { openCommentsSignal } from '$lib/stores/toasts';
 	import { globalMuted } from '$lib/stores/mute';
+	import { clearPushNotifications } from '$lib/push';
 
 	import { connectNormalizer } from '$lib/audio/normalizer';
 	import { fetchComments } from '$lib/commentsApi';
@@ -272,6 +273,7 @@
 			})
 				.then(() => fetchUnreadCount())
 				.catch(() => {});
+			clearPushNotifications(`reaction-${clip.id}`);
 		}, 3000);
 		return () => clearTimeout(timer);
 	});

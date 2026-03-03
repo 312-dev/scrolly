@@ -1,4 +1,5 @@
 import { fetchUnreadCount } from '$lib/stores/notifications';
+import { clearPushNotifications } from '$lib/push';
 
 export interface Comment {
 	id: string;
@@ -113,4 +114,7 @@ export function markCommentsRead(clipId: string): void {
 	fetch(`/api/clips/${clipId}/comments/viewed`, { method: 'POST' }).catch((err) =>
 		console.warn('[mark-comments-viewed]', err)
 	);
+	for (const prefix of ['comment', 'reply', 'mention']) {
+		clearPushNotifications(`${prefix}-${clipId}`);
+	}
 }
