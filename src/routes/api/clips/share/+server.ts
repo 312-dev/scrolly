@@ -12,32 +12,12 @@ import {
 	isPlatformAllowed,
 	platformLabel
 } from '$lib/url-validation';
-import { downloadVideo } from '$lib/server/video/download';
-import { downloadMusic } from '$lib/server/music/download';
 import { normalizeUrl } from '$lib/server/download-lock';
+import { startDownload } from '$lib/server/clip-download';
 import { getActiveProvider } from '$lib/server/providers/registry';
 import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('share');
-
-/** Set clip status to 'downloading' and trigger the download pipeline. Marks as 'failed' on error. */
-async function startDownload(clipId: string, url: string, contentType: string, label: string) {
-	await db.update(clips).set({ status: 'downloading' }).where(eq(clips.id, clipId));
-
-	const onError = async (err: unknown) => {
-		log.error({ err, clipId }, `download failed (${label})`);
-		await db
-			.update(clips)
-			.set({ status: 'failed' })
-			.where(and(eq(clips.id, clipId), eq(clips.status, 'downloading')));
-	};
-
-	if (contentType === 'music') {
-		downloadMusic(clipId, url).catch(onError);
-	} else {
-		downloadVideo(clipId, url).catch(onError);
-	}
-}
 
 /** Shortcut-friendly JSON response. Every response includes `success` (1|0) and `message`. */
 function shareResponse(
@@ -199,27 +179,39 @@ export const POST: RequestHandler = async ({ request, url, locals }) => {
 		return shareResponse(false, '❌  This clip has already been shared!', 409);
 	}
 
-	// 8. Create clip
+	// 8. Create clip + auto-watched in a transaction so both succeed or fail together
 	const clipId = uuid();
-	await db.insert(clips).values({
-		id: clipId,
-		groupId: group.id,
-		addedBy: matchedUser.id,
-		originalUrl: normalizedVideoUrl,
-		title: null,
-		platform,
-		contentType,
-		status: 'downloading',
-		createdAt: new Date()
-	});
+	const now = new Date();
+	try {
+		db.transaction((tx) => {
+			tx.insert(clips)
+				.values({
+					id: clipId,
+					groupId: group.id,
+					addedBy: matchedUser.id,
+					originalUrl: normalizedVideoUrl,
+					title: null,
+					platform,
+					contentType,
+					status: 'downloading',
+					createdAt: now
+				})
+				.run();
 
-	// 9. Auto-mark as watched by uploader
-	await db.insert(watched).values({
-		clipId,
-		userId: matchedUser.id,
-		watchPercent: 100,
-		watchedAt: new Date()
-	});
+			// Auto-mark as watched by uploader so it never appears in their "New" tab
+			tx.insert(watched)
+				.values({
+					clipId,
+					userId: matchedUser.id,
+					watchPercent: 100,
+					watchedAt: now
+				})
+				.run();
+		});
+	} catch (err) {
+		log.error({ err, clipId }, 'failed to insert clip');
+		return shareResponse(false, 'Something went wrong. Try sharing again.', 500);
+	}
 
 	// 10. Async download
 	await startDownload(clipId, videoUrl, contentType, 'new clip');

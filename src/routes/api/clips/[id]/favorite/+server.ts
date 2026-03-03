@@ -10,65 +10,87 @@ export const POST: RequestHandler = withClipAuth(async ({ params }, { user, clip
 	const clipId = params.id;
 	const userId = user.id;
 
-	// Toggle — check if already favorited
-	const existing = await db.query.favorites.findFirst({
-		where: and(eq(favorites.clipId, clipId), eq(favorites.userId, userId))
-	});
+	// Wrap toggle in a transaction to prevent race conditions (e.g. double-tap)
+	let result: { favorited: boolean; createdReaction: boolean };
+	try {
+		result = db.transaction((tx) => {
+			const existing = tx
+				.select()
+				.from(favorites)
+				.where(and(eq(favorites.clipId, clipId), eq(favorites.userId, userId)))
+				.get();
 
-	if (existing) {
-		await db
-			.delete(favorites)
-			.where(and(eq(favorites.clipId, clipId), eq(favorites.userId, userId)));
+			if (existing) {
+				tx.delete(favorites)
+					.where(and(eq(favorites.clipId, clipId), eq(favorites.userId, userId)))
+					.run();
 
-		// Also remove ❤️ reaction when un-favoriting
-		const heartReaction = await db.query.reactions.findFirst({
-			where: and(
-				eq(reactions.clipId, clipId),
-				eq(reactions.userId, userId),
-				eq(reactions.emoji, '❤️')
-			)
-		});
-		if (heartReaction) {
-			await db.delete(reactions).where(eq(reactions.id, heartReaction.id));
-			await db
-				.delete(notifications)
-				.where(
-					and(
-						eq(notifications.clipId, clipId),
-						eq(notifications.actorId, userId),
-						eq(notifications.type, 'reaction'),
-						eq(notifications.emoji, '❤️')
+				// Also remove ❤️ reaction when un-favoriting
+				const heartReaction = tx
+					.select()
+					.from(reactions)
+					.where(
+						and(
+							eq(reactions.clipId, clipId),
+							eq(reactions.userId, userId),
+							eq(reactions.emoji, '❤️')
+						)
 					)
-				);
-		}
+					.get();
+				if (heartReaction) {
+					tx.delete(reactions).where(eq(reactions.id, heartReaction.id)).run();
+					tx.delete(notifications)
+						.where(
+							and(
+								eq(notifications.clipId, clipId),
+								eq(notifications.actorId, userId),
+								eq(notifications.type, 'reaction'),
+								eq(notifications.emoji, '❤️')
+							)
+						)
+						.run();
+				}
 
-		return json({ favorited: false });
+				return { favorited: false, createdReaction: false };
+			}
+
+			tx.insert(favorites)
+				.values({
+					clipId,
+					userId,
+					createdAt: new Date()
+				})
+				.run();
+
+			// Also create ❤️ reaction if one doesn't already exist
+			const existingReaction = tx
+				.select()
+				.from(reactions)
+				.where(
+					and(eq(reactions.clipId, clipId), eq(reactions.userId, userId), eq(reactions.emoji, '❤️'))
+				)
+				.get();
+			if (!existingReaction) {
+				tx.insert(reactions)
+					.values({
+						id: uuid(),
+						clipId,
+						userId,
+						emoji: '❤️',
+						createdAt: new Date()
+					})
+					.run();
+				return { favorited: true, createdReaction: true };
+			}
+
+			return { favorited: true, createdReaction: false };
+		});
+	} catch {
+		return json({ error: 'Failed to toggle favorite' }, { status: 500 });
 	}
 
-	await db.insert(favorites).values({
-		clipId,
-		userId,
-		createdAt: new Date()
-	});
-
-	// Also create ❤️ reaction if one doesn't already exist
-	const existingReaction = await db.query.reactions.findFirst({
-		where: and(
-			eq(reactions.clipId, clipId),
-			eq(reactions.userId, userId),
-			eq(reactions.emoji, '❤️')
-		)
-	});
-	if (!existingReaction) {
-		await db.insert(reactions).values({
-			id: uuid(),
-			clipId,
-			userId,
-			emoji: '❤️',
-			createdAt: new Date()
-		});
-
-		// Notify clip owner (skips self-notification automatically)
+	// Send push notification outside the transaction (async, network I/O)
+	if (result.createdReaction) {
 		await notifyClipOwner({
 			recipientId: clip.addedBy,
 			actorId: userId,
@@ -84,5 +106,5 @@ export const POST: RequestHandler = withClipAuth(async ({ params }, { user, clip
 		});
 	}
 
-	return json({ favorited: true });
+	return json({ favorited: result.favorited });
 });
