@@ -60,3 +60,4 @@ docs/.vitepress/dist
 *.swo
 *~
 .vscode/
+REFACTOR-TRACKER.md

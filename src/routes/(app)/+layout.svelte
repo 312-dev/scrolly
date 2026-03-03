@@ -211,8 +211,8 @@
 	}
 
 	.feed-notif-btn :global(svg) {
-		width: 24px;
-		height: 24px;
+		width: 22px;
+		height: 22px;
 	}
 
 	.notif-badge {
@@ -279,8 +279,8 @@
 	}
 
 	.top-bar-action :global(svg) {
-		width: 22px;
-		height: 22px;
+		width: 20px;
+		height: 20px;
 	}
 
 	main {
