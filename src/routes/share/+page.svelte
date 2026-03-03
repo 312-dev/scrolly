@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import {
@@ -14,14 +14,14 @@
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import ExportIcon from 'phosphor-svelte/lib/ExportIcon';
 
-	const shareUrl = $derived($page.data.shareUrl as string);
+	const shareUrl = $derived(page.data.shareUrl as string);
 	const platform = $derived(platformLabel(shareUrl));
 	const isValid = $derived(isSupportedUrl(shareUrl));
 	const detectedPlatform = $derived(shareUrl ? detectPlatform(shareUrl) : null);
-	const platformFilterMode = $derived(($page.data.group?.platformFilterMode as string) ?? 'all');
+	const platformFilterMode = $derived((page.data.group?.platformFilterMode as string) ?? 'all');
 	const platformFilterList = $derived<string[] | null>(
-		$page.data.group?.platformFilterList
-			? JSON.parse($page.data.group.platformFilterList as string)
+		page.data.group?.platformFilterList
+			? JSON.parse(page.data.group.platformFilterList as string)
 			: null
 	);
 	const platformAllowed = $derived(

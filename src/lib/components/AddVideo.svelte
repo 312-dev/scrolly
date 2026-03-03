@@ -9,7 +9,7 @@
 	} from '$lib/url-validation';
 	import { addToast } from '$lib/stores/toasts';
 	import { showShortcutNudge } from '$lib/stores/shortcutNudge';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import type { GroupMember } from '$lib/types';
 	import DownloadSimpleIcon from 'phosphor-svelte/lib/DownloadSimpleIcon';
 	import ClipboardIcon from 'phosphor-svelte/lib/ClipboardIcon';
@@ -27,11 +27,11 @@
 		members?: GroupMember[];
 	} = $props();
 
-	const hasProvider = $derived(!!$page.data.group?.downloadProvider);
-	const platformFilterMode = $derived(($page.data.group?.platformFilterMode as string) ?? 'all');
+	const hasProvider = $derived(!!page.data.group?.downloadProvider);
+	const platformFilterMode = $derived((page.data.group?.platformFilterMode as string) ?? 'all');
 	const platformFilterList = $derived<string[] | null>(
-		$page.data.group?.platformFilterList
-			? JSON.parse($page.data.group.platformFilterList as string)
+		page.data.group?.platformFilterList
+			? JSON.parse(page.data.group.platformFilterList as string)
 			: null
 	);
 	let url = $state('');
