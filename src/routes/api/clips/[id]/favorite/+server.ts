@@ -101,7 +101,7 @@ export const POST: RequestHandler = withClipAuth(async ({ params }, { user, clip
 			preferenceKey: 'reactions',
 			pushTitle: `${user.username} reacted ❤️`,
 			pushBody: 'on your clip',
-			pushTag: `reaction-${clipId}`,
+			pushTag: `reaction-${clipId}-${user.id}`,
 			emoji: '❤️'
 		});
 	}
