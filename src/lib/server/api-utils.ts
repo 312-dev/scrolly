@@ -212,7 +212,8 @@ export async function notifyClipOwner(opts: {
 	const prefs = await db.query.notificationPreferences.findFirst({
 		where: eq(notificationPreferences.userId, opts.recipientId)
 	});
-	if (!prefs || prefs[opts.preferenceKey]) {
+	const prefEnabled = !prefs || prefs[opts.preferenceKey];
+	if (prefEnabled) {
 		const url =
 			opts.type === 'comment' || opts.type === 'reply'
 				? `/?clip=${opts.clipId}&comments=true`
@@ -230,8 +231,9 @@ export async function notifyClipOwner(opts: {
 		}).catch((err) => log.error({ err }, 'push notification failed'));
 	}
 
+	const notifId = uuid();
 	await db.insert(notifications).values({
-		id: uuid(),
+		id: notifId,
 		userId: opts.recipientId,
 		type: opts.type,
 		clipId: opts.clipId,
