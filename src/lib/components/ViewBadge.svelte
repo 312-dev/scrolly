@@ -21,7 +21,7 @@
 	ontouchmove={(e) => e.stopPropagation()}
 	ontouchend={(e) => e.stopPropagation()}
 >
-	<EyeIcon size={14} />
+	<EyeIcon size={14} weight="fill" />
 	<span>{viewCount}</span>
 </button>
 
@@ -30,18 +30,16 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-xs);
-		padding: 6px 12px;
-		background: var(--reel-icon-circle-bg);
-		backdrop-filter: blur(6px);
-		-webkit-backdrop-filter: blur(6px);
+		padding: 5px 10px;
+		background: transparent;
 		border: none;
 		border-radius: var(--radius-full);
 		color: var(--reel-text);
 		font-size: 0.75rem;
 		font-weight: 700;
 		cursor: pointer;
-		min-height: 32px;
-		text-shadow: 0 1px 3px var(--reel-text-shadow);
+		min-height: 30px;
+		text-shadow: 0 1px 1px var(--reel-text-shadow);
 		transition: transform 0.1s ease;
 	}
 
@@ -50,6 +48,6 @@
 	}
 
 	.view-badge :global(svg) {
-		filter: drop-shadow(0 1px 2px var(--reel-text-shadow));
+		filter: drop-shadow(0 1px 1px var(--reel-text-shadow));
 	}
 </style>

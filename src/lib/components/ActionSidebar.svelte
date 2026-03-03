@@ -112,25 +112,6 @@
 	ontouchmove={(e) => e.stopPropagation()}
 	ontouchend={(e) => e.stopPropagation()}
 >
-	{#if onmute}
-		<button
-			class="sidebar-btn"
-			onclick={(e) => {
-				stop(e);
-				onmute?.();
-			}}
-			aria-label={muted ? 'Unmute' : 'Mute'}
-		>
-			<span class="icon-circle">
-				{#if muted}
-					<SpeakerXIcon size={24} />
-				{:else}
-					<SpeakerHighIcon size={24} />
-				{/if}
-			</span>
-		</button>
-	{/if}
-
 	<button
 		class="sidebar-btn"
 		class:active={favorited}
@@ -145,7 +126,7 @@
 			{#if reactedEmoji && reactedEmoji !== '❤️' && REACTION_MAP.has(reactedEmoji)}
 				<span class="reaction-emoji">{reactedEmoji}</span>
 			{:else}
-				<HeartIcon size={24} weight={favorited ? 'fill' : 'regular'} />
+				<HeartIcon size={24} weight="fill" />
 			{/if}
 		</span>
 		{#if reactionCount > 0}
@@ -162,7 +143,7 @@
 		aria-label="Comments"
 	>
 		<span class="icon-circle">
-			<ChatIcon size={24} />
+			<ChatIcon size={24} weight="fill" />
 			{#if unreadCommentCount > 0}
 				<span class="unread-badge">{unreadCommentCount > 9 ? '9+' : unreadCommentCount}</span>
 			{/if}
@@ -171,6 +152,26 @@
 			<span class="sidebar-count">{formatCount(commentCount)}</span>
 		{/if}
 	</button>
+
+	{#if onmute}
+		<button
+			class="sidebar-btn"
+			class:muted-state={muted}
+			onclick={(e) => {
+				stop(e);
+				onmute?.();
+			}}
+			aria-label={muted ? 'Unmute' : 'Mute'}
+		>
+			<span class="icon-circle">
+				{#if muted}
+					<SpeakerXIcon size={24} weight="fill" />
+				{:else}
+					<SpeakerHighIcon size={24} weight="fill" />
+				{/if}
+			</span>
+		</button>
+	{/if}
 
 	{#if albumArt}
 		<MusicDisc {albumArt} {spotifyUrl} {appleMusicUrl} {youtubeMusicUrl} {active} {paused} />
@@ -185,7 +186,7 @@
 			aria-label="Open original"
 		>
 			<span class="icon-circle">
-				<ArrowSquareOutIcon size={24} />
+				<ArrowSquareOutIcon size={24} weight="fill" />
 			</span>
 		</a>
 	{/if}
@@ -194,12 +195,12 @@
 <style>
 	.action-sidebar {
 		position: absolute;
-		right: var(--space-lg);
+		right: var(--space-sm);
 		bottom: 74px;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: var(--space-sm);
+		gap: 6px;
 		z-index: 5;
 		transition: opacity 0.3s ease;
 	}
@@ -219,7 +220,7 @@
 		color: var(--reel-text);
 		cursor: pointer;
 		padding: 0;
-		min-width: 44px;
+		min-width: 40px;
 		justify-content: center;
 		text-decoration: none;
 	}
@@ -229,24 +230,21 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 44px;
-		height: 44px;
+		width: 40px;
+		height: 40px;
 		border-radius: var(--radius-full);
-		background: var(--reel-icon-circle-bg);
-		backdrop-filter: blur(6px);
-		-webkit-backdrop-filter: blur(6px);
+		background: transparent;
 		transition: background 0.15s ease;
 	}
 
 	.sidebar-btn:active .icon-circle {
-		background: var(--reel-icon-circle-active);
 		transform: scale(0.93);
 	}
 
 	.icon-circle :global(svg) {
 		width: 24px;
 		height: 24px;
-		filter: drop-shadow(0 1px 2px var(--reel-icon-shadow));
+		filter: drop-shadow(0 1px 1px var(--reel-icon-shadow));
 	}
 
 	.reaction-emoji {
@@ -270,7 +268,7 @@
 	}
 
 	.sidebar-btn.disabled .icon-circle {
-		background: var(--reel-icon-circle-bg);
+		background: transparent;
 	}
 
 	.sidebar-btn.disabled:active .icon-circle {
@@ -299,7 +297,16 @@
 		font-size: 0.6875rem;
 		font-weight: 600;
 		color: var(--reel-text);
-		text-shadow: 0 1px 3px var(--reel-text-shadow);
+		text-shadow: 0 1px 1px var(--reel-text-shadow);
+	}
+
+	.sidebar-btn.muted-state .icon-circle {
+		background: var(--reel-text);
+	}
+
+	.sidebar-btn.muted-state .icon-circle :global(svg) {
+		color: #000;
+		filter: none;
 	}
 
 	.icon-circle.pop {

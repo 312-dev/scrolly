@@ -100,11 +100,11 @@
 	.music-disc-area {
 		position: relative;
 		flex-shrink: 0;
-		margin-left: auto;
+		margin-top: var(--space-xs);
 	}
 	.music-disc {
-		width: 44px;
-		height: 44px;
+		width: 36px;
+		height: 36px;
 		border-radius: var(--radius-full);
 		overflow: hidden;
 		box-shadow: 0 2px 8px var(--reel-icon-shadow);
@@ -126,7 +126,7 @@
 	}
 	.music-links-popout {
 		position: absolute;
-		right: calc(44px + var(--space-sm));
+		right: calc(36px + var(--space-sm));
 		bottom: 0;
 		display: flex;
 		flex-direction: column;

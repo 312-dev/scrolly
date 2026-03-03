@@ -85,7 +85,7 @@
 				{:else}
 					<span class="username">{creatorName}</span>
 				{/if}
-				<span class="platform-badge"><PlatformIcon {platform} size={12} /></span>
+				<span class="platform-badge"><PlatformIcon {platform} size={11} /></span>
 			{/if}
 			{#if (canDelete || canRefetch || canEditCaption) && !confirmingDelete && !editing}
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -100,7 +100,7 @@
 							onclick={() => (editing = true)}
 							aria-label="Edit caption"
 						>
-							<PencilSimpleIcon size={13} />
+							<PencilSimpleIcon size={12} />
 						</button>
 					{/if}
 					{#if canRefetch}
@@ -111,7 +111,7 @@
 							disabled={refetching}
 							aria-label="Refresh caption"
 						>
-							<ArrowsClockwiseIcon size={13} />
+							<ArrowsClockwiseIcon size={12} />
 						</button>
 					{/if}
 					{#if canDelete}
@@ -120,7 +120,7 @@
 							onclick={() => (confirmingDelete = true)}
 							aria-label="Delete clip"
 						>
-							<TrashIcon size={13} />
+							<TrashIcon size={12} />
 						</button>
 					{/if}
 				</span>
@@ -169,7 +169,7 @@
 	.username {
 		font-family: var(--font-display);
 		font-weight: 700;
-		font-size: 0.875rem;
+		font-size: 0.8rem;
 		color: var(--reel-text);
 		text-shadow: 0 1px 4px var(--reel-text-shadow);
 		text-decoration: none;
@@ -200,8 +200,8 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 24px;
-		height: 24px;
+		width: 22px;
+		height: 22px;
 		background: none;
 		border: none;
 		border-radius: var(--radius-full);
@@ -211,8 +211,8 @@
 		transition: color 0.15s ease;
 	}
 	.host-icon-btn :global(svg) {
-		width: 13px;
-		height: 13px;
+		width: 12px;
+		height: 12px;
 		filter: drop-shadow(0 1px 2px var(--reel-icon-shadow));
 	}
 	.host-icon-btn:active {
