@@ -10,7 +10,6 @@
 	import { initAudioContext } from '$lib/audio/normalizer';
 	import { feedUiHidden } from '$lib/stores/uiHidden';
 	import { fetchGroupMembers } from '$lib/stores/members';
-	import { anySheetOpen } from '$lib/stores/sheetOpen';
 	import ActivitySheet from '$lib/components/ActivitySheet.svelte';
 	import AddVideoModal from '$lib/components/AddVideoModal.svelte';
 	import BellIcon from 'phosphor-svelte/lib/BellIcon';
@@ -115,7 +114,7 @@
 			class:ui-hidden={$feedUiHidden}
 			onclick={() => activitySheetOpen.set(true)}
 		>
-			<BellIcon size={24} />
+			<BellIcon size={22} />
 			{#if $unreadCount > 0}
 				<span class="notif-badge">{$unreadCount > 99 ? '99+' : $unreadCount}</span>
 			{/if}
@@ -126,7 +125,7 @@
 			<span class="top-title">{pageTitle}</span>
 			{#if !isSettings}
 				<button class="top-bar-action" onclick={() => activitySheetOpen.set(true)}>
-					<BellIcon size={22} />
+					<BellIcon size={20} />
 					{#if $unreadCount > 0}
 						<span class="notif-badge">{$unreadCount > 99 ? '99+' : $unreadCount}</span>
 					{/if}
@@ -141,7 +140,6 @@
 		class="bottom-tabs"
 		class:overlay-mode={isFeed}
 		class:ui-hidden={isFeed && $feedUiHidden}
-		class:sheet-hidden={$anySheetOpen}
 		bind:this={bottomTabsEl}
 	>
 		{#if isFeed}
@@ -191,13 +189,13 @@
 	.feed-notif-btn {
 		position: fixed;
 		top: max(var(--space-md), env(safe-area-inset-top));
-		right: var(--space-lg);
+		right: var(--space-sm);
 		z-index: 20;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 40px;
-		height: 40px;
+		width: 44px;
+		height: 44px;
 		border-radius: var(--radius-full);
 		color: var(--reel-text);
 		background: none;
@@ -213,8 +211,8 @@
 	}
 
 	.feed-notif-btn :global(svg) {
-		width: 24px;
-		height: 24px;
+		width: 22px;
+		height: 22px;
 	}
 
 	.notif-badge {
@@ -281,8 +279,8 @@
 	}
 
 	.top-bar-action :global(svg) {
-		width: 22px;
-		height: 22px;
+		width: 20px;
+		height: 20px;
 	}
 
 	main {
@@ -317,10 +315,6 @@
 	.bottom-tabs.ui-hidden {
 		opacity: 0;
 		pointer-events: none;
-	}
-
-	.bottom-tabs.sheet-hidden {
-		display: none;
 	}
 
 	.bottom-tabs.overlay-mode {

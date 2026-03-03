@@ -1,15 +1,15 @@
 <script lang="ts">
 	import { beforeNavigate } from '$app/navigation';
+	import { onDestroy } from 'svelte';
 	import { relativeTime } from '$lib/utils';
-	import XIcon from 'phosphor-svelte/lib/XIcon';
+	import { openSheet, closeSheet } from '$lib/stores/sheetOpen';
+	import { createSafeTimeout } from '$lib/safeTimeout';
 	import EyeIcon from 'phosphor-svelte/lib/EyeIcon';
 
 	interface Viewer {
 		userId: string;
 		username: string;
 		avatarPath: string | null;
-		watchPercent: number;
-		status: 'viewed' | 'skipped';
 		watchedAt: string;
 	}
 
@@ -24,6 +24,7 @@
 	let viewers = $state<Viewer[]>([]);
 	let loading = $state(true);
 	let visible = $state(false);
+	const { safeTimeout, clearAll } = createSafeTimeout();
 
 	// Intercept back navigation to dismiss the panel without affecting parent history.
 	// Unlike pushState/popstate, beforeNavigate cancels the navigation so stacked
@@ -37,12 +38,14 @@
 
 	// Animate in, lock scroll
 	$effect(() => {
+		openSheet();
 		requestAnimationFrame(() => {
 			visible = true;
 		});
 		document.body.style.overflow = 'hidden';
 
 		return () => {
+			closeSheet();
 			document.body.style.overflow = '';
 		};
 	});
@@ -64,20 +67,15 @@
 
 	function dismiss() {
 		visible = false;
-		setTimeout(() => ondismiss(), 300);
+		safeTimeout(() => ondismiss(), 300);
 	}
+
+	onDestroy(clearAll);
 </script>
 
-<div class="overlay" class:visible onclick={dismiss} onkeydown={() => {}} role="presentation"></div>
+<div class="overlay" class:visible onclick={dismiss} role="presentation"></div>
 
 <div class="sheet" class:visible>
-	<div class="header">
-		<span class="header-title">Views{viewers.length > 0 ? ` (${viewers.length})` : ''}</span>
-		<button class="close-btn" onclick={dismiss} aria-label="Close viewers">
-			<XIcon size={18} />
-		</button>
-	</div>
-
 	<div class="content">
 		{#if loading}
 			<div class="viewers-empty">
@@ -102,17 +100,8 @@
 								<span class="avatar-initial">{viewer.username.charAt(0).toUpperCase()}</span>
 							{/if}
 						</div>
-						<div class="viewer-info">
-							<span class="viewer-name">{viewer.username}</span>
-							<span class="viewer-time">{relativeTime(viewer.watchedAt)}</span>
-						</div>
-						<span
-							class="status-badge"
-							class:viewed={viewer.status === 'viewed'}
-							class:skipped={viewer.status === 'skipped'}
-						>
-							Viewed
-						</span>
+						<span class="viewer-name">{viewer.username}</span>
+						<span class="viewer-time">{relativeTime(viewer.watchedAt)}</span>
 					</div>
 				{/each}
 			</div>
@@ -137,16 +126,16 @@
 	.sheet {
 		position: fixed;
 		top: calc(56px + env(safe-area-inset-top));
-		left: var(--space-lg);
+		right: var(--space-lg);
 		width: calc(100vw - 2 * var(--space-lg));
-		max-width: 400px;
+		max-width: 200px;
 		max-height: 65vh;
 		background: var(--bg-elevated);
 		border-radius: var(--radius-lg);
 		z-index: 100;
 		display: flex;
 		flex-direction: column;
-		transform-origin: top left;
+		transform-origin: top right;
 		transform: scale(0.9);
 		opacity: 0;
 		transition:
@@ -160,55 +149,12 @@
 		opacity: 1;
 	}
 
-	.header {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: var(--space-md) var(--space-lg);
-		border-bottom: 1px solid var(--border);
-		flex-shrink: 0;
-		position: relative;
-	}
-
-	.header-title {
-		font-family: var(--font-display);
-		font-weight: 700;
-		font-size: 1.0625rem;
-		letter-spacing: -0.01em;
-		color: var(--text-primary);
-	}
-
-	.close-btn {
-		position: absolute;
-		right: var(--space-lg);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 32px;
-		height: 32px;
-		border-radius: var(--radius-full);
-		background: var(--bg-surface);
-		border: none;
-		color: var(--text-secondary);
-		cursor: pointer;
-		transition: background 0.2s ease;
-	}
-
-	.close-btn:active {
-		background: var(--bg-subtle);
-	}
-
-	.close-btn :global(svg) {
-		width: 18px;
-		height: 18px;
-	}
-
 	.content {
 		flex: 1;
 		overflow-y: auto;
 		overscroll-behavior-y: contain;
 		-webkit-overflow-scrolling: touch;
-		padding: 0 var(--space-sm) var(--space-lg);
+		padding: var(--space-sm) var(--space-sm) var(--space-sm);
 	}
 
 	.viewers-empty {
@@ -216,7 +162,7 @@
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		padding: var(--space-3xl) var(--space-lg);
+		padding: var(--space-xl) var(--space-lg);
 		gap: var(--space-sm);
 	}
 
@@ -261,9 +207,9 @@
 	.viewer-row {
 		display: flex;
 		align-items: center;
-		gap: var(--space-md);
-		padding: var(--space-md) var(--space-sm);
-		border-radius: var(--radius-sm);
+		justify-content: space-between;
+		gap: var(--space-sm);
+		padding: var(--space-xs) var(--space-sm);
 		animation: viewer-in 250ms cubic-bezier(0.32, 0.72, 0, 1) both;
 	}
 
@@ -279,8 +225,8 @@
 	}
 
 	.viewer-avatar {
-		width: 44px;
-		height: 44px;
+		width: 28px;
+		height: 28px;
 		border-radius: var(--radius-full);
 		overflow: hidden;
 		flex-shrink: 0;
@@ -293,7 +239,6 @@
 	.avatar-img {
 		width: 100%;
 		height: 100%;
-		border-radius: var(--radius-full);
 		object-fit: cover;
 	}
 
@@ -301,42 +246,20 @@
 		color: var(--text-secondary);
 		font-family: var(--font-display);
 		font-weight: 700;
-		font-size: 1rem;
-	}
-
-	.viewer-info {
-		flex: 1;
-		min-width: 0;
+		font-size: 0.6875rem;
 	}
 
 	.viewer-name {
-		display: block;
-		font-size: 0.875rem;
+		flex: 1;
+		font-size: 0.8125rem;
 		font-weight: 600;
 		color: var(--text-primary);
 	}
 
 	.viewer-time {
-		font-size: 0.75rem;
-		color: var(--text-muted);
-	}
-
-	.status-badge {
-		padding: 3px 10px;
-		border-radius: var(--radius-full);
 		font-size: 0.6875rem;
-		font-weight: 600;
+		color: var(--text-muted);
 		flex-shrink: 0;
-	}
-
-	.status-badge.viewed {
-		background: rgba(56, 161, 105, 0.15);
-		color: var(--success);
-	}
-
-	.status-badge.skipped {
-		background: rgba(251, 191, 36, 0.15);
-		color: var(--warning);
 	}
 
 	.spinner {

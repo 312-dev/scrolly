@@ -9,7 +9,7 @@ import {
 import { db } from '$lib/server/db';
 import { users, groups, notificationPreferences, verificationCodes } from '$lib/server/db/schema';
 import { v4 as uuid } from 'uuid';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, ne, isNull } from 'drizzle-orm';
 import { sendVerification, checkVerification } from '$lib/server/sms/verify';
 import { dev } from '$app/environment';
 import { createLogger } from '$lib/server/logger';
@@ -93,9 +93,44 @@ async function handleVerifyCode(userId: string, body: Record<string, string>) {
 }
 
 async function handleOnboard(userId: string, body: Record<string, string>) {
-	const { username, phone } = body;
+	const { phone } = body;
+	const username = typeof body.username === 'string' ? body.username.trim() : '';
 	if (!username || !phone) {
 		return json({ error: 'Username and phone number required' }, { status: 400 });
+	}
+
+	// Validate username length (1-30 characters)
+	if (username.length < 1 || username.length > 30) {
+		return json({ error: 'Username must be 1–30 characters' }, { status: 400 });
+	}
+
+	// Validate username format (alphanumeric, underscores, hyphens, periods)
+	if (!/^[a-zA-Z0-9._-]+$/.test(username)) {
+		return json(
+			{ error: 'Username can only contain letters, numbers, underscores, hyphens, and periods' },
+			{ status: 400 }
+		);
+	}
+
+	// Get current user to find their group
+	const currentUser = await db.query.users.findFirst({
+		where: eq(users.id, userId)
+	});
+	if (!currentUser) {
+		return json({ error: 'User not found' }, { status: 404 });
+	}
+
+	// Check username uniqueness within the group (excluding current user, excluding removed members)
+	const existingUser = await db.query.users.findFirst({
+		where: and(
+			eq(users.groupId, currentUser.groupId),
+			eq(users.username, username),
+			ne(users.id, userId),
+			isNull(users.removedAt)
+		)
+	});
+	if (existingUser) {
+		return json({ error: 'Username is already taken in this group' }, { status: 409 });
 	}
 
 	if (!/^\+[1-9]\d{1,14}$/.test(phone)) {

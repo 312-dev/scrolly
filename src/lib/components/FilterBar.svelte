@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { FeedFilter } from '$lib/feed';
+	import { filterBarDimmed } from '$lib/stores/uiHidden';
 
 	const {
 		filter,
@@ -20,7 +21,7 @@
 	} = $props();
 
 	const filters: FeedFilter[] = ['unwatched', 'watched'];
-	const labels = ['New', 'Seen'];
+	const labels = ['For Us', 'Replay'];
 	const activeIndex = $derived(filters.indexOf(filter));
 
 	let containerEl: HTMLDivElement | undefined = $state();
@@ -66,6 +67,7 @@
 <div
 	class="filter-bar"
 	class:ui-hidden={hidden}
+	class:dimmed={$filterBarDimmed}
 	class:pull-snapping={pullOffset === 0}
 	style:transform={pullOffset > 0 ? `translateY(${pullOffset}px)` : undefined}
 >
@@ -107,6 +109,11 @@
 		opacity: 0;
 	}
 
+	.filter-bar.dimmed {
+		opacity: 0.25;
+		pointer-events: none;
+	}
+
 	.filter-bar.pull-snapping {
 		transition:
 			opacity 0.3s ease,
@@ -124,7 +131,7 @@
 		position: relative;
 		padding: 6px var(--space-md);
 		background: none;
-		color: var(--reel-text-subtle);
+		color: rgba(255, 255, 255, 0.65);
 		border: none;
 		border-radius: 0;
 		font-family: var(--font-display);
@@ -150,7 +157,7 @@
 		padding: 0 5px;
 		margin-left: 4px;
 		background: var(--accent-magenta);
-		color: #fff;
+		color: var(--constant-white);
 		font-family: var(--font-body);
 		font-size: 0.6875rem;
 		font-weight: 700;

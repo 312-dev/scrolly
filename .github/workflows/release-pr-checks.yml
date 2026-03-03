@@ -29,10 +29,7 @@ on:
     workflows: [Release]
     types: [completed]
 
-permissions:
-  contents: read
-  statuses: write
-  security-events: write
+permissions: read-all
 
 jobs:
   # Gate: only run for release-please PRs. Finds PR details from either trigger.
@@ -73,12 +70,12 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout PR code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           ref: ${{ needs.should-run.outputs.head_sha }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
           cache: npm
@@ -105,6 +102,8 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     needs: [should-run, lint-and-check]
+    permissions:
+      statuses: write
     steps:
       - name: Check CI status
         run: |
@@ -152,23 +151,24 @@ jobs:
     timeout-minutes: 15
     permissions:
       security-events: write
+      contents: read
     steps:
       - name: Checkout PR code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           ref: ${{ needs.should-run.outputs.head_sha }}
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@60168efe1c415ce0f5521ea06d5c2062adbeed1b # v3.28.17
         with:
           languages: javascript-typescript
           config-file: .github/codeql/codeql-config.yml
           queries: security-extended
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
+        uses: github/codeql-action/autobuild@60168efe1c415ce0f5521ea06d5c2062adbeed1b # v3.28.17
 
       - name: Perform CodeQL analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@60168efe1c415ce0f5521ea06d5c2062adbeed1b # v3.28.17
         with:
           category: '/language:javascript-typescript'

@@ -6,8 +6,12 @@ import { eq, count, isNull, and, sql } from 'drizzle-orm';
 import { withAuth } from '$lib/server/api-utils';
 
 export const GET: RequestHandler = withAuth(async (_event, { group }) => {
-	const [clipCount] = await db
-		.select({ count: count() })
+	// Combine clip count + storage into a single query (both scan the clips table)
+	const [clipStats] = await db
+		.select({
+			clipCount: count(),
+			totalBytes: sql<number>`coalesce(sum(${clips.fileSizeBytes}), 0)`
+		})
 		.from(clips)
 		.where(eq(clips.groupId, group.id));
 
@@ -16,15 +20,10 @@ export const GET: RequestHandler = withAuth(async (_event, { group }) => {
 		.from(users)
 		.where(and(eq(users.groupId, group.id), isNull(users.removedAt)));
 
-	const [storage] = await db
-		.select({ totalBytes: sql<number>`coalesce(sum(${clips.fileSizeBytes}), 0)` })
-		.from(clips)
-		.where(eq(clips.groupId, group.id));
-
 	return json({
-		clipCount: clipCount.count,
+		clipCount: clipStats.clipCount,
 		memberCount: memberCount.count,
-		storageMb: Math.round((storage.totalBytes / 1024 / 1024) * 10) / 10,
+		storageMb: Math.round((clipStats.totalBytes / 1024 / 1024) * 10) / 10,
 		maxStorageMb: group.maxStorageMb
 	});
 });

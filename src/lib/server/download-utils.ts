@@ -11,11 +11,33 @@ export const DATA_DIR = resolve(process.env.DATA_DIR || 'data', 'videos');
  * Returns the limit in bytes, or null if no limit is configured.
  */
 export async function getMaxFileSize(clipId: string): Promise<number | null> {
-	const clip = await db.query.clips.findFirst({ where: eq(clips.id, clipId) });
-	if (!clip) return null;
-	const group = await db.query.groups.findFirst({ where: eq(groups.id, clip.groupId) });
-	if (group?.maxFileSizeMb === null || group?.maxFileSizeMb === undefined) return null;
-	return group.maxFileSizeMb * 1024 * 1024;
+	const row = db
+		.select({ maxFileSizeMb: groups.maxFileSizeMb })
+		.from(clips)
+		.innerJoin(groups, eq(clips.groupId, groups.id))
+		.where(eq(clips.id, clipId))
+		.get();
+	if (row?.maxFileSizeMb === null || row?.maxFileSizeMb === undefined) return null;
+	return row.maxFileSizeMb * 1024 * 1024;
+}
+
+/**
+ * Fetch a clip and its group's max file size in a single query.
+ * Used by download pipelines that need both the clip record and the size limit.
+ */
+export function getClipWithMaxFileSize(clipId: string) {
+	const row = db
+		.select({ clip: clips, maxFileSizeMb: groups.maxFileSizeMb })
+		.from(clips)
+		.innerJoin(groups, eq(clips.groupId, groups.id))
+		.where(eq(clips.id, clipId))
+		.get();
+	if (!row) return null;
+	const maxFileSizeBytes =
+		row.maxFileSizeMb !== null && row.maxFileSizeMb !== undefined
+			? row.maxFileSizeMb * 1024 * 1024
+			: null;
+	return { clip: row.clip, maxFileSizeBytes };
 }
 
 /**

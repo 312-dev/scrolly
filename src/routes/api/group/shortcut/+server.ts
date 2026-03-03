@@ -11,6 +11,10 @@ export const PATCH: RequestHandler = withHost(async ({ request }, { group }) => 
 	const body = await parseBody<{ shortcutUrl?: string | null }>(request);
 	if (isResponse(body)) return body;
 
+	if (!('shortcutUrl' in body)) {
+		return json({ error: 'shortcutUrl field is required' }, { status: 400 });
+	}
+
 	const { shortcutUrl } = body;
 
 	if (shortcutUrl !== null && typeof shortcutUrl !== 'string') {

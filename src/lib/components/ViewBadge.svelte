@@ -16,6 +16,10 @@
 		e.stopPropagation();
 		ontap();
 	}}
+	onpointerdown={(e) => e.stopPropagation()}
+	ontouchstart={(e) => e.stopPropagation()}
+	ontouchmove={(e) => e.stopPropagation()}
+	ontouchend={(e) => e.stopPropagation()}
 >
 	<EyeIcon size={14} />
 	<span>{viewCount}</span>
@@ -27,9 +31,9 @@
 		align-items: center;
 		gap: var(--space-xs);
 		padding: 6px 12px;
-		background: rgba(0, 0, 0, 0.5);
-		backdrop-filter: blur(8px);
-		-webkit-backdrop-filter: blur(8px);
+		background: var(--reel-icon-circle-bg);
+		backdrop-filter: blur(6px);
+		-webkit-backdrop-filter: blur(6px);
 		border: none;
 		border-radius: var(--radius-full);
 		color: var(--reel-text);

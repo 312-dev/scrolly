@@ -2,6 +2,7 @@
 	import { relativeTime } from '$lib/utils';
 	import { toast } from '$lib/stores/toasts';
 	import { onDestroy } from 'svelte';
+	import { createSafeTimeout } from '$lib/safeTimeout';
 	import CommentInput from './CommentInput.svelte';
 	import CommentRow from './CommentRow.svelte';
 	import GifPicker from './GifPicker.svelte';
@@ -64,15 +65,9 @@
 	let heartPopoverId = $state<string | null>(null);
 	let longPressTimer: ReturnType<typeof setTimeout> | null = null;
 
-	let timers: ReturnType<typeof setTimeout>[] = [];
+	const { safeTimeout, clearAll } = createSafeTimeout();
 
-	function safeTimeout(fn: () => void, ms: number) {
-		const id = setTimeout(fn, ms);
-		timers.push(id);
-		return id;
-	}
-
-	onDestroy(() => timers.forEach(clearTimeout));
+	onDestroy(clearAll);
 
 	$effect(() => {
 		loadComments();

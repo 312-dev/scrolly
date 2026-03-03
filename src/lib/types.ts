@@ -1,3 +1,27 @@
+export type ClipStatus = 'downloading' | 'ready' | 'failed' | 'deleted';
+export type ContentType = 'video' | 'music';
+export type Platform =
+	| 'tiktok'
+	| 'instagram'
+	| 'facebook'
+	| 'youtube'
+	| 'twitter'
+	| 'reddit'
+	| 'streamable'
+	| 'twitch'
+	| 'vimeo'
+	| 'threads'
+	| 'bluesky'
+	| 'snapchat'
+	| 'pinterest'
+	| 'kick'
+	| 'dailymotion'
+	| 'imgur'
+	| 'soundcloud'
+	| 'spotify'
+	| 'apple_music'
+	| 'youtube_music';
+
 export interface FeedClip {
 	id: string;
 	originalUrl: string;
@@ -13,11 +37,11 @@ export interface FeedClip {
 	addedBy: string;
 	addedByUsername: string;
 	addedByAvatar: string | null;
-	platform: string;
+	platform: Platform;
 	creatorName: string | null;
 	creatorUrl: string | null;
-	status: string;
-	contentType: string;
+	status: ClipStatus;
+	contentType: ContentType;
 	durationSeconds: number | null;
 	watched: boolean;
 	favorited: boolean;
@@ -39,12 +63,12 @@ export interface GroupMember {
 export interface ClipSummary {
 	id: string;
 	title: string | null;
-	platform: string;
-	contentType: string;
+	platform: Platform;
+	contentType: ContentType;
 	addedBy: string;
 	addedByUsername: string;
 	createdAt: string;
 	sizeMb: number;
 	thumbnailPath: string | null;
-	status: string;
+	status: ClipStatus;
 }

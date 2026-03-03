@@ -3,15 +3,14 @@
 	import { confirm } from '$lib/stores/confirm';
 	import { toast } from '$lib/stores/toasts';
 	import { groupMembers } from '$lib/stores/members';
+	import { rawDigits, formatPhone, toE164 } from '$lib/phone';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 
 	const {
-		groupId: _groupId,
 		hostId,
 		currentUserId
 	}: {
-		groupId: string;
 		hostId: string;
 		currentUserId: string;
 	} = $props();
@@ -20,7 +19,7 @@
 		id: string;
 		username: string;
 		avatarPath: string | null;
-		createdAt: string;
+		createdAt: number;
 		isHost: boolean;
 	};
 
@@ -35,22 +34,6 @@
 	let adding = $state(false);
 
 	const isHost = $derived(currentUserId === hostId);
-
-	// Phone formatting helpers (same pattern as /join page)
-	function rawDigits(val: string): string {
-		return val.replace(/\D/g, '');
-	}
-
-	function formatPhone(val: string): string {
-		const d = rawDigits(val);
-		if (d.length <= 3) return d;
-		if (d.length <= 6) return `(${d.slice(0, 3)}) ${d.slice(3)}`;
-		return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6, 10)}`;
-	}
-
-	function toE164(val: string): string {
-		return '+1' + rawDigits(val);
-	}
 
 	function handlePhoneInput(e: Event) {
 		const input = e.target as HTMLInputElement;
@@ -115,8 +98,8 @@
 		});
 	});
 
-	function formatDate(dateStr: string) {
-		return new Date(dateStr).toLocaleDateString('en-US', {
+	function formatDate(epochSeconds: number) {
+		return new Date(epochSeconds * 1000).toLocaleDateString('en-US', {
 			month: 'short',
 			year: 'numeric'
 		});

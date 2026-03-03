@@ -19,8 +19,9 @@ export function detectStandaloneMode(): boolean {
 export function detectIosSafari(): boolean {
 	if (typeof window === 'undefined') return false;
 	const ua = navigator.userAgent;
-	// Must be iPhone/iPad/iPod
-	const isIos = /iPhone|iPad|iPod/.test(ua);
+	// Must be iPhone/iPad/iPod — modern iPads report "Macintosh" in the UA
+	const isIpad = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+	const isIos = /iPhone|iPad|iPod/.test(ua) || isIpad;
 	// Exclude Chrome, Firefox, and other in-app browsers on iOS
 	const isSafari = !/(CriOS|FxiOS|OPiOS|EdgiOS)/.test(ua);
 	return isIos && isSafari;

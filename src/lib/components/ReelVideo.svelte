@@ -8,7 +8,6 @@
 		muted,
 		autoScroll,
 		forceLoop = false,
-		playbackRate = 1,
 		onretry,
 		onended,
 		videoEl = $bindable(null)
@@ -24,7 +23,6 @@
 		muted: boolean;
 		autoScroll: boolean;
 		forceLoop?: boolean;
-		playbackRate?: number;
 		onretry: (id: string) => void;
 		onended: () => void;
 		videoEl: HTMLVideoElement | null;
@@ -58,13 +56,6 @@
 	$effect(() => {
 		if (videoEl) {
 			videoEl.muted = muted;
-		}
-	});
-
-	// Sync playback rate
-	$effect(() => {
-		if (videoEl) {
-			videoEl.playbackRate = playbackRate;
 		}
 	});
 </script>

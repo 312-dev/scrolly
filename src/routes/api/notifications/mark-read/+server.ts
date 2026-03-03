@@ -28,6 +28,8 @@ export const POST: RequestHandler = withAuth(async ({ request }, { user }) => {
 					isNull(notifications.readAt)
 				)
 			);
+	} else {
+		return json({ error: 'Provide either { all: true } or { clipId, type }' }, { status: 400 });
 	}
 
 	return json({ ok: true });

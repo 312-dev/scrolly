@@ -62,19 +62,23 @@ export const POST: RequestHandler = withHost(async ({ request }, { group }) => {
 	const now = new Date();
 
 	// Create user + notification preferences atomically
-	db.transaction((tx) => {
-		tx.insert(users)
-			.values({
-				id: userId,
-				username,
-				phone,
-				groupId: group.id,
-				createdAt: now
-			})
-			.run();
+	try {
+		db.transaction((tx) => {
+			tx.insert(users)
+				.values({
+					id: userId,
+					username,
+					phone,
+					groupId: group.id,
+					createdAt: now
+				})
+				.run();
 
-		tx.insert(notificationPreferences).values({ userId }).run();
-	});
+			tx.insert(notificationPreferences).values({ userId }).run();
+		});
+	} catch {
+		return json({ error: 'Failed to create member' }, { status: 500 });
+	}
 
 	return json(
 		{

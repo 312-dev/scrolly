@@ -20,7 +20,6 @@
 	let hasMore = $state(false);
 	let sortBy = $state<'largest' | 'newest'>('largest');
 	let selected = new SvelteSet<string>();
-	let _deleting = $state(false);
 	let sentinel = $state<HTMLDivElement | null>(null);
 	let prevSort = $state<'largest' | 'newest'>('largest');
 
@@ -99,7 +98,6 @@
 		});
 		if (!confirmed) return;
 
-		_deleting = true;
 		const ok = await deleteClips(ids);
 		if (ok) {
 			const deletedSet = new Set(ids);
@@ -114,7 +112,6 @@
 		} else {
 			toast.error('Failed to delete clips');
 		}
-		_deleting = false;
 	}
 
 	function deleteSingle(clip: ClipSummary) {
@@ -155,9 +152,6 @@
 		<div class="storage-header">
 			<span class="storage-total">{formatSize(totalSizeMb)}</span>
 			<span class="storage-label">{totalClips} clip{totalClips === 1 ? '' : 's'}</span>
-		</div>
-		<div class="storage-bar">
-			<div class="storage-bar-fill" style="width: 100%"></div>
 		</div>
 	</div>
 
@@ -264,18 +258,6 @@
 	.storage-label {
 		font-size: 0.8125rem;
 		color: var(--text-muted);
-	}
-	.storage-bar {
-		height: 6px;
-		background: var(--bg-primary);
-		border-radius: 3px;
-		overflow: hidden;
-	}
-	.storage-bar-fill {
-		height: 100%;
-		background: var(--accent-primary);
-		border-radius: 3px;
-		transition: width 0.3s ease;
 	}
 
 	/* Sort controls */

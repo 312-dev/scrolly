@@ -14,7 +14,7 @@ function isAppleDevice(): boolean {
 	return /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
 }
 
-export const shortcutNudgeDismissed = writable(getInitial());
+const shortcutNudgeDismissed = writable(getInitial());
 
 /** Show the shortcut nudge on Apple devices (iOS + Mac), when install banner is not visible and nudge hasn't been dismissed */
 export const showShortcutNudge = derived(

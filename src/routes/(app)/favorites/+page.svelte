@@ -2,6 +2,7 @@
 	import { onMount, tick } from 'svelte';
 	import { pushState } from '$app/navigation';
 	import { page } from '$app/state';
+	import { basename } from '$lib/utils';
 	import type { FeedClip } from '$lib/types';
 	import {
 		fetchClips,
@@ -118,10 +119,6 @@
 		else if (idx < activeIndex) activeIndex = Math.max(0, activeIndex - 1);
 	}
 
-	function handleCaptionEdit(clipId: string, newCaption: string) {
-		clips = clips.map((c) => (c.id === clipId ? { ...c, title: newCaption } : c));
-	}
-
 	async function handleRetry(clipId: string) {
 		const ok = await retryClipDownload(clipId);
 		if (ok) {
@@ -162,7 +159,7 @@
 
 	function getThumbnailSrc(clip: FeedClip): string | null {
 		if (clip.thumbnailPath) {
-			return `/api/thumbnails/${clip.thumbnailPath.split('/').pop()}`;
+			return `/api/thumbnails/${basename(clip.thumbnailPath)}`;
 		}
 		if (clip.albumArt) return clip.albumArt;
 		return null;
@@ -185,9 +182,10 @@
 	{:else}
 		<div class="grid">
 			{#each clips as clip, i (clip.id)}
+				{@const thumbSrc = getThumbnailSrc(clip)}
 				<button class="grid-cell" onclick={() => openReel(i)} aria-label={clip.title ?? 'Clip'}>
-					{#if getThumbnailSrc(clip)}
-						<img src={getThumbnailSrc(clip)} alt="" class="grid-thumb" loading="lazy" />
+					{#if thumbSrc}
+						<img src={thumbSrc} alt="" class="grid-thumb" loading="lazy" />
 					{:else}
 						<div class="grid-thumb-placeholder"></div>
 					{/if}
@@ -236,7 +234,6 @@
 							index={i}
 							autoScroll={false}
 							{gifEnabled}
-							canEditCaption={clip.addedBy === currentUserId}
 							seenByOthers={clip.seenByOthers}
 							hideViewBadge={true}
 							onwatched={markWatched}
@@ -244,14 +241,13 @@
 							onreaction={handleReaction}
 							onretry={handleRetry}
 							onended={() => scrollToIndex(i + 1)}
-							oncaptionedit={handleCaptionEdit}
 							ondelete={handleDelete}
 						/>
 					{:else}
 						<div class="reel-placeholder">
 							{#if clip.thumbnailPath}
 								<img
-									src="/api/thumbnails/{clip.thumbnailPath.split('/').pop()}"
+									src="/api/thumbnails/{basename(clip.thumbnailPath)}"
 									alt=""
 									class="placeholder-thumb"
 									loading="lazy"
@@ -436,7 +432,7 @@
 		backdrop-filter: blur(8px);
 		-webkit-backdrop-filter: blur(8px);
 		border: none;
-		color: #fff;
+		color: var(--reel-text);
 		display: flex;
 		align-items: center;
 		justify-content: center;

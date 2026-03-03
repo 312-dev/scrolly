@@ -4,6 +4,7 @@
 	import DownloadSimpleIcon from 'phosphor-svelte/lib/DownloadSimpleIcon';
 	import ExportIcon from 'phosphor-svelte/lib/ExportIcon';
 	import ListIcon from 'phosphor-svelte/lib/ListIcon';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
 
 	let {
 		shortcutUrl,
@@ -50,6 +51,9 @@
 					></span>
 				{/each}
 			</div>
+			<button class="close-btn" onclick={done} aria-label="Close">
+				<XIcon size={18} />
+			</button>
 		</div>
 	{/snippet}
 
@@ -148,7 +152,7 @@
 				<p class="step-desc">
 					{isMac
 						? 'Make the shortcut easy to reach whenever you need it:'
-						: "Pin the shortcut to your favourites so it's always easy to reach:"}
+						: "Pin the shortcut to your favorites so it's always easy to reach:"}
 				</p>
 				<div class="instructions">
 					{#if isMac}
@@ -183,7 +187,7 @@
 							<span class="inst-num">3</span>
 							<span
 								>Tap the green <strong class="green">+</strong> button to add it to
-								<strong>Favourites</strong></span
+								<strong>Favorites</strong></span
 							>
 						</div>
 					{/if}
@@ -192,7 +196,7 @@
 					{#if isMac}
 						With Menu Bar enabled, you can run the shortcut from anywhere without opening Safari.
 					{:else}
-						Once it's in Favourites, it'll appear right at the top of your share sheet for quick
+						Once it's in Favorites, it'll appear right at the top of your share sheet for quick
 						access.
 					{/if}
 				</div>
@@ -219,16 +223,38 @@
 	.guide-header {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
-		padding: 0 var(--space-lg) var(--space-md);
+		justify-content: center;
+		gap: var(--space-sm);
+		padding: var(--space-md) var(--space-lg);
 		border-bottom: 1px solid var(--border);
+		position: relative;
 	}
 
 	.guide-title {
 		font-family: var(--font-display);
 		font-size: 0.9375rem;
-		font-weight: 700;
+		font-weight: 500;
 		color: var(--text-primary);
+	}
+
+	.close-btn {
+		position: absolute;
+		right: var(--space-lg);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		border-radius: var(--radius-full);
+		background: var(--bg-surface);
+		border: none;
+		color: var(--text-secondary);
+		cursor: pointer;
+		transition: background 0.2s ease;
+	}
+
+	.close-btn:active {
+		background: var(--bg-subtle);
 	}
 
 	.step-dots {
@@ -354,7 +380,7 @@
 	}
 
 	.instruction .green {
-		color: #38a169;
+		color: var(--success);
 	}
 
 	.inst-num {

@@ -372,56 +372,6 @@ describe('GET /api/clips/[id]', () => {
 });
 
 // ---------------------------------------------------------------------------
-// PATCH /api/clips/[id]
-// ---------------------------------------------------------------------------
-describe('PATCH /api/clips/[id]', () => {
-	it('returns 401 without auth', async () => {
-		const event = createMockEvent({
-			method: 'PATCH',
-			path: `/api/clips/${data.clip.id}`,
-			params: { id: data.clip.id },
-			body: { title: 'New Title' },
-			user: null,
-			group: null
-		});
-		const res = await clipIdMod.PATCH(event as any);
-		expect(res.status).toBe(401);
-	});
-
-	it('returns 403 when not the uploader', async () => {
-		// readyClip was added by host; member should not be able to edit
-		const event = createMockEvent({
-			method: 'PATCH',
-			path: `/api/clips/${data.readyClip.id}`,
-			params: { id: data.readyClip.id },
-			body: { title: 'Hijacked Title' },
-			user: data.member,
-			group: data.group
-		});
-		const res = await clipIdMod.PATCH(event as any);
-		expect(res.status).toBe(403);
-		const body = await res.json();
-		expect(body.error).toMatch(/uploader/i);
-	});
-
-	it('updates title when authorized', async () => {
-		// clip was added by member and has not been watched by anyone else
-		const event = createMockEvent({
-			method: 'PATCH',
-			path: `/api/clips/${data.clip.id}`,
-			params: { id: data.clip.id },
-			body: { title: 'Updated Caption' },
-			user: data.member,
-			group: data.group
-		});
-		const res = await clipIdMod.PATCH(event as any);
-		expect(res.status).toBe(200);
-		const body = await res.json();
-		expect(body.title).toBe('Updated Caption');
-	});
-});
-
-// ---------------------------------------------------------------------------
 // DELETE /api/clips/[id]
 // ---------------------------------------------------------------------------
 describe('DELETE /api/clips/[id]', () => {

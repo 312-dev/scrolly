@@ -1,55 +1,46 @@
 <script lang="ts">
 	import PlatformIcon from './PlatformIcon.svelte';
 	import ReelOverlayActions from './ReelOverlayActions.svelte';
-	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
 	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
 
 	const {
-		username,
-		avatarPath = null,
 		platform,
 		creatorName = null,
 		creatorUrl = null,
 		contentType = 'video',
 		caption,
-		canEditCaption = false,
-		seenByOthers = false,
+		canDelete = false,
 		clipId = '',
 		uiHidden = false,
-		oncaptionedit,
 		ondelete
 	}: {
-		username: string;
-		avatarPath?: string | null;
 		platform: string;
 		creatorName?: string | null;
 		creatorUrl?: string | null;
 		contentType?: string;
 		caption: string | null;
-		canEditCaption?: boolean;
-		seenByOthers?: boolean;
+		canDelete?: boolean;
 		clipId?: string;
 		uiHidden?: boolean;
-		oncaptionedit?: (clipId: string, newCaption: string) => void;
 		ondelete?: (clipId: string) => void;
 	} = $props();
 
 	let expanded = $state(false);
-	let editing = $state(false);
 	let confirmingDelete = $state(false);
-	const canModify = $derived(canEditCaption && !seenByOthers);
-	const initials = $derived(username.replace('@', '').slice(0, 2).toUpperCase());
 </script>
 
 <!-- eslint-disable svelte/no-navigation-without-resolve -- external creator URL -->
-<div class="reel-overlay" class:ui-hidden={uiHidden}>
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+	class="reel-overlay"
+	class:ui-hidden={uiHidden}
+	onpointerdown={(e) => e.stopPropagation()}
+	ontouchstart={(e) => e.stopPropagation()}
+	ontouchmove={(e) => e.stopPropagation()}
+	ontouchend={(e) => e.stopPropagation()}
+>
 	<div class="overlay-content">
 		<div class="overlay-user">
-			{#if avatarPath}
-				<img src="/api/profile/avatar/{avatarPath}" alt="" class="overlay-avatar" />
-			{:else}
-				<span class="overlay-avatar overlay-avatar-fallback">{initials}</span>
-			{/if}
 			{#if contentType !== 'music' && creatorName}
 				{#if creatorUrl}
 					<a
@@ -65,16 +56,13 @@
 				{/if}
 				<span class="platform-badge"><PlatformIcon {platform} size={12} /></span>
 			{/if}
-			{#if canModify && !editing && !confirmingDelete}
+			{#if canDelete && !confirmingDelete}
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<span
 					class="host-actions-inline"
 					onclick={(e) => e.stopPropagation()}
 					onkeydown={(e) => e.stopPropagation()}
 				>
-					<button class="host-icon-btn" onclick={() => (editing = true)} aria-label="Edit caption">
-						<PencilSimpleIcon size={13} />
-					</button>
 					<button
 						class="host-icon-btn delete"
 						onclick={() => (confirmingDelete = true)}
@@ -89,12 +77,10 @@
 		<ReelOverlayActions
 			{clipId}
 			{caption}
-			{canModify}
+			{canDelete}
 			{expanded}
 			onexpandtoggle={() => (expanded = !expanded)}
-			{oncaptionedit}
 			{ondelete}
-			bind:editing
 			bind:confirmingDelete
 		/>
 	</div>
@@ -103,7 +89,7 @@
 <style>
 	.reel-overlay {
 		position: absolute;
-		bottom: 74px;
+		bottom: 70px;
 		left: var(--space-lg);
 		right: var(--space-lg);
 		z-index: 5;
@@ -121,26 +107,6 @@
 		align-items: center;
 		gap: var(--space-sm);
 		margin-bottom: var(--space-xs);
-	}
-	.overlay-avatar {
-		width: 30px;
-		height: 30px;
-		border-radius: var(--radius-full);
-		object-fit: cover;
-		flex-shrink: 0;
-		border: 2px solid var(--reel-avatar-border);
-	}
-	.overlay-avatar-fallback {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: var(--reel-frosted-bg);
-		backdrop-filter: blur(6px);
-		-webkit-backdrop-filter: blur(6px);
-		color: var(--reel-text-medium);
-		font-family: var(--font-display);
-		font-size: 0.6875rem;
-		font-weight: 700;
 	}
 	.username {
 		font-family: var(--font-display);

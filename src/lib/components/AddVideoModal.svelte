@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
 	import { untrack } from 'svelte';
+	import { createSafeTimeout } from '$lib/safeTimeout';
 	import AddVideo from './AddVideo.svelte';
 	import UploadStatus from './UploadStatus.svelte';
 	import BaseSheet from './BaseSheet.svelte';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import { addToast, toasts, clipReadySignal, clipOverlaySignal } from '$lib/stores/toasts';
 	import { dismissShortcutNudge } from '$lib/stores/shortcutNudge';
 	import { groupMembers } from '$lib/stores/members';
@@ -19,13 +21,7 @@
 	let addVideoRef = $state<ReturnType<typeof AddVideo> | null>(null);
 	let sheetRef = $state<ReturnType<typeof BaseSheet> | null>(null);
 
-	let timers: ReturnType<typeof setTimeout>[] = [];
-
-	function safeTimeout(fn: () => void, ms: number) {
-		const id = setTimeout(fn, ms);
-		timers.push(id);
-		return id;
-	}
+	const { safeTimeout, clearAll } = createSafeTimeout();
 
 	// Focus URL input after sheet animates in
 	$effect(() => {
@@ -37,7 +33,7 @@
 	// Clean up poll timer on unmount
 	onDestroy(() => {
 		if (pollTimer) clearInterval(pollTimer);
-		timers.forEach(clearTimeout);
+		clearAll();
 	});
 
 	function handleSubmitted(clip: { id: string; status: string; contentType: string }) {
@@ -115,11 +111,14 @@
 </script>
 
 <div class="add-video-wrapper" class:fullscreen={phase !== 'form'}>
-	<BaseSheet bind:this={sheetRef} sheetId="addVideo" showHandle={phase === 'form'} {ondismiss}>
+	<BaseSheet bind:this={sheetRef} sheetId="addVideo" {ondismiss}>
 		{#snippet header()}
 			{#if phase === 'form'}
 				<div class="add-header">
 					<span class="add-title">Add to feed</span>
+					<button class="close-btn" onclick={dismiss} aria-label="Close">
+						<XIcon size={18} />
+					</button>
 				</div>
 			{/if}
 		{/snippet}
@@ -165,13 +164,36 @@
 	}
 
 	.add-header {
-		padding: 0 var(--space-lg) var(--space-sm);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: var(--space-md) var(--space-lg);
+		border-bottom: 1px solid var(--border);
+		position: relative;
 	}
 	.add-title {
 		font-family: var(--font-display);
-		font-size: 1.0625rem;
-		font-weight: 700;
+		font-size: 0.9375rem;
+		font-weight: 500;
 		color: var(--text-primary);
+	}
+	.close-btn {
+		position: absolute;
+		right: var(--space-lg);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		border-radius: var(--radius-full);
+		background: var(--bg-surface);
+		border: none;
+		color: var(--text-secondary);
+		cursor: pointer;
+		transition: background 0.2s ease;
+	}
+	.close-btn:active {
+		background: var(--bg-subtle);
 	}
 
 	.sheet-body {

@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { pushState } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { onDestroy } from 'svelte';
 	import { relativeTime } from '$lib/utils';
 	import { fetchUnreadCount } from '$lib/stores/notifications';
+	import { openSheet, closeSheet } from '$lib/stores/sheetOpen';
 	import { clipOverlaySignal, openCommentsSignal } from '$lib/stores/toasts';
-	import XIcon from 'phosphor-svelte/lib/XIcon';
+	import { createSafeTimeout } from '$lib/safeTimeout';
 	import BellIcon from 'phosphor-svelte/lib/BellIcon';
 
 	const { ondismiss }: { ondismiss: () => void } = $props();
@@ -32,6 +34,7 @@
 	let loading = $state(true);
 	let visible = $state(false);
 	let closedViaBack = false;
+	const { safeTimeout, clearAll } = createSafeTimeout();
 
 	const grouped = $derived.by(() => {
 		if (items.length === 0) return [];
@@ -65,6 +68,7 @@
 
 	// Animate in, lock scroll, manage history
 	$effect(() => {
+		openSheet();
 		requestAnimationFrame(() => {
 			visible = true;
 		});
@@ -78,9 +82,9 @@
 		window.addEventListener('popstate', handlePopState);
 
 		return () => {
+			closeSheet();
 			document.body.style.overflow = '';
 			window.removeEventListener('popstate', handlePopState);
-			if (fadeTimer) clearTimeout(fadeTimer);
 			if (!closedViaBack) history.back();
 		};
 	});
@@ -89,8 +93,6 @@
 	$effect(() => {
 		loadNotifications();
 	});
-
-	let fadeTimer: ReturnType<typeof setTimeout> | null = null;
 
 	async function loadNotifications() {
 		const res = await fetch('/api/notifications?limit=50');
@@ -110,7 +112,7 @@
 			fetchUnreadCount();
 
 			// Fade out unread backgrounds after a short delay
-			fadeTimer = setTimeout(() => {
+			safeTimeout(() => {
 				items = items.map((n) => ({ ...n, read: true }));
 			}, 1000);
 		}
@@ -118,13 +120,13 @@
 
 	function dismiss() {
 		visible = false;
-		setTimeout(() => ondismiss(), 300);
+		safeTimeout(() => ondismiss(), 300);
 	}
 
 	function handleNotificationClick(e: Event, n: Notification) {
 		e.preventDefault();
 		visible = false;
-		setTimeout(() => {
+		safeTimeout(() => {
 			ondismiss();
 			clipOverlaySignal.set(n.clipId);
 			if (n.type !== 'reaction') {
@@ -145,18 +147,13 @@
 		}
 		return 'commented on your clip';
 	}
+
+	onDestroy(clearAll);
 </script>
 
-<div class="overlay" class:visible onclick={dismiss} onkeydown={() => {}} role="presentation"></div>
+<div class="overlay" class:visible onclick={dismiss} role="presentation"></div>
 
 <div class="sheet" class:visible>
-	<div class="header">
-		<span class="header-title">Activity</span>
-		<button class="close-btn" onclick={dismiss} aria-label="Close activity">
-			<XIcon size={18} />
-		</button>
-	</div>
-
 	<div class="content">
 		{#if loading}
 			<div class="activity-empty">
@@ -256,55 +253,12 @@
 		opacity: 1;
 	}
 
-	.header {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: var(--space-md) var(--space-lg);
-		border-bottom: 1px solid var(--border);
-		flex-shrink: 0;
-		position: relative;
-	}
-
-	.header-title {
-		font-family: var(--font-display);
-		font-weight: 700;
-		font-size: 1.0625rem;
-		letter-spacing: -0.01em;
-		color: var(--text-primary);
-	}
-
-	.close-btn {
-		position: absolute;
-		right: var(--space-lg);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 32px;
-		height: 32px;
-		border-radius: var(--radius-full);
-		background: var(--bg-surface);
-		border: none;
-		color: var(--text-secondary);
-		cursor: pointer;
-		transition: background 0.2s ease;
-	}
-
-	.close-btn:active {
-		background: var(--bg-subtle);
-	}
-
-	.close-btn :global(svg) {
-		width: 18px;
-		height: 18px;
-	}
-
 	.content {
 		flex: 1;
 		overflow-y: auto;
 		overscroll-behavior-y: contain;
 		-webkit-overflow-scrolling: touch;
-		padding: 0 var(--space-sm) var(--space-lg);
+		padding: var(--space-md) var(--space-sm) var(--space-lg);
 		max-width: 520px;
 		margin: 0 auto;
 		width: 100%;
@@ -329,7 +283,7 @@
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		padding: var(--space-3xl) var(--space-lg);
+		padding: var(--space-xl) var(--space-lg);
 		gap: var(--space-sm);
 	}
 

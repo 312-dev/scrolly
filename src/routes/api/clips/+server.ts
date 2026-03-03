@@ -17,9 +17,8 @@ import {
 	isPlatformAllowed,
 	platformLabel
 } from '$lib/url-validation';
-import { downloadVideo } from '$lib/server/video/download';
-import { downloadMusic } from '$lib/server/music/download';
 import { normalizeUrl } from '$lib/server/download-lock';
+import { startDownload } from '$lib/server/clip-download';
 import { getActiveProvider } from '$lib/server/providers/registry';
 import { v4 as uuid } from 'uuid';
 import {
@@ -35,25 +34,6 @@ import { extractMentions, notifyMentions } from '$lib/server/mentions';
 import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('clips');
-
-/** Set clip status to 'downloading' and trigger the download pipeline. Marks as 'failed' on error. */
-async function startDownload(clipId: string, url: string, contentType: string, label: string) {
-	await db.update(clips).set({ status: 'downloading' }).where(eq(clips.id, clipId));
-
-	const onError = async (err: unknown) => {
-		log.error({ err, clipId }, `download failed (${label})`);
-		await db
-			.update(clips)
-			.set({ status: 'failed' })
-			.where(and(eq(clips.id, clipId), eq(clips.status, 'downloading')));
-	};
-
-	if (contentType === 'music') {
-		downloadMusic(clipId, url).catch(onError);
-	} else {
-		downloadVideo(clipId, url).catch(onError);
-	}
-}
 
 /** Validate a clip URL and return an error response, or null if valid. */
 function validateClipUrl(
@@ -333,31 +313,36 @@ export const POST: RequestHandler = withAuth(async ({ request }, { user, group }
 	const now = new Date();
 
 	// Insert clip + auto-watched in a transaction so both succeed or fail together
-	db.transaction((tx) => {
-		tx.insert(clips)
-			.values({
-				id: clipId,
-				groupId: user.groupId,
-				addedBy: user.id,
-				originalUrl: normalizedUrl,
-				title: title || null,
-				platform,
-				contentType,
-				status: 'downloading',
-				createdAt: now
-			})
-			.run();
+	try {
+		db.transaction((tx) => {
+			tx.insert(clips)
+				.values({
+					id: clipId,
+					groupId: user.groupId,
+					addedBy: user.id,
+					originalUrl: normalizedUrl,
+					title: title || null,
+					platform,
+					contentType,
+					status: 'downloading',
+					createdAt: now
+				})
+				.run();
 
-		// Auto-mark as watched by the uploader so it never appears in their "New" tab
-		tx.insert(watched)
-			.values({
-				clipId,
-				userId: user.id,
-				watchPercent: 100,
-				watchedAt: now
-			})
-			.run();
-	});
+			// Auto-mark as watched by the uploader so it never appears in their "New" tab
+			tx.insert(watched)
+				.values({
+					clipId,
+					userId: user.id,
+					watchPercent: 100,
+					watchedAt: now
+				})
+				.run();
+		});
+	} catch (err) {
+		log.error({ err, clipId }, 'failed to insert clip');
+		return json({ error: 'Failed to create clip' }, { status: 500 });
+	}
 
 	// Route to appropriate download pipeline
 	await startDownload(clipId, validUrl, contentType, 'new clip');

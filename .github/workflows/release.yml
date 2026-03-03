@@ -10,20 +10,21 @@ on:
 # That workflow posts commit statuses to the PR head SHA so branch protection
 # sees the results. Docker publishing uses docker-publish.yml (also workflow_run).
 
-permissions:
-  contents: write
-  pull-requests: write
+permissions: read-all
 
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     outputs:
       pr: ${{ steps.rp.outputs.pr }}
       release_created: ${{ steps.rp.outputs.release_created }}
     steps:
       - name: Run release-please
         id: rp
-        uses: googleapis/release-please-action@v4
+        uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 # v4.4.0
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json

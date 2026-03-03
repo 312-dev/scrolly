@@ -1,6 +1,6 @@
 <script lang="ts">
 	/* eslint-disable max-lines */
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { toast } from '$lib/stores/toasts';
@@ -16,9 +16,9 @@
 	const TEMPLATE_SHORTCUT_URL = 'https://www.icloud.com/shortcuts/e85e8b8f2ce1446b8bd89849ac62967f';
 	const ICLOUD_SHORTCUT_RE = /^https:\/\/www\.icloud\.com\/shortcuts\/[a-f0-9]{32}\/?$/;
 
-	const appUrl = $derived($page.data.appUrl as string);
-	const shortcutToken = $derived(($page.data.shortcutToken as string | null) ?? '???');
-	const hostPhone = $derived($page.data.hostPhone as string);
+	const appUrl = $derived(page.data.appUrl as string);
+	const shortcutToken = $derived((page.data.shortcutToken as string | null) ?? '???');
+	const hostPhone = $derived(page.data.hostPhone as string);
 
 	let currentStep = $state(0);
 	let completedSteps = new SvelteSet<number>();

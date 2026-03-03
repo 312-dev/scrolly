@@ -30,7 +30,7 @@
 				<button class="smart-close" onclick={dismissInstall} aria-label="Close">
 					<XIcon size={16} />
 				</button>
-				<img class="smart-icon" src="/icon/apple-touch-icon.svg" alt="scrolly" />
+				<img class="smart-icon" src="/icons/apple-touch-icon.png" alt="scrolly" />
 				<div class="smart-text">
 					<strong>scrolly</strong>
 					<span>Add to your Home Screen</span>
@@ -68,7 +68,7 @@
 			<button class="banner-close" onclick={dismissInstall} aria-label="Close">
 				<XIcon size={14} />
 			</button>
-			<img class="banner-icon" src="/icon/icon-192.svg" alt="" />
+			<img class="banner-icon" src="/icons/icon-192.png" alt="" />
 			<div class="banner-text">
 				<strong>scrolly</strong>
 				<span>Your crew's private feed</span>

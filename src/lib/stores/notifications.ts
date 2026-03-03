@@ -30,7 +30,7 @@ export async function fetchUnwatchedCount(): Promise<void> {
 	}
 }
 
-export function updateAppBadge(count: number): void {
+function updateAppBadge(count: number): void {
 	if (!('setAppBadge' in navigator)) return;
 	if (count > 0) {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Badge API not in lib.dom.d.ts
