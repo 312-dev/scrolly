@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.14.1...scrolly-v1.15.0) (2026-03-03)
+
+
+### Features
+
+* iOS Shortcut upgrades, paused indicator, and UI polish ([#64](https://github.com/312-dev/scrolly/issues/64)) ([7baff11](https://github.com/312-dev/scrolly/commit/7baff11abe2cbbc71f4f3db7c5b3a9f48fcb448b))
+
 ## [1.14.1](https://github.com/312-dev/scrolly/compare/scrolly-v1.14.0...scrolly-v1.14.1) (2026-03-03)
 
 
