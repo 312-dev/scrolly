@@ -83,11 +83,12 @@ Response: { "clip": { "id", "status": "downloading", "contentType" } }   (201 Cr
 Triggers the download pipeline via the active provider. Requires a download provider to be configured (see Settings). Returns immediately with status `downloading`.
 
 ### POST /api/clips/share
-Authenticated via `?token=` query parameter (iOS Shortcut token). Allows sharing clips without a session cookie.
+Authenticated via `?token=` query parameter (iOS Shortcut token) or session cookie (web view). Allows sharing clips without a session cookie.
 ```
 Request:  { "url": "https://tiktok.com/...", "phone": "+1234567890" }
 Response: { "ok": true, "clipId": "...", "status": "downloading" }   (201 Created)
 ```
+Also accepts `"phones": ["+1234567890"]` (array) for legacy Shortcut backward compatibility. Records legacy share timestamp for upgrade banner tracking.
 
 ### GET /api/clips/[id]
 Returns full clip detail with user context, interaction state, and metadata.

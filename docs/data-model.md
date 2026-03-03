@@ -36,6 +36,8 @@ SQLite database via Drizzle ORM. All IDs are UUIDs stored as text. Timestamps ar
 | muted_by_default | integer | Boolean (0/1). Default 1. |
 | feed_sort_order | text | `'oldest'` / `'round-robin'`. Default `'oldest'`. |
 | avatar_path | text | Nullable. Path to uploaded profile picture. |
+| last_legacy_share_at | integer | Nullable. Unix timestamp of last legacy shortcut share. Used for upgrade banner. |
+| used_new_share_flow | integer | Boolean (0/1). Default 0. Tracks if user has adopted new web view share flow. |
 | removed_at | integer | Nullable. Unix timestamp when removed from group. |
 | created_at | integer | Unix timestamp |
 
