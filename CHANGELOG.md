@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.12.0...scrolly-v1.13.0) (2026-03-03)
+
+
+### Features
+
+* notifications, host controls, and UI polish ([#56](https://github.com/312-dev/scrolly/issues/56)) ([be1b7d9](https://github.com/312-dev/scrolly/commit/be1b7d92510efcc3579e2faa170f31453aced438))
+
 ## [1.12.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.11.0...scrolly-v1.12.0) (2026-03-03)
 
 
