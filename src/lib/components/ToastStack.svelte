@@ -18,6 +18,109 @@
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- non-reactive tracking maps, cleaned up in onDestroy
 	const dismissTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 
+	type SwipeDirection = 'up' | 'down' | 'left' | 'right';
+	interface SwipeState {
+		el: HTMLElement;
+		startX: number;
+		startY: number;
+		direction: SwipeDirection | null;
+		offset: number;
+	}
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- direct DOM manipulation for gesture performance
+	const swipeData = new Map<string, SwipeState>();
+	const SWIPE_LOCK_THRESHOLD = 8;
+	const SWIPE_DISMISS_THRESHOLD = 80;
+
+	function onSwipeStart(e: TouchEvent, id: string) {
+		const touch = e.touches[0];
+		swipeData.set(id, {
+			el: e.currentTarget as HTMLElement,
+			startX: touch.clientX,
+			startY: touch.clientY,
+			direction: null,
+			offset: 0
+		});
+	}
+
+	function detectDirection(dx: number, dy: number): SwipeDirection {
+		if (Math.abs(dx) >= Math.abs(dy)) return dx > 0 ? 'right' : 'left';
+		return dy > 0 ? 'down' : 'up';
+	}
+
+	function computeOffset(dir: SwipeDirection, dx: number, dy: number): number {
+		if (dir === 'left') return Math.min(0, dx);
+		if (dir === 'right') return Math.max(0, dx);
+		if (dir === 'up') return Math.min(0, dy);
+		return Math.max(0, dy);
+	}
+
+	function onSwipeMove(e: TouchEvent, id: string) {
+		const state = swipeData.get(id);
+		if (!state) return;
+
+		const touch = e.touches[0];
+		const dx = touch.clientX - state.startX;
+		const dy = touch.clientY - state.startY;
+
+		if (!state.direction) {
+			if (Math.abs(dx) < SWIPE_LOCK_THRESHOLD && Math.abs(dy) < SWIPE_LOCK_THRESHOLD) return;
+			state.direction = detectDirection(dx, dy);
+		}
+
+		const offset = computeOffset(state.direction, dx, dy);
+		state.offset = offset;
+
+		const absOffset = Math.abs(offset);
+		const isHorizontal = state.direction === 'left' || state.direction === 'right';
+		state.el.style.transform = isHorizontal ? `translateX(${offset}px)` : `translateY(${offset}px)`;
+		state.el.style.opacity = String(Math.max(0.2, 1 - absOffset / 200));
+		state.el.style.transition = 'none';
+		e.preventDefault();
+	}
+
+	function onSwipeEnd(id: string) {
+		const state = swipeData.get(id);
+		if (!state) return;
+
+		if (Math.abs(state.offset) > SWIPE_DISMISS_THRESHOLD) {
+			const isHorizontal = state.direction === 'left' || state.direction === 'right';
+			const flyDistance = isHorizontal ? 400 : 200;
+			const finalOffset =
+				state.direction === 'left' || state.direction === 'up' ? -flyDistance : flyDistance;
+			const transform = isHorizontal
+				? `translateX(${finalOffset}px)`
+				: `translateY(${finalOffset}px)`;
+
+			state.el.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
+			state.el.style.transform = transform;
+			state.el.style.opacity = '0';
+
+			setTimeout(() => {
+				swipeData.delete(id);
+				swipeDismiss(id);
+			}, 220);
+		} else {
+			state.el.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
+			state.el.style.transform = '';
+			state.el.style.opacity = '';
+
+			setTimeout(() => {
+				if (state.el) state.el.style.transition = '';
+				swipeData.delete(id);
+			}, 220);
+		}
+	}
+
+	function swipeDismiss(id: string) {
+		const interval = pollIntervals.get(id);
+		if (interval) clearInterval(interval);
+		pollIntervals.delete(id);
+		const timeout = dismissTimeouts.get(id);
+		if (timeout) clearTimeout(timeout);
+		dismissTimeouts.delete(id);
+		removeToast(id);
+	}
+
 	$effect(() => {
 		const currentToasts = $toasts;
 
@@ -119,6 +222,7 @@
 	onDestroy(() => {
 		for (const interval of pollIntervals.values()) clearInterval(interval);
 		for (const timeout of dismissTimeouts.values()) clearTimeout(timeout);
+		swipeData.clear();
 	});
 </script>
 
@@ -129,6 +233,10 @@
 				class="toast toast-{toast.type}"
 				class:dismissing={dismissingIds.has(toast.id)}
 				role="alert"
+				ontouchstart={(e) => onSwipeStart(e, toast.id)}
+				ontouchmove={(e) => onSwipeMove(e, toast.id)}
+				ontouchend={() => onSwipeEnd(toast.id)}
+				ontouchcancel={() => onSwipeEnd(toast.id)}
 			>
 				<div class="toast-icon">
 					{#if toast.type === 'processing'}
@@ -161,7 +269,7 @@
 <style>
 	.toast-stack {
 		position: fixed;
-		bottom: var(--bottom-nav-height, 64px);
+		top: calc(env(safe-area-inset-top, 0px) + var(--space-md));
 		left: 50%;
 		transform: translateX(-50%);
 		z-index: 300;
@@ -335,7 +443,7 @@
 	@keyframes toast-in {
 		from {
 			opacity: 0;
-			transform: translateY(16px) scale(0.95);
+			transform: translateY(-16px) scale(0.95);
 		}
 		to {
 			opacity: 1;
@@ -350,7 +458,7 @@
 	@keyframes toast-out {
 		to {
 			opacity: 0;
-			transform: translateY(16px) scale(0.95);
+			transform: translateY(-16px) scale(0.95);
 		}
 	}
 </style>
