@@ -88,7 +88,7 @@ sw.addEventListener('push', (event) => {
 
 	const notificationOptions: NotificationOptions & { image?: string } = {
 		body: body || '',
-		badge: '/icon/badge-72.svg',
+		badge: '/icons/badge-72.png',
 		tag: tag || undefined,
 		data: { url: url || '/' }
 	};
@@ -154,9 +154,22 @@ sw.addEventListener('pushsubscriptionchange', ((event: any) => {
 	event.waitUntil(
 		(async () => {
 			try {
-				const newSubscription = await sw.registration.pushManager.subscribe(
-					event.oldSubscription?.options || { userVisibleOnly: true }
-				);
+				// Try oldSubscription first, then fall back to current subscription's key
+				let applicationServerKey = event.oldSubscription?.options?.applicationServerKey;
+				if (!applicationServerKey) {
+					const currentSub = await sw.registration.pushManager.getSubscription();
+					applicationServerKey = currentSub?.options?.applicationServerKey;
+				}
+				if (!applicationServerKey) {
+					console.error(
+						'pushsubscriptionchange: no applicationServerKey available, cannot re-subscribe'
+					);
+					return;
+				}
+				const newSubscription = await sw.registration.pushManager.subscribe({
+					userVisibleOnly: true,
+					applicationServerKey
+				});
 				const subJson = newSubscription.toJSON();
 				await fetch('/api/push/subscribe', {
 					method: 'POST',

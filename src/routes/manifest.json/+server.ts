@@ -16,31 +16,6 @@ export const GET: RequestHandler = () => {
 		theme_color: '#000000',
 		icons: [
 			{
-				src: '/icon/icon-192.svg',
-				sizes: 'any',
-				type: 'image/svg+xml',
-				purpose: 'any'
-			},
-			{
-				src: '/icon/icon-512.svg',
-				sizes: 'any',
-				type: 'image/svg+xml',
-				purpose: 'any'
-			},
-			{
-				src: '/icon/icon-maskable-192.svg',
-				sizes: 'any',
-				type: 'image/svg+xml',
-				purpose: 'maskable'
-			},
-			{
-				src: '/icon/icon-maskable-512.svg',
-				sizes: 'any',
-				type: 'image/svg+xml',
-				purpose: 'maskable'
-			},
-			// PNG fallbacks for platforms that don't support SVG manifest icons
-			{
 				src: '/icons/icon-192.png',
 				sizes: '192x192',
 				type: 'image/png',
@@ -65,9 +40,9 @@ export const GET: RequestHandler = () => {
 				purpose: 'maskable'
 			},
 			{
-				src: '/icon/badge-72.svg',
-				sizes: 'any',
-				type: 'image/svg+xml',
+				src: '/icons/badge-72.png',
+				sizes: '72x72',
+				type: 'image/png',
 				purpose: 'monochrome'
 			}
 		],

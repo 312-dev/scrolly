@@ -10,10 +10,12 @@ import { eq, and, sql, isNull, gte } from 'drizzle-orm';
 import { sendNotification } from '$lib/server/push';
 import { runBackup } from '$lib/server/backup';
 import { createLogger } from '$lib/server/logger';
+import { v4 as uuid } from 'uuid';
 
 const log = createLogger('scheduler');
 
 let lastBackupDate: string | null = null;
+let lastReminderDate: string | null = null;
 
 const CHECK_INTERVAL = 60 * 60 * 1000; // 1 hour
 const REMINDER_HOUR = 9; // 9 AM server time
@@ -36,14 +38,21 @@ export function startScheduler(): void {
 
 async function checkAndSendReminders(): Promise<void> {
 	const now = new Date();
+	const today = now.toISOString().split('T')[0];
 
-	// Only send after the reminder hour
-	if (now.getHours() < REMINDER_HOUR) return;
+	// In-memory guard: only attempt once per calendar day
+	if (lastReminderDate === today) return;
+
+	// Only send during the reminder hour window (e.g., 9:00–9:59)
+	if (now.getHours() < REMINDER_HOUR || now.getHours() >= REMINDER_HOUR + 1) return;
+
+	lastReminderDate = today;
 
 	try {
 		await sendDailyReminders();
 	} catch (err) {
 		log.error({ err }, 'daily reminder failed');
+		lastReminderDate = null; // Retry next hour if within window
 	}
 }
 
@@ -95,9 +104,12 @@ async function sendDailyReminders(): Promise<void> {
 
 	for (const user of usersToNotify) {
 		try {
-			// Count unwatched ready clips using a single SQL query
+			// Count unwatched ready clips and grab one clip ID for the notification record
 			const [result] = await db
-				.select({ count: sql<number>`count(*)` })
+				.select({
+					count: sql<number>`count(*)`,
+					clipId: sql<string>`min(${clips.id})`
+				})
 				.from(clips)
 				.where(
 					and(
@@ -108,7 +120,7 @@ async function sendDailyReminders(): Promise<void> {
 				);
 
 			const unwatchedCount = result.count;
-			if (unwatchedCount === 0) continue;
+			if (unwatchedCount === 0 || !result.clipId) continue;
 
 			await sendNotification(user.id, {
 				title: `${unwatchedCount} unwatched ${unwatchedCount === 1 ? 'clip' : 'clips'}`,
@@ -116,6 +128,17 @@ async function sendDailyReminders(): Promise<void> {
 				url: '/',
 				tag: 'daily-reminder'
 			});
+
+			// Record the notification so deduplication works across restarts
+			await db.insert(notifications).values({
+				id: uuid(),
+				userId: user.id,
+				type: 'daily_reminder',
+				clipId: result.clipId,
+				actorId: user.id,
+				createdAt: new Date()
+			});
+
 			sent++;
 		} catch (err) {
 			log.error({ err, userId: user.id }, 'reminder failed for user');

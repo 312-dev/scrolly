@@ -101,7 +101,7 @@ export async function toggleCommentHeart(
 }
 
 export function markCommentsRead(clipId: string): void {
-	for (const type of ['comment', 'reply']) {
+	for (const type of ['comment', 'reply', 'mention']) {
 		fetch('/api/notifications/mark-read', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },

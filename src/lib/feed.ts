@@ -21,24 +21,8 @@ export function buildClipParams(
 export async function fetchClips(
 	filter: FeedFilter,
 	pageSize: number,
-	sort?: FeedSort
-): Promise<{ clips: FeedClip[]; hasMore: boolean } | null> {
-	try {
-		const params = buildClipParams(filter, 0, pageSize, sort);
-		const res = await fetch(`/api/clips?${params}`);
-		if (res.ok) return res.json();
-		return null;
-	} catch (err) {
-		console.warn('[feed]', err);
-		return null;
-	}
-}
-
-export async function fetchMoreClips(
-	filter: FeedFilter,
-	offset: number,
-	pageSize: number,
-	sort?: FeedSort
+	sort?: FeedSort,
+	offset = 0
 ): Promise<{ clips: FeedClip[]; hasMore: boolean } | null> {
 	try {
 		const params = buildClipParams(filter, offset, pageSize, sort);
