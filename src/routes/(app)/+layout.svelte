@@ -16,17 +16,17 @@
 	import HouseIcon from 'phosphor-svelte/lib/HouseIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import GearSixIcon from 'phosphor-svelte/lib/GearSixIcon';
-	import HeartIcon from 'phosphor-svelte/lib/HeartIcon';
+	import UserCircleIcon from 'phosphor-svelte/lib/UserCircleIcon';
 	const { children }: { children: Snippet } = $props();
 
 	let bottomTabsEl: HTMLElement | undefined = $state();
 	const isFeed = $derived(page.url.pathname === '/');
 	const isSettings = $derived(page.url.pathname === '/settings');
-	const isFaves = $derived(page.url.pathname === '/favorites');
+	const isMe = $derived(page.url.pathname === '/me');
 
 	const pageTitle = $derived.by(() => {
 		if (isSettings) return 'Settings';
-		if (isFaves) return 'Faves';
+		if (isMe) return 'Me';
 		return '';
 	});
 
@@ -136,12 +136,7 @@
 	<main class:immersive={isFeed}>
 		{@render children()}
 	</main>
-	<nav
-		class="bottom-tabs"
-		class:overlay-mode={isFeed}
-		class:ui-hidden={isFeed && $feedUiHidden}
-		bind:this={bottomTabsEl}
-	>
+	<nav class="bottom-tabs" class:overlay-mode={isFeed} bind:this={bottomTabsEl}>
 		{#if isFeed}
 			<button class="tab active" onclick={() => homeTapSignal.update((n) => n + 1)}>
 				<HouseIcon size={24} weight="fill" />
@@ -159,9 +154,9 @@
 			</div>
 			<span>Add</span>
 		</button>
-		<a href="/favorites" class="tab" class:active={isFaves}>
-			<HeartIcon size={24} weight={isFaves ? 'fill' : 'regular'} />
-			<span>Faves</span>
+		<a href="/me" class="tab" class:active={isMe}>
+			<UserCircleIcon size={24} weight={isMe ? 'fill' : 'regular'} />
+			<span>Me</span>
 		</a>
 		<a href="/settings" class="tab" class:active={isSettings}>
 			<GearSixIcon size={24} weight={isSettings ? 'fill' : 'regular'} />

@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { pushState } from '$app/navigation';
+	import { pushState, beforeNavigate } from '$app/navigation';
+	import { page } from '$app/state';
 	import { fetchUnwatchedCount } from '$lib/stores/notifications';
 	import { openCommentsSignal } from '$lib/stores/toasts';
 	import {
@@ -59,6 +60,11 @@
 	let closedViaBack = false;
 	let dismissed = false;
 
+	// Prevent history.back() in cleanup when a real navigation or reload occurs
+	beforeNavigate(() => {
+		closedViaBack = true;
+	});
+
 	function handleDismiss() {
 		if (dismissed) return;
 		dismissed = true;
@@ -88,13 +94,21 @@
 	$effect(() => {
 		pushState('', { clipOverlay: clipId });
 		const handlePopState = () => {
+			setTimeout(() => {
+				if (page.state?.clipOverlay) return;
+				closedViaBack = true;
+				handleDismiss();
+			}, 0);
+		};
+		const handleBeforeUnload = () => {
 			closedViaBack = true;
-			handleDismiss();
 		};
 		window.addEventListener('popstate', handlePopState);
+		window.addEventListener('beforeunload', handleBeforeUnload);
 
 		return () => {
 			window.removeEventListener('popstate', handlePopState);
+			window.removeEventListener('beforeunload', handleBeforeUnload);
 			if (!closedViaBack) history.back();
 		};
 	});

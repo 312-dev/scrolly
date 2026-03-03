@@ -1,16 +1,15 @@
+import { basename } from 'node:path';
 import webpush from 'web-push';
 import { env } from '$env/dynamic/private';
 import { db } from '$lib/server/db';
 import {
 	clips,
-	notifications,
 	pushSubscriptions,
 	notificationPreferences,
 	users,
 	watched
 } from '$lib/server/db/schema';
 import { eq, and, inArray, sql } from 'drizzle-orm';
-import { v4 as uuid } from 'uuid';
 import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('push');
@@ -104,7 +103,7 @@ export async function sendNotification(
 /**
  * Send push notification to the group after a clip is published (ready or failed).
  * Called from the download pipeline — NOT from the API endpoint.
- * Also creates in-app notification records for each recipient.
+ * Push-only — no in-app notification record (new clips show via the unwatched count badge).
  */
 export async function notifyNewClip(clipId: string): Promise<void> {
 	const clip = await db.query.clips.findFirst({
@@ -120,14 +119,14 @@ export async function notifyNewClip(clipId: string): Promise<void> {
 	const label = clip.contentType === 'music' ? 'song' : 'video';
 	const image =
 		clip.thumbnailPath && env.ORIGIN
-			? `${env.ORIGIN}/api/thumbnails/${clip.thumbnailPath}`
+			? `${env.ORIGIN}/api/thumbnails/${basename(clip.thumbnailPath)}`
 			: undefined;
 
 	const payload: NotificationPayload = {
 		title: `${uploader.username} added a ${label}`,
 		body: clip.title || 'Tap to watch',
 		url: `/?clip=${clipId}`,
-		tag: `new-clip-${uploader.id}`,
+		tag: `new-clip-${clipId}`,
 		...(image ? { image } : {})
 	};
 
@@ -147,24 +146,12 @@ export async function notifyNewClip(clipId: string): Promise<void> {
 	});
 	const prefsMap = new Map(allPrefs.map((p) => [p.userId, p]));
 
-	const now = new Date();
-
 	await Promise.allSettled(
 		targets.map(async (user) => {
 			const prefs = prefsMap.get(user.id);
 			if (prefs && !prefs.newAdds) return;
 
-			// Insert in-app notification record
-			await db.insert(notifications).values({
-				id: uuid(),
-				userId: user.id,
-				type: 'new_clip',
-				clipId,
-				actorId: uploader.id,
-				createdAt: now
-			});
-
-			// Send push notification
+			// Push notification only (no in-app record — new clips surface via unwatched count)
 			const badgeCount = await getUnwatchedCount(user.id, clip.groupId);
 			await sendNotification(user.id, { ...payload, badgeCount });
 		})

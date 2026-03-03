@@ -6,64 +6,59 @@ Take all uncommitted and committed changes on the current branch and drive them 
 - Break uncommitted changes into small, focused conventional commits (feat:, fix:, refactor:, chore:, etc.)
 - If pre-commit hooks fail, fix the issue and create a NEW commit (never amend)
 - If already on main, create a feature branch first (`git checkout -b <descriptive-branch-name>`)
+- **Before pushing**, run the full local CI suite to catch issues early:
+  - `npm run check` — must show 0 errors (warnings are OK)
+  - `npx eslint --max-warnings 65` — must produce no output (matches CI ratchet)
+  - `npx prettier --check .` — must show no formatting issues
+  - Fix any failures, commit fixes, and re-verify before pushing
 - Push the branch to origin
 
-## 2. Create a PR
+## 2. Create a PR with Auto-Merge
 
 - Use `gh pr create` targeting main
 - Title should summarize the changes concisely (under 70 chars)
 - Body should have a ## Summary with bullet points and a ## Test plan
 - If a PR already exists for this branch, skip creation
+- **Enable auto-merge immediately:** `gh pr merge <number> --squash --delete-branch --auto`
+- This arms the PR to merge automatically once all required checks pass
 
-## 3. Pass CI Checks
+## 3. Watch CI and Fix Failures
 
 - Watch PR checks with `gh pr checks <number> --watch`
-- If any check fails, read the failure logs, fix the issue, commit the fix, and push
-- Repeat until ALL checks pass (lint, format, type-check, tests, build, CodeQL)
-- Run `npm run check` and `npm run lint` locally before pushing fixes to save time
+- If all checks pass, auto-merge will handle the merge — move to step 4
+- If any check fails:
+  - Read the failure logs with `gh run view <run-id> --log-failed`
+  - Fix the issue locally, run the local CI suite again (step 1 checks), commit, and push
+  - Auto-merge remains armed — no need to re-enable it
+  - Repeat until all checks pass
 
-## 4. Merge the PR
+## 4. Wait for Automated Release Pipeline
 
-- Once all checks are green, merge with `gh pr merge <number> --squash --delete-branch`
-- If merge is blocked, investigate why (reviews required, checks pending) and address it
-- Confirm merge succeeded
+After the PR merges to main, the rest is fully automated:
 
-## 5. Wait for Release-Please PR
+1. **Release workflow** runs → release-please creates/updates a release PR with auto-merge already enabled
+2. **Release PR checks** run (release-pr-checks.yml) → posts commit statuses to satisfy branch protection
+3. **Release PR auto-merges** when checks pass → triggers a GitHub release with version tag
+4. **Docker publish** triggers automatically → builds and pushes the image
 
-- After merge to main, the Release workflow runs and release-please creates/updates a release PR
-- Poll with `gh pr list --label "autorelease: pending"` until the release PR appears
-- Note the release PR number
+Monitor the pipeline:
+- `gh pr list --label "autorelease: pending"` — check for the release PR
+- `gh pr checks <release-pr-number> --watch` — watch release PR checks
+- `gh run list --workflow=docker-publish.yml --limit 1` — check Docker build status
 
-## 6. Wait for Release PR Checks
+If anything stalls for more than 5 minutes, investigate:
+- `gh run list` to see workflow status
+- `gh run view <id> --log-failed` for errors
+- Release PR checks may need a manual close/reopen to trigger if workflow_run didn't fire
 
-- The release PR gets CI checks via release-pr-checks.yml (triggered by close/reopen)
-- Watch with `gh pr checks <release-pr-number> --watch`
-- If checks fail, you may need to push fixes to main and wait for release-please to update the PR
+## 5. Verify the Release
 
-## 7. Merge the Release PR
-
-- Once checks pass: `gh pr merge <release-pr-number> --squash --delete-branch`
-- This triggers release-please to publish a GitHub release with version tag
-
-## 8. Verify the Release
-
-- Confirm the GitHub release was created: `gh release list --limit 1`
-- Note the version number
-
-## 9. Wait for Docker Image
-
-- The docker-publish.yml workflow triggers automatically after the Release workflow completes
-- Watch it: `gh run list --workflow=docker-publish.yml --limit 1` and `gh run watch <run-id>`
-- If it doesn't trigger within 2 minutes, check if the workflow_run event fired
-- As a fallback, manually trigger: `gh workflow run docker-publish.yml -f version=<version>`
-
-## 10. Confirm Docker Image Published
-
-- Verify the image exists: `gh api /orgs/312-dev/packages/container/scrolly/versions --jq '.[0].metadata.container.tags'`
-- Confirm both `<version>` and `latest` tags are present
+- Confirm the GitHub release: `gh release list --limit 1`
+- Confirm the Docker image: `gh api /orgs/312-dev/packages/container/scrolly/versions --jq '.[0].metadata.container.tags'`
+- Both `<version>` and `latest` tags should be present
 - Report the full image reference: `ghcr.io/312-dev/scrolly:<version>`
 
-## 11. Update Documentation
+## 6. Update Documentation
 
 - Review the changes that were released and check if any docs in `docs/` are now outdated or would benefit from updates
 - Key docs to check: `docs/api.md` (new/changed endpoints), `docs/data-model.md` (schema changes), `docs/architecture.md` (structural changes, directory tree, ASCII diagrams), `docs/design-guidelines.md` (UI/component changes), `docs/notifications.md` (notification changes)
@@ -75,6 +70,6 @@ Take all uncommitted and committed changes on the current branch and drive them 
 ## Important Notes
 
 - Never force-push to main
-- If anything gets stuck, check `gh run list` for workflow status and `gh run view <id> --log-failed` for errors
 - The full pipeline (CI + release + Docker build) takes ~15-20 minutes total
+- After enabling auto-merge on the feature PR, the rest is hands-off unless a check fails
 - Keep the user informed of progress at each major step

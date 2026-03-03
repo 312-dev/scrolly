@@ -49,6 +49,25 @@ export async function subscribeToPush(vapidPublicKey: string): Promise<PushSubsc
 	return subscription;
 }
 
+/**
+ * Close OS-level push notifications whose tag starts with the given prefix.
+ * No-op if service worker or getNotifications() is unavailable.
+ */
+export async function clearPushNotifications(tagPrefix: string): Promise<void> {
+	if (!('serviceWorker' in navigator)) return;
+	try {
+		const reg = await navigator.serviceWorker.ready;
+		const notifications = await reg.getNotifications();
+		for (const n of notifications) {
+			if (n.tag?.startsWith(tagPrefix)) {
+				n.close();
+			}
+		}
+	} catch {
+		// getNotifications() may not be available on all platforms
+	}
+}
+
 export async function unsubscribeFromPush(): Promise<boolean> {
 	const subscription = await getExistingSubscription();
 	if (!subscription) return true;

@@ -7,6 +7,7 @@ import { getActiveProvider } from '../providers/registry';
 import type { AudioDownloadResult } from '../providers/types';
 import { DATA_DIR, getClipWithMaxFileSize, cleanupClipFiles } from '$lib/server/download-utils';
 import { notifyNewClip } from '$lib/server/push';
+import { generateWaveform } from '$lib/server/audio/waveform';
 import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('music');
@@ -68,11 +69,14 @@ async function resolveOdesli(url: string): Promise<MusicMetadata> {
 	};
 }
 
+const TRIM_WINDOW_SECONDS = 120;
+
 async function finalizeMusicClip(
 	clipId: string,
 	result: AudioDownloadResult,
 	maxFileSizeBytes: number | null,
-	existingTitle: string | null
+	existingTitle: string | null,
+	skipTrim = false
 ): Promise<void> {
 	// Calculate file size
 	let fileSizeBytes = 0;
@@ -103,27 +107,58 @@ async function finalizeMusicClip(
 		return;
 	}
 
-	// Only keep user-provided caption — don't auto-set from song metadata
 	const title = existingTitle || null;
+
+	if (skipTrim) {
+		// Shortcut path: publish immediately without trim opportunity
+		await db
+			.update(clips)
+			.set({
+				status: 'ready',
+				audioPath: result.audioPath,
+				title,
+				durationSeconds: result.duration,
+				fileSizeBytes: fileSizeBytes || null
+			})
+			.where(eq(clips.id, clipId));
+
+		await notifyNewClip(clipId).catch((err) =>
+			log.error({ err, clipId }, 'push notification failed')
+		);
+		return;
+	}
+
+	// Generate waveform for trim UI (best-effort — trim works without it)
+	try {
+		await generateWaveform(result.audioPath, clipId);
+	} catch (err) {
+		log.warn({ err, clipId }, 'waveform generation failed');
+	}
+
+	// Mark as pending_trim with a deadline for auto-publish
+	const trimDeadline = new Date(Date.now() + TRIM_WINDOW_SECONDS * 1000);
 
 	await db
 		.update(clips)
 		.set({
-			status: 'ready',
+			status: 'pending_trim',
 			audioPath: result.audioPath,
 			title,
 			durationSeconds: result.duration,
-			fileSizeBytes: fileSizeBytes || null
+			fileSizeBytes: fileSizeBytes || null,
+			trimDeadline
 		})
 		.where(eq(clips.id, clipId));
 
-	// Notify group now that the clip is actually ready
-	await notifyNewClip(clipId).catch((err) =>
-		log.error({ err, clipId }, 'push notification failed')
-	);
+	log.info({ clipId, trimDeadline: trimDeadline.toISOString() }, 'clip awaiting trim');
+	// Notification deferred until publish (trim, skip, or auto-publish)
 }
 
-async function downloadMusicInner(clipId: string, url: string): Promise<void> {
+async function downloadMusicInner(
+	clipId: string,
+	url: string,
+	options?: { skipTrim?: boolean }
+): Promise<void> {
 	// Single query: fetch clip record + group's max file size via JOIN
 	const data = getClipWithMaxFileSize(clipId);
 	if (!data) return;
@@ -147,11 +182,11 @@ async function downloadMusicInner(clipId: string, url: string): Promise<void> {
 		const metadata = await resolveOdesli(url);
 
 		// Step 2: Update clip immediately with metadata (UI can show song info while downloading)
-		// Only keep user-provided caption — don't auto-set from song metadata
-		const resolvedTitle = clip.title || null;
+		// Keep user-provided caption only — don't auto-fill with song name
 		await db
 			.update(clips)
 			.set({
+				title: clip.title || null,
 				artist: metadata.artist,
 				albumArt: metadata.albumArt,
 				spotifyUrl: metadata.spotifyUrl,
@@ -189,7 +224,13 @@ async function downloadMusicInner(clipId: string, url: string): Promise<void> {
 		}
 
 		if (result) {
-			await finalizeMusicClip(clipId, result, maxFileSizeBytes, resolvedTitle ?? null);
+			await finalizeMusicClip(
+				clipId,
+				result,
+				maxFileSizeBytes,
+				clip.title || null,
+				options?.skipTrim
+			);
 		} else {
 			// Failed to download audio, but metadata + platform links are still visible
 			await cleanupClipFiles(clipId);
@@ -208,6 +249,10 @@ async function downloadMusicInner(clipId: string, url: string): Promise<void> {
 	}
 }
 
-export async function downloadMusic(clipId: string, url: string): Promise<void> {
-	return deduplicatedDownload(clipId, url, downloadMusicInner);
+export async function downloadMusic(
+	clipId: string,
+	url: string,
+	options?: { skipTrim?: boolean }
+): Promise<void> {
+	return deduplicatedDownload(clipId, url, (id, u) => downloadMusicInner(id, u, options));
 }

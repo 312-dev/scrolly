@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { pushState } from '$app/navigation';
+	import { pushState, beforeNavigate } from '$app/navigation';
+	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { onDestroy } from 'svelte';
 	import { relativeTime } from '$lib/utils';
@@ -15,7 +16,7 @@
 
 	interface Notification {
 		id: string;
-		type: 'reaction' | 'comment' | 'reply' | 'mention' | 'new_clip';
+		type: 'reaction' | 'comment' | 'reply' | 'mention';
 		clipId: string;
 		emoji: string | null;
 		commentPreview: string | null;
@@ -38,6 +39,11 @@
 	let visible = $state(false);
 	let closedViaBack = false;
 	const { safeTimeout, clearAll } = createSafeTimeout();
+
+	// Prevent history.back() in cleanup when a real navigation or reload occurs
+	beforeNavigate(() => {
+		closedViaBack = true;
+	});
 
 	const grouped = $derived.by(() => {
 		if (items.length === 0) return [];
@@ -79,15 +85,23 @@
 
 		pushState('', { sheet: 'activity' });
 		const handlePopState = () => {
+			setTimeout(() => {
+				if (page.state?.sheet === 'activity') return;
+				closedViaBack = true;
+				ondismiss();
+			}, 0);
+		};
+		const handleBeforeUnload = () => {
 			closedViaBack = true;
-			ondismiss();
 		};
 		window.addEventListener('popstate', handlePopState);
+		window.addEventListener('beforeunload', handleBeforeUnload);
 
 		return () => {
 			closeSheet();
 			document.body.style.overflow = '';
 			window.removeEventListener('popstate', handlePopState);
+			window.removeEventListener('beforeunload', handleBeforeUnload);
 			if (!closedViaBack) history.back();
 		};
 	});
@@ -132,17 +146,13 @@
 		safeTimeout(() => {
 			ondismiss();
 			clipOverlaySignal.set(n.clipId);
-			if (n.type !== 'reaction' && n.type !== 'new_clip') {
+			if (n.type !== 'reaction') {
 				openCommentsSignal.set(n.clipId);
 			}
 		}, 300);
 	}
 
 	function description(n: Notification): string {
-		if (n.type === 'new_clip') {
-			const label = n.clipContentType === 'music' ? 'a song' : 'a video';
-			return `added ${label}`;
-		}
 		if (n.type === 'reaction') {
 			return `reacted ${n.emoji} to your clip`;
 		}
@@ -181,7 +191,7 @@
 					<BellIcon size={48} />
 				</div>
 				<p class="empty-title">No activity yet</p>
-				<p class="empty-sub">New clips, reactions, and comments will show up here</p>
+				<p class="empty-sub">Reactions, comments, and mentions will show up here</p>
 			</div>
 		{:else}
 			{#each grouped as section (section.label)}
@@ -217,7 +227,7 @@
 								</div>
 								{#if n.clipThumbnail}
 									<div class="clip-thumb">
-										<img src="/api/thumbnails/{n.clipThumbnail}" alt="" />
+										<img src="/api/thumbnails/{n.clipThumbnail.split('/').pop()}" alt="" />
 									</div>
 								{/if}
 								<button
@@ -286,7 +296,6 @@
 		margin: 0 auto;
 		width: 100%;
 	}
-
 	.section {
 		margin-bottom: var(--space-lg);
 	}

@@ -131,7 +131,6 @@
 			{clipId}
 			{caption}
 			{canDelete}
-			{canEditCaption}
 			{expanded}
 			onexpandtoggle={() => (expanded = !expanded)}
 			{oncaptionedit}

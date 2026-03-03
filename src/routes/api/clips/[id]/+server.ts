@@ -93,6 +93,7 @@ export const GET: RequestHandler = withClipAuth(async ({ params }, { user, clip 
 		unreadCommentCount,
 		viewCount,
 		seenByOthers,
+		trimDeadline: clip.trimDeadline,
 		createdAt: clip.createdAt
 	});
 });
