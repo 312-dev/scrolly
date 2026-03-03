@@ -12,7 +12,7 @@ declare global {
 		interface PageState {
 			sheet?: string;
 			clipOverlay?: string;
-			favReel?: boolean;
+			meReel?: boolean;
 		}
 	}
 }
