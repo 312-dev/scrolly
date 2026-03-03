@@ -109,9 +109,11 @@
 		opacity: 0;
 	}
 
-	.filter-bar.dimmed {
-		opacity: 0.25;
-		pointer-events: none;
+	@media (max-width: 549px) {
+		.filter-bar.dimmed {
+			opacity: 0;
+			pointer-events: none;
+		}
 	}
 
 	.filter-bar.pull-snapping {

@@ -114,6 +114,10 @@
 		}
 	}
 
+	function updateCaption(id: string, title: string | null) {
+		clips = clips.map((c) => (c.id === id ? { ...c, title } : c));
+	}
+
 	function deleteSingle(clip: ClipSummary) {
 		handleDelete(
 			[clip.id],
@@ -202,6 +206,7 @@
 						selected={selected.has(clip.id)}
 						ontoggle={toggleSelect}
 						ondelete={deleteSingle}
+						oncaptionupdate={updateCaption}
 					/>
 				{/each}
 			</div>

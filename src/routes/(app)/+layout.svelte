@@ -188,14 +188,14 @@
 	/* Feed: floating notification bell (top-right) */
 	.feed-notif-btn {
 		position: fixed;
-		top: max(var(--space-md), env(safe-area-inset-top));
+		top: calc(max(var(--space-md), env(safe-area-inset-top)) - 1px);
 		right: var(--space-sm);
 		z-index: 20;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		width: 44px;
-		height: 44px;
+		height: 34px;
 		border-radius: var(--radius-full);
 		color: var(--reel-text);
 		background: none;

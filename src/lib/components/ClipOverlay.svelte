@@ -20,6 +20,7 @@
 	const {
 		clipId,
 		currentUserId,
+		isHost = false,
 		autoScroll,
 		gifEnabled = false,
 		openComments = false,
@@ -27,6 +28,7 @@
 	}: {
 		clipId: string;
 		currentUserId: string;
+		isHost?: boolean;
 		autoScroll: boolean;
 		gifEnabled?: boolean;
 		openComments?: boolean;
@@ -266,6 +268,7 @@
 			<ReelItem
 				{clip}
 				{currentUserId}
+				{isHost}
 				active={true}
 				index={0}
 				{autoScroll}

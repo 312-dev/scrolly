@@ -13,6 +13,7 @@
 	import CameraIcon from 'phosphor-svelte/lib/CameraIcon';
 	import SortAscendingIcon from 'phosphor-svelte/lib/SortAscendingIcon';
 	import ShuffleIcon from 'phosphor-svelte/lib/ShuffleIcon';
+	import CrownIcon from 'phosphor-svelte/lib/CrownIcon';
 
 	import {
 		applyTheme,
@@ -210,7 +211,7 @@
 </script>
 
 <svelte:head>
-	<title>Settings — scrolly</title>
+	<title>Settings · {page.data.group?.name ?? 'scrolly'} · scrolly</title>
 </svelte:head>
 
 <div class="settings-page">
@@ -221,7 +222,7 @@
 				>Me</button
 			>
 			<button class="tab" class:active={activeTab === 'group'} onclick={() => (activeTab = 'group')}
-				>Group</button
+				><CrownIcon size={14} /> Group</button
 			>
 		</div>
 	{/if}
@@ -509,6 +510,10 @@
 		transition: color 0.2s ease;
 		position: relative;
 		z-index: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 5px;
 	}
 
 	.tab.active {

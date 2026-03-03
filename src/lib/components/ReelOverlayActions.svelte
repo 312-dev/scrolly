@@ -5,21 +5,78 @@
 		clipId,
 		caption,
 		canDelete,
+		canEditCaption = false,
 		expanded,
 		onexpandtoggle,
+		oncaptionedit,
 		ondelete,
+		editing = $bindable(false),
 		confirmingDelete = $bindable(false)
 	}: {
 		clipId: string;
 		caption: string | null;
 		canDelete: boolean;
+		canEditCaption?: boolean;
 		expanded: boolean;
 		onexpandtoggle: () => void;
+		oncaptionedit?: (clipId: string, newCaption: string | null) => void;
 		ondelete?: (clipId: string) => void;
+		editing?: boolean;
 		confirmingDelete?: boolean;
 	} = $props();
 
+	let editValue = $state('');
+	let saving = $state(false);
 	let deleting = $state(false);
+	let inputEl: HTMLTextAreaElement | null = $state(null);
+
+	$effect(() => {
+		if (editing) {
+			editValue = caption || '';
+			confirmingDelete = false;
+			requestAnimationFrame(() => {
+				inputEl?.focus();
+			});
+		}
+	});
+
+	function cancelEdit() {
+		editing = false;
+	}
+
+	async function saveEdit() {
+		if (!editing) return;
+		editing = false;
+		const newCaption = editValue.trim();
+		if (newCaption === (caption || '').trim()) return;
+
+		saving = true;
+		try {
+			const res = await fetch(`/api/clips/${clipId}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ title: newCaption })
+			});
+			if (res.ok) {
+				oncaptionedit?.(clipId, newCaption || null);
+			} else {
+				toast.error('Failed to save caption');
+			}
+		} catch {
+			toast.error('Failed to save caption');
+		}
+		saving = false;
+	}
+
+	function handleKeydown(e: KeyboardEvent) {
+		e.stopPropagation();
+		if (e.key === 'Enter' && !e.shiftKey) {
+			e.preventDefault();
+			saveEdit();
+		} else if (e.key === 'Escape') {
+			cancelEdit();
+		}
+	}
 
 	async function handleDelete() {
 		if (deleting) return;
@@ -39,18 +96,85 @@
 	}
 </script>
 
-{#if caption}
+{#if editing}
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div
+		class="caption-edit"
+		onclick={(e) => e.stopPropagation()}
+		onkeydown={(e) => e.stopPropagation()}
+	>
+		<textarea
+			bind:this={inputEl}
+			bind:value={editValue}
+			autocomplete="off"
+			onkeydown={handleKeydown}
+			maxlength={500}
+			rows={3}
+			placeholder="Add a caption…"
+		></textarea>
+		<div class="edit-actions">
+			<button class="host-action-btn" onclick={cancelEdit}>Cancel</button>
+			<span class="host-action-dot">·</span>
+			<button class="host-action-btn save" onclick={saveEdit} disabled={saving}>
+				{saving ? 'Saving…' : 'Save'}
+			</button>
+		</div>
+	</div>
+{:else if caption}
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div
+		class="caption-wrapper"
+		class:expanded
+		ontouchstart={(e) => {
+			if (expanded) e.stopPropagation();
+		}}
+		ontouchmove={(e) => {
+			if (expanded) e.stopPropagation();
+		}}
+		ontouchend={(e) => {
+			if (expanded) e.stopPropagation();
+		}}
+	>
+		{#if expanded}
+			<!-- svelte-ignore a11y_click_events_have_key_events -->
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<div
+				class="overlay-caption expanded"
+				onclick={(e) => {
+					e.stopPropagation();
+					onexpandtoggle();
+				}}
+			>
+				{caption}
+			</div>
+		{:else}
+			<button
+				type="button"
+				class="overlay-caption"
+				onclick={(e) => {
+					e.stopPropagation();
+					if (canEditCaption) {
+						editing = true;
+					} else {
+						onexpandtoggle();
+					}
+				}}
+			>
+				{caption}
+			</button>
+		{/if}
+	</div>
+{:else if canEditCaption}
 	<div class="caption-area">
 		<button
 			type="button"
-			class="overlay-caption"
-			class:expanded
+			class="overlay-caption placeholder"
 			onclick={(e) => {
 				e.stopPropagation();
-				onexpandtoggle();
+				editing = true;
 			}}
 		>
-			{caption}
+			Add a caption…
 		</button>
 	</div>
 {/if}
@@ -71,10 +195,25 @@
 {/if}
 
 <style>
-	.caption-area {
-		display: flex;
-		align-items: flex-start;
-		gap: var(--space-sm);
+	.caption-wrapper {
+		max-height: 2.8em;
+		overflow: hidden;
+		border-radius: var(--radius-md);
+		background: transparent;
+		transition:
+			max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+			background 0.3s ease,
+			padding 0.3s ease;
+	}
+	.caption-wrapper.expanded {
+		max-height: 50vh;
+		max-height: 50dvh;
+		overflow-y: auto;
+		overscroll-behavior: contain;
+		background: rgba(0, 0, 0, 0.6);
+		backdrop-filter: blur(12px);
+		-webkit-backdrop-filter: blur(12px);
+		padding: var(--space-md);
 	}
 	.overlay-caption {
 		margin: 0;
@@ -99,6 +238,41 @@
 		-webkit-line-clamp: unset;
 		line-clamp: unset;
 		display: block;
+		overflow: visible;
+		cursor: pointer;
+	}
+	.overlay-caption.placeholder {
+		color: var(--reel-text-ghost);
+		font-style: italic;
+	}
+	.caption-edit {
+		animation: fade-in 0.15s ease;
+	}
+	.caption-edit textarea {
+		width: 100%;
+		background: rgba(0, 0, 0, 0.5);
+		backdrop-filter: blur(8px);
+		-webkit-backdrop-filter: blur(8px);
+		border: 1px solid var(--reel-text-ghost);
+		border-radius: var(--radius-sm);
+		color: var(--reel-text-bright);
+		font-size: 0.875rem;
+		line-height: 1.4;
+		padding: var(--space-sm);
+		resize: none;
+		outline: none;
+	}
+	.caption-edit textarea::placeholder {
+		color: var(--reel-text-ghost);
+	}
+	.caption-edit textarea:focus {
+		border-color: var(--reel-text-dim);
+	}
+	.edit-actions {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		margin-top: var(--space-xs);
 	}
 	.confirm-row {
 		display: flex;
@@ -120,6 +294,9 @@
 	}
 	.host-action-btn:active {
 		color: var(--reel-text-dim);
+	}
+	.host-action-btn.save {
+		color: var(--accent-primary);
 	}
 	.host-action-btn.confirm-yes {
 		color: var(--error);

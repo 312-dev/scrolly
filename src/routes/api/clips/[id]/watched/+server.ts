@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import { watched } from '$lib/server/db/schema';
+import { notifications, watched } from '$lib/server/db/schema';
 import { and, eq, sql } from 'drizzle-orm';
 import { withClipAuth } from '$lib/server/api-utils';
 
@@ -35,6 +35,17 @@ export const POST: RequestHandler = withClipAuth(async ({ params, request }, { u
 				// watchedAt intentionally not updated — keep the first-watched timestamp for stable sort order
 			}
 		});
+
+	// Auto-clear new_clip notification now that the user has watched it
+	await db
+		.delete(notifications)
+		.where(
+			and(
+				eq(notifications.userId, user.id),
+				eq(notifications.clipId, params.id),
+				eq(notifications.type, 'new_clip')
+			)
+		);
 
 	return json({ watched: true });
 });

@@ -3,12 +3,14 @@ import { env } from '$env/dynamic/private';
 import { db } from '$lib/server/db';
 import {
 	clips,
+	notifications,
 	pushSubscriptions,
 	notificationPreferences,
 	users,
 	watched
 } from '$lib/server/db/schema';
 import { eq, and, inArray, sql } from 'drizzle-orm';
+import { v4 as uuid } from 'uuid';
 import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('push');
@@ -102,6 +104,7 @@ export async function sendNotification(
 /**
  * Send push notification to the group after a clip is published (ready or failed).
  * Called from the download pipeline — NOT from the API endpoint.
+ * Also creates in-app notification records for each recipient.
  */
 export async function notifyNewClip(clipId: string): Promise<void> {
 	const clip = await db.query.clips.findFirst({
@@ -120,17 +123,51 @@ export async function notifyNewClip(clipId: string): Promise<void> {
 			? `${env.ORIGIN}/api/thumbnails/${clip.thumbnailPath}`
 			: undefined;
 
-	await sendGroupNotification(
-		clip.groupId,
-		{
-			title: `${uploader.username} added a ${label}`,
-			body: clip.title || 'Tap to watch',
-			url: `/?clip=${clipId}`,
-			tag: 'new-clip',
-			...(image ? { image } : {})
-		},
-		'newAdds',
-		uploader.id
+	const payload: NotificationPayload = {
+		title: `${uploader.username} added a ${label}`,
+		body: clip.title || 'Tap to watch',
+		url: `/?clip=${clipId}`,
+		tag: `new-clip-${uploader.id}`,
+		...(image ? { image } : {})
+	};
+
+	// Fetch group members, exclude uploader and removed users
+	const groupUsers = await db.query.users.findMany({
+		where: eq(users.groupId, clip.groupId),
+		columns: { id: true, removedAt: true }
+	});
+	const targets = groupUsers.filter((u) => u.id !== uploader.id && !u.removedAt);
+	if (targets.length === 0) return;
+
+	const targetIds = targets.map((u) => u.id);
+
+	// Batch-fetch notification preferences
+	const allPrefs = await db.query.notificationPreferences.findMany({
+		where: inArray(notificationPreferences.userId, targetIds)
+	});
+	const prefsMap = new Map(allPrefs.map((p) => [p.userId, p]));
+
+	const now = new Date();
+
+	await Promise.allSettled(
+		targets.map(async (user) => {
+			const prefs = prefsMap.get(user.id);
+			if (prefs && !prefs.newAdds) return;
+
+			// Insert in-app notification record
+			await db.insert(notifications).values({
+				id: uuid(),
+				userId: user.id,
+				type: 'new_clip',
+				clipId,
+				actorId: uploader.id,
+				createdAt: now
+			});
+
+			// Send push notification
+			const badgeCount = await getUnwatchedCount(user.id, clip.groupId);
+			await sendNotification(user.id, { ...payload, badgeCount });
+		})
 	);
 }
 

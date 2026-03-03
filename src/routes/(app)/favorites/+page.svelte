@@ -49,6 +49,7 @@
 	});
 
 	const currentUserId = $derived(page.data.user?.id ?? '');
+	const isHost = $derived(page.data.group?.createdBy === page.data.user?.id);
 	const gifEnabled = $derived(!!page.data.gifEnabled);
 	const renderWindow = 2;
 
@@ -168,6 +169,10 @@
 	onMount(loadFavorites);
 </script>
 
+<svelte:head>
+	<title>Faves · {page.data.group?.name ?? 'scrolly'} · scrolly</title>
+</svelte:head>
+
 <div class="faves-page">
 	{#if loading}
 		<div class="loading-state">
@@ -230,6 +235,7 @@
 						<ReelItem
 							{clip}
 							{currentUserId}
+							{isHost}
 							active={i === activeIndex}
 							index={i}
 							autoScroll={false}
@@ -341,14 +347,12 @@
 		object-fit: cover;
 		display: block;
 	}
-
 	.grid-avatar-initials {
 		font-size: 0.5625rem;
 		font-weight: 700;
 		color: var(--text-secondary);
 		line-height: 1;
 	}
-
 	.loading-state,
 	.empty-state {
 		display: flex;

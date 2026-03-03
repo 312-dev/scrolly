@@ -145,7 +145,7 @@ async function dispatchCommentNotification(
 				preferenceKey: 'comments',
 				pushTitle: `${actor.username} replied to you`,
 				pushBody: preview,
-				pushTag: `reply-${clipId}`,
+				pushTag: `reply-${clipId}-${actor.id}`,
 				commentPreview: preview
 			});
 			return parentComment.userId;
@@ -163,7 +163,7 @@ async function dispatchCommentNotification(
 				preferenceKey: 'comments',
 				pushTitle: `${actor.username} commented on your clip`,
 				pushBody: preview,
-				pushTag: `comment-${clipId}`,
+				pushTag: `comment-${clipId}-${actor.id}`,
 				commentPreview: preview
 			});
 			return clip.addedBy;

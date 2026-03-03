@@ -8,15 +8,18 @@
 	import { clipOverlaySignal, openCommentsSignal } from '$lib/stores/toasts';
 	import { createSafeTimeout } from '$lib/safeTimeout';
 	import BellIcon from 'phosphor-svelte/lib/BellIcon';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
+	import { fetchUnwatchedCount } from '$lib/stores/notifications';
 
 	const { ondismiss }: { ondismiss: () => void } = $props();
 
 	interface Notification {
 		id: string;
-		type: 'reaction' | 'comment' | 'reply' | 'mention';
+		type: 'reaction' | 'comment' | 'reply' | 'mention' | 'new_clip';
 		clipId: string;
 		emoji: string | null;
 		commentPreview: string | null;
+		clipContentType: string;
 		actorUsername: string;
 		actorAvatar: string | null;
 		clipThumbnail: string | null;
@@ -129,13 +132,17 @@
 		safeTimeout(() => {
 			ondismiss();
 			clipOverlaySignal.set(n.clipId);
-			if (n.type !== 'reaction') {
+			if (n.type !== 'reaction' && n.type !== 'new_clip') {
 				openCommentsSignal.set(n.clipId);
 			}
 		}, 300);
 	}
 
 	function description(n: Notification): string {
+		if (n.type === 'new_clip') {
+			const label = n.clipContentType === 'music' ? 'a song' : 'a video';
+			return `added ${label}`;
+		}
 		if (n.type === 'reaction') {
 			return `reacted ${n.emoji} to your clip`;
 		}
@@ -146,6 +153,15 @@
 			return 'replied to your comment';
 		}
 		return 'commented on your clip';
+	}
+
+	async function dismissNotification(e: Event, n: Notification) {
+		e.preventDefault();
+		e.stopPropagation();
+		items = items.filter((item) => item.id !== n.id);
+		await fetch(`/api/notifications/${n.id}`, { method: 'DELETE' });
+		fetchUnreadCount();
+		fetchUnwatchedCount();
 	}
 
 	onDestroy(clearAll);
@@ -165,7 +181,7 @@
 					<BellIcon size={48} />
 				</div>
 				<p class="empty-title">No activity yet</p>
-				<p class="empty-sub">Reactions and comments on your clips will show up here</p>
+				<p class="empty-sub">New clips, reactions, and comments will show up here</p>
 			</div>
 		{:else}
 			{#each grouped as section (section.label)}
@@ -204,6 +220,13 @@
 										<img src="/api/thumbnails/{n.clipThumbnail}" alt="" />
 									</div>
 								{/if}
+								<button
+									class="dismiss-btn"
+									onclick={(e) => dismissNotification(e, n)}
+									aria-label="Dismiss notification"
+								>
+									<XIcon size={14} />
+								</button>
 							</a>
 						{/each}
 					</div>
@@ -423,6 +446,31 @@
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
+	}
+
+	.dismiss-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 28px;
+		height: 28px;
+		border: none;
+		background: transparent;
+		color: var(--text-muted);
+		border-radius: var(--radius-full);
+		cursor: pointer;
+		flex-shrink: 0;
+		padding: 0;
+		transition: all 0.15s ease;
+	}
+
+	.dismiss-btn:hover {
+		background: var(--bg-surface);
+		color: var(--text-secondary);
+	}
+
+	.dismiss-btn:active {
+		transform: scale(0.9);
 	}
 
 	.spinner {

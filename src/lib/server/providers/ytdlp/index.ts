@@ -1,5 +1,5 @@
 import { spawn } from 'child_process';
-import { readdir, readFile } from 'fs/promises';
+import { readdir, readFile, unlink } from 'fs/promises';
 import type {
 	DownloadProvider,
 	VideoDownloadResult,
@@ -22,6 +22,24 @@ const AUDIO_BYTES_PER_SEC = 100 * 1024;
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 2000;
+
+const MAX_CAPTION_LENGTH = 500;
+
+/**
+ * Extract the best caption/description from yt-dlp info.json metadata.
+ * Prefers `description` (actual post caption on TikTok/IG/etc.) over `title`
+ * (which is often generic like "Video by @username").
+ */
+export function extractCaption(info: Record<string, unknown>): string | null {
+	const desc = typeof info.description === 'string' ? info.description.trim() : '';
+	const title = typeof info.title === 'string' ? info.title.trim() : '';
+	const fulltitle = typeof info.fulltitle === 'string' ? (info.fulltitle as string).trim() : '';
+	const caption = desc || title || fulltitle || null;
+	if (!caption) return null;
+	return caption.length > MAX_CAPTION_LENGTH
+		? caption.slice(0, MAX_CAPTION_LENGTH).trimEnd() + '…'
+		: caption;
+}
 
 export class YtDlpProvider implements DownloadProvider {
 	readonly id = PROVIDER_ID;
@@ -150,7 +168,7 @@ export class YtDlpProvider implements DownloadProvider {
 			try {
 				// eslint-disable-next-line security/detect-non-literal-fs-filename
 				const info = JSON.parse(await readFile(`${outputDir}/${infoFile}`, 'utf-8'));
-				title = info.title || info.fulltitle || null;
+				title = extractCaption(info);
 				duration = typeof info.duration === 'number' ? Math.round(info.duration) : null;
 
 				const rawName = info.uploader || info.channel || info.uploader_id || null;
@@ -191,6 +209,64 @@ export class YtDlpProvider implements DownloadProvider {
 		}
 
 		throw lastError ?? new Error('yt-dlp download failed');
+	}
+
+	/**
+	 * Fetch metadata only (no video/audio download).
+	 * Returns title, creator info extracted from yt-dlp's info.json.
+	 */
+	async fetchMetadata(
+		url: string,
+		outputDir: string,
+		clipId: string
+	): Promise<{ title: string | null; creatorName: string | null; creatorUrl: string | null }> {
+		const binary = this.getBinaryCommand();
+		const outputTemplate = `${outputDir}/${clipId}_meta.%(ext)s`;
+		const args = [
+			'--no-playlist',
+			'--skip-download',
+			'--write-info-json',
+			'--js-runtimes',
+			'node',
+			'-o',
+			outputTemplate,
+			url
+		];
+
+		await new Promise<void>((resolve, reject) => {
+			const proc = spawn(binary, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+			let stderr = '';
+			proc.stderr.on('data', (d: Buffer) => {
+				stderr += d.toString();
+			});
+			proc.on('close', (code) => {
+				if (code !== 0) reject(new Error(`yt-dlp metadata fetch failed: ${stderr}`));
+				else resolve();
+			});
+			proc.on('error', (err) => reject(err));
+		});
+
+		// eslint-disable-next-line security/detect-non-literal-fs-filename
+		const files = await readdir(outputDir);
+		const infoFile = files.find((f) => f.startsWith(`${clipId}_meta`) && f.endsWith('.info.json'));
+		if (!infoFile) throw new Error('No info.json produced by metadata fetch');
+
+		// eslint-disable-next-line security/detect-non-literal-fs-filename
+		const info = JSON.parse(await readFile(`${outputDir}/${infoFile}`, 'utf-8'));
+		const title = extractCaption(info);
+		const rawName = info.uploader || info.channel || info.uploader_id || null;
+		const creatorName = rawName ? String(rawName).replace(/^@/, '') : null;
+		const creatorUrl = info.uploader_url || info.channel_url || null;
+
+		// Clean up the temp info.json
+		try {
+			// eslint-disable-next-line security/detect-non-literal-fs-filename
+			await unlink(`${outputDir}/${infoFile}`);
+		} catch {
+			// best-effort cleanup
+		}
+
+		return { title, creatorName, creatorUrl };
 	}
 
 	private runAudioDownload(
