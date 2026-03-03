@@ -4,6 +4,7 @@
 	import { createSafeTimeout } from '$lib/safeTimeout';
 	import AddVideo from './AddVideo.svelte';
 	import UploadStatus from './UploadStatus.svelte';
+	import MusicTrimModal from './MusicTrimModal.svelte';
 	import BaseSheet from './BaseSheet.svelte';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import { addToast, toasts, clipReadySignal, clipOverlaySignal } from '$lib/stores/toasts';
@@ -12,11 +13,16 @@
 
 	const { ondismiss, initialUrl }: { ondismiss: () => void; initialUrl?: string } = $props();
 
-	let phase = $state<'form' | 'uploading' | 'done' | 'failed'>('form');
+	let phase = $state<'form' | 'uploading' | 'trim_prompt' | 'done' | 'failed'>('form');
 	let clipId = $state('');
 	let clipContentType = $state('');
 	let serverArtist = $state<string | null>(null);
 	let serverAlbumArt = $state<string | null>(null);
+	let serverAudioPath = $state<string | null>(null);
+	let serverDuration = $state<number | null>(null);
+	let serverTitle = $state<string | null>(null);
+	let trimDeadline = $state<number | null>(null);
+	let showTrimModal = $state(false);
 	let pollTimer: ReturnType<typeof setInterval> | null = null;
 	let addVideoRef = $state<ReturnType<typeof AddVideo> | null>(null);
 	let sheetRef = $state<ReturnType<typeof BaseSheet> | null>(null);
@@ -45,25 +51,38 @@
 		startPolling();
 	}
 
+	function stopPolling() {
+		if (pollTimer) clearInterval(pollTimer);
+		pollTimer = null;
+	}
+
+	function handlePollData(data: Record<string, unknown>) {
+		if (data.artist) serverArtist = data.artist as string;
+		if (data.albumArt) serverAlbumArt = data.albumArt as string;
+		if (data.audioPath) serverAudioPath = data.audioPath as string;
+		if (data.durationSeconds !== null && data.durationSeconds !== undefined)
+			serverDuration = data.durationSeconds as number;
+		if (data.title) serverTitle = data.title as string;
+
+		if (data.status === 'pending_trim' && data.contentType === 'music') {
+			stopPolling();
+			trimDeadline = data.trimDeadline ? new Date(data.trimDeadline as string).getTime() : null;
+			phase = 'trim_prompt';
+		} else if (data.status === 'ready') {
+			stopPolling();
+			phase = 'done';
+		} else if (data.status === 'failed') {
+			stopPolling();
+			phase = 'failed';
+		}
+	}
+
 	function startPolling() {
 		pollTimer = setInterval(async () => {
 			try {
 				const res = await fetch(`/api/clips/${clipId}`);
 				if (!res.ok) return;
-				const data = await res.json();
-
-				if (data.artist) serverArtist = data.artist;
-				if (data.albumArt) serverAlbumArt = data.albumArt;
-
-				if (data.status === 'ready') {
-					if (pollTimer) clearInterval(pollTimer);
-					pollTimer = null;
-					phase = 'done';
-				} else if (data.status === 'failed') {
-					if (pollTimer) clearInterval(pollTimer);
-					pollTimer = null;
-					phase = 'failed';
-				}
+				handlePollData(await res.json());
 			} catch {
 				// Network error, keep polling
 			}
@@ -85,8 +104,8 @@
 	}
 
 	function dismiss() {
-		// If still uploading, push a background toast
-		if (phase === 'uploading') {
+		// If still uploading or waiting for trim, push a background toast
+		if (phase === 'uploading' || phase === 'trim_prompt') {
 			addToast({
 				type: 'processing',
 				message: `Adding ${clipContentType === 'music' ? 'song' : 'video'} to feed...`,
@@ -107,6 +126,30 @@
 	function handleDismissNudge() {
 		dismissShortcutNudge();
 		sheetRef?.dismiss();
+	}
+
+	function handleOpenTrim() {
+		showTrimModal = true;
+	}
+
+	async function handleSkipTrim() {
+		try {
+			await fetch(`/api/clips/${clipId}/publish`, { method: 'POST' });
+		} catch {
+			// Server auto-publishes after deadline anyway
+		}
+		phase = 'done';
+	}
+
+	function handleTrimComplete() {
+		showTrimModal = false;
+		phase = 'done';
+	}
+
+	function handleTrimDismiss() {
+		showTrimModal = false;
+		// User cancelled trim — skip and publish full song
+		handleSkipTrim();
 	}
 </script>
 
@@ -136,16 +179,33 @@
 			<UploadStatus
 				{phase}
 				{clipContentType}
+				{serverTitle}
 				{serverArtist}
 				{serverAlbumArt}
+				{trimDeadline}
 				ondismiss={dismiss}
 				onretry={handleRetry}
 				onsaveandview={handleSaveAndView}
 				ondismissnudge={handleDismissNudge}
+				ontrim={handleOpenTrim}
+				onskiptrim={handleSkipTrim}
 			/>
 		{/if}
 	</BaseSheet>
 </div>
+
+{#if showTrimModal && serverAudioPath}
+	<MusicTrimModal
+		{clipId}
+		audioPath={serverAudioPath}
+		durationSeconds={serverDuration}
+		albumArt={serverAlbumArt}
+		artist={serverArtist}
+		title={serverTitle}
+		ondismiss={handleTrimDismiss}
+		ontrimcomplete={handleTrimComplete}
+	/>
+{/if}
 
 <style>
 	/* Override BaseSheet styles for add-video look */

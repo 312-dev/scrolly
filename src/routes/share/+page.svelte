@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
@@ -9,10 +10,12 @@
 		isPlatformAllowed
 	} from '$lib/url-validation';
 	import { addToast } from '$lib/stores/toasts';
+	import MusicTrimModal from '$lib/components/MusicTrimModal.svelte';
 	import XCircleIcon from 'phosphor-svelte/lib/XCircleIcon';
 	import ProhibitIcon from 'phosphor-svelte/lib/ProhibitIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import ExportIcon from 'phosphor-svelte/lib/ExportIcon';
+	import ScissorsIcon from 'phosphor-svelte/lib/ScissorsIcon';
 
 	const shareUrl = $derived(page.data.shareUrl as string);
 	const platform = $derived(platformLabel(shareUrl));
@@ -37,11 +40,61 @@
 	let contentType = $state('');
 	let autoSubmitted = $state(false);
 
+	// Music-specific polling state
+	let polling = $state(false);
+	let showTrimPrompt = $state(false);
+	let showTrimModal = $state(false);
+	let trimDeadline = $state<number | null>(null);
+	let secondsLeft = $state(120);
+	let serverArtist = $state<string | null>(null);
+	let serverAlbumArt = $state<string | null>(null);
+	let serverAudioPath = $state<string | null>(null);
+	let serverDuration = $state<number | null>(null);
+	let serverTitle = $state<string | null>(null);
+	let pollTimer: ReturnType<typeof setInterval> | null = null;
+	let countdownTimer: ReturnType<typeof setInterval> | null = null;
+
+	onDestroy(() => {
+		if (pollTimer) clearInterval(pollTimer);
+		if (countdownTimer) clearInterval(countdownTimer);
+	});
+
 	$effect(() => {
 		if (isValid && platformAllowed && !autoSubmitted) {
 			autoSubmitted = true;
 			handleSubmit();
 		}
+	});
+
+	// Countdown effect for trim prompt
+	$effect(() => {
+		if (!showTrimPrompt || !trimDeadline) {
+			if (countdownTimer) {
+				clearInterval(countdownTimer);
+				countdownTimer = null;
+			}
+			return;
+		}
+
+		const deadline = trimDeadline;
+		const tick = () => {
+			const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+			secondsLeft = remaining;
+			if (remaining <= 0 && countdownTimer) {
+				clearInterval(countdownTimer);
+				countdownTimer = null;
+				handleSkipTrim();
+			}
+		};
+		tick();
+		countdownTimer = setInterval(tick, 1000);
+
+		return () => {
+			if (countdownTimer) {
+				clearInterval(countdownTimer);
+				countdownTimer = null;
+			}
+		};
 	});
 
 	async function handleSubmit() {
@@ -60,12 +113,58 @@
 			}
 			clipId = data.clip.id;
 			contentType = data.clip.contentType ?? 'video';
-			success = true;
+
+			if (contentType === 'music') {
+				// Start polling for music clips — wait for download + trim opportunity
+				polling = true;
+				startPolling();
+			} else {
+				success = true;
+			}
 		} catch {
 			error = 'Something went wrong';
 		} finally {
 			loading = false;
 		}
+	}
+
+	function stopPolling() {
+		if (pollTimer) clearInterval(pollTimer);
+		pollTimer = null;
+		polling = false;
+	}
+
+	function handlePollData(data: Record<string, unknown>) {
+		if (data.artist) serverArtist = data.artist as string;
+		if (data.albumArt) serverAlbumArt = data.albumArt as string;
+		if (data.audioPath) serverAudioPath = data.audioPath as string;
+		if (data.durationSeconds !== null && data.durationSeconds !== undefined)
+			serverDuration = data.durationSeconds as number;
+		if (data.title) serverTitle = data.title as string;
+
+		if (data.status === 'pending_trim') {
+			stopPolling();
+			trimDeadline = data.trimDeadline ? new Date(data.trimDeadline as string).getTime() : null;
+			showTrimPrompt = true;
+		} else if (data.status === 'ready') {
+			stopPolling();
+			success = true;
+		} else if (data.status === 'failed') {
+			stopPolling();
+			error = 'Download failed';
+		}
+	}
+
+	function startPolling() {
+		pollTimer = setInterval(async () => {
+			try {
+				const res = await fetch(`/api/clips/${clipId}`);
+				if (!res.ok) return;
+				handlePollData(await res.json());
+			} catch {
+				// Network error, keep polling
+			}
+		}, 3000);
 	}
 
 	function openFeed() {
@@ -80,6 +179,31 @@
 			});
 		}
 		goto(resolve('/'));
+	}
+
+	function handleOpenTrim() {
+		showTrimModal = true;
+	}
+
+	async function handleSkipTrim() {
+		showTrimPrompt = false;
+		try {
+			await fetch(`/api/clips/${clipId}/publish`, { method: 'POST' });
+		} catch {
+			// Server auto-publishes after deadline anyway
+		}
+		success = true;
+	}
+
+	function handleTrimComplete() {
+		showTrimModal = false;
+		showTrimPrompt = false;
+		success = true;
+	}
+
+	function handleTrimDismiss() {
+		showTrimModal = false;
+		handleSkipTrim();
 	}
 </script>
 
@@ -112,6 +236,34 @@
 			<h1 class="share-title">Added!</h1>
 			<p class="share-desc">Your clip is downloading.</p>
 			<button class="btn-primary" onclick={openFeed}>Open Scrolly</button>
+		{:else if showTrimPrompt}
+			<div class="icon-wrap trim">
+				<ScissorsIcon size={28} weight="bold" />
+			</div>
+			<h1 class="share-title">Trim your song?</h1>
+			{#if serverArtist}
+				<p class="share-artist">{serverArtist}</p>
+			{/if}
+			<p class="share-desc">Pick your favorite part before sharing</p>
+			<button class="btn-primary" onclick={handleOpenTrim}
+				><ScissorsIcon size={18} weight="bold" /> Trim</button
+			>
+			<button class="btn-ghost" onclick={handleSkipTrim}>
+				Skip — publish full song
+				{#if secondsLeft > 0}
+					<span class="countdown">({secondsLeft}s)</span>
+				{/if}
+			</button>
+		{:else if polling}
+			<div class="icon-wrap">
+				<ExportIcon size={28} />
+			</div>
+			<h1 class="share-title">Finding song...</h1>
+			{#if platform}
+				<span class="platform-pill">{platform}</span>
+			{/if}
+			<p class="share-desc">Hang tight — you can trim it when it's ready</p>
+			<button class="btn-primary" disabled><span class="spinner"></span> Trim</button>
 		{:else if loading}
 			<div class="icon-wrap">
 				<ExportIcon size={28} />
@@ -136,6 +288,19 @@
 		{/if}
 	</div>
 </div>
+
+{#if showTrimModal && serverAudioPath}
+	<MusicTrimModal
+		{clipId}
+		audioPath={serverAudioPath}
+		durationSeconds={serverDuration}
+		albumArt={serverAlbumArt}
+		artist={serverArtist}
+		title={serverTitle}
+		ondismiss={handleTrimDismiss}
+		ontrimcomplete={handleTrimComplete}
+	/>
+{/if}
 
 <style>
 	.share-page {
@@ -178,6 +343,11 @@
 		animation: pop 0.3s cubic-bezier(0.32, 0.72, 0, 1);
 	}
 
+	.icon-wrap.trim {
+		background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+		animation: pop 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+	}
+
 	.icon-wrap.error,
 	.icon-wrap.err {
 		background: color-mix(in srgb, var(--error) 12%, transparent);
@@ -195,6 +365,12 @@
 	.share-desc {
 		font-size: 0.875rem;
 		color: var(--text-muted);
+		margin: 0;
+	}
+
+	.share-artist {
+		font-size: 0.875rem;
+		color: var(--text-secondary);
 		margin: 0;
 	}
 
@@ -231,6 +407,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		gap: var(--space-sm);
 		width: 100%;
 		padding: var(--space-md) var(--space-xl);
 		background: var(--accent-primary);
@@ -254,6 +431,21 @@
 		cursor: not-allowed;
 	}
 
+	.spinner {
+		width: 16px;
+		height: 16px;
+		border: 2px solid currentColor;
+		border-top-color: transparent;
+		border-radius: var(--radius-full);
+		animation: spin 0.8s linear infinite;
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
 	.btn-ghost {
 		background: transparent;
 		color: var(--text-secondary);
@@ -263,6 +455,10 @@
 		cursor: pointer;
 		padding: var(--space-sm);
 		text-decoration: none;
+	}
+
+	.countdown {
+		color: var(--text-muted);
 	}
 
 	.btn-secondary {
