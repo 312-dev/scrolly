@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.12.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.11.0...scrolly-v1.12.0) (2026-03-03)
+
+
+### Features
+
+* feed UI refinements and overlay improvements ([#54](https://github.com/312-dev/scrolly/issues/54)) ([fb56059](https://github.com/312-dev/scrolly/commit/fb56059b943f23e8daea51d5b003fcdc9946938c))
+
+
+### Bug Fixes
+
+* add security-status to release PR checks and fix auto-merge parsing ([#55](https://github.com/312-dev/scrolly/issues/55)) ([6854e42](https://github.com/312-dev/scrolly/commit/6854e426d52f355a4fc01483ac2b018470791af6))
+
+
+### Documentation
+
+* update data model, API, and architecture for v1.11.0 ([#52](https://github.com/312-dev/scrolly/issues/52)) ([32ccb33](https://github.com/312-dev/scrolly/commit/32ccb333af28f6d94d73041b1a71af7430a6d15a))
+
 ## [1.11.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.10.2...scrolly-v1.11.0) (2026-03-03)
 
 
