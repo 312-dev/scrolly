@@ -113,7 +113,7 @@
 	ontouchend={(e) => e.stopPropagation()}
 >
 	<button
-		class="sidebar-btn"
+		class="sidebar-btn save-btn"
 		class:active={favorited}
 		class:disabled={isOwn}
 		bind:this={saveBtnEl}
@@ -252,6 +252,10 @@
 		line-height: 1;
 		user-select: none;
 		pointer-events: none;
+	}
+
+	.save-btn {
+		margin-bottom: -3px;
 	}
 
 	.sidebar-btn.active .icon-circle {
