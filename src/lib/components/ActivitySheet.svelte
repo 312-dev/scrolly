@@ -296,7 +296,6 @@
 		margin: 0 auto;
 		width: 100%;
 	}
-
 	.section {
 		margin-bottom: var(--space-lg);
 	}
