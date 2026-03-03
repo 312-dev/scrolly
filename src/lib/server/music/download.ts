@@ -71,7 +71,6 @@ async function resolveOdesli(url: string): Promise<MusicMetadata> {
 async function finalizeMusicClip(
 	clipId: string,
 	result: AudioDownloadResult,
-	metadata: MusicMetadata,
 	maxFileSizeBytes: number | null,
 	existingTitle: string | null
 ): Promise<void> {
@@ -104,8 +103,8 @@ async function finalizeMusicClip(
 		return;
 	}
 
-	// Keep existing title (caption from SMS or metadata update) if present
-	const title = existingTitle || metadata.title || null;
+	// Only keep user-provided caption — don't auto-set from song metadata
+	const title = existingTitle || null;
 
 	await db
 		.update(clips)
@@ -148,12 +147,11 @@ async function downloadMusicInner(clipId: string, url: string): Promise<void> {
 		const metadata = await resolveOdesli(url);
 
 		// Step 2: Update clip immediately with metadata (UI can show song info while downloading)
-		// Preserve user-provided caption if present (e.g. from SMS share)
-		const resolvedTitle = clip.title || metadata.title;
+		// Only keep user-provided caption — don't auto-set from song metadata
+		const resolvedTitle = clip.title || null;
 		await db
 			.update(clips)
 			.set({
-				title: resolvedTitle,
 				artist: metadata.artist,
 				albumArt: metadata.albumArt,
 				spotifyUrl: metadata.spotifyUrl,
@@ -191,7 +189,7 @@ async function downloadMusicInner(clipId: string, url: string): Promise<void> {
 		}
 
 		if (result) {
-			await finalizeMusicClip(clipId, result, metadata, maxFileSizeBytes, resolvedTitle ?? null);
+			await finalizeMusicClip(clipId, result, maxFileSizeBytes, resolvedTitle ?? null);
 		} else {
 			// Failed to download audio, but metadata + platform links are still visible
 			await cleanupClipFiles(clipId);
