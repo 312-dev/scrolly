@@ -1,6 +1,6 @@
 <script lang="ts">
 	/* eslint-disable max-lines */
-	import ReelItem from '$lib/components/ReelItem.svelte';
+	import ReelItem, { resetLastContributor } from '$lib/components/ReelItem.svelte';
 	import FilterBar from '$lib/components/FilterBar.svelte';
 	import SkeletonReel from '$lib/components/SkeletonReel.svelte';
 	import LinkIcon from 'phosphor-svelte/lib/LinkIcon';
@@ -120,6 +120,7 @@
 		hasMore = true;
 		const data = await fetchClips(filter, PAGE_SIZE, sort);
 		if (data) {
+			resetLastContributor();
 			clips = data.clips;
 			hasMore = data.hasMore;
 			currentOffset = data.clips.length;

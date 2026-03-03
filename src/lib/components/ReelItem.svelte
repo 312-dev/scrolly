@@ -1,3 +1,12 @@
+<script lang="ts" module>
+	// Module-level: track last active contributor across all ReelItem instances
+	let lastActiveContributor = '';
+
+	export function resetLastContributor() {
+		lastActiveContributor = '';
+	}
+</script>
+
 <script lang="ts">
 	/* eslint-disable max-lines */
 	import { onMount, onDestroy } from 'svelte';
@@ -34,9 +43,6 @@
 	import ViewersSheet from './ViewersSheet.svelte';
 	import ReelIndicators from './ReelIndicators.svelte';
 	import ContributorPill from './ContributorPill.svelte';
-
-	// Module-level: track last active contributor across all ReelItem instances
-	let lastActiveContributor = '';
 
 	import type { FeedClip } from '$lib/types';
 
@@ -685,11 +691,11 @@
 	.top-right-row {
 		position: absolute;
 		top: max(var(--space-md), env(safe-area-inset-top));
-		right: calc(var(--space-lg) + 40px + var(--space-sm));
+		right: calc(var(--space-sm) + 44px);
 		z-index: 6;
 		display: flex;
 		align-items: center;
-		min-height: 40px;
+		min-height: 44px;
 		transition: opacity 0.3s ease;
 	}
 	.top-right-row.ui-hidden {
