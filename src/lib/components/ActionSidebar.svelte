@@ -187,11 +187,11 @@
 	.action-sidebar {
 		position: absolute;
 		right: var(--space-lg);
-		bottom: calc(var(--bottom-nav-height, 64px) + 84px);
+		bottom: 74px;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: var(--space-lg);
+		gap: var(--space-sm);
 		z-index: 5;
 		transition: opacity 0.3s ease;
 	}

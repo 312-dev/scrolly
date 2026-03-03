@@ -404,7 +404,6 @@
 </script>
 
 <div class="reel-item" data-index={index} bind:this={itemEl}>
-	<div class="bottom-gradient" class:ui-hidden={uiHidden}></div>
 	<div class="top-left-row" class:ui-hidden={uiHidden}>
 		{#if !hideViewBadge && clip.viewCount > 0}
 			<ViewBadge
@@ -455,6 +454,7 @@
 			{currentTime}
 			{duration}
 			{isDesktop}
+			{active}
 			onseek={seekMedia}
 			onscrubstart={handleScrubStart}
 			onscrubend={handleScrubEnd}
@@ -468,6 +468,9 @@
 			username={clip.addedByUsername}
 			avatarPath={clip.addedByAvatar}
 			platform={clip.platform}
+			creatorName={clip.creatorName}
+			creatorUrl={clip.creatorUrl}
+			contentType={clip.contentType}
 			caption={clip.title}
 			{canEditCaption}
 			{seenByOthers}
@@ -577,20 +580,6 @@
 	.reel-content-frame > :global(*) {
 		pointer-events: auto;
 	}
-	.bottom-gradient {
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		height: 50%;
-		background: linear-gradient(transparent, var(--reel-gradient-medium));
-		z-index: 3;
-		pointer-events: none;
-		transition: opacity 0.3s ease;
-	}
-	.bottom-gradient.ui-hidden {
-		opacity: 0;
-	}
 	.top-left-row {
 		position: absolute;
 		top: max(var(--space-md), env(safe-area-inset-top));
@@ -608,10 +597,10 @@
 	}
 	.bottom-row {
 		position: absolute;
-		bottom: calc(var(--bottom-nav-height, 64px) + 4px);
+		bottom: 14px;
 		left: var(--space-lg);
 		right: var(--space-lg);
-		z-index: 5;
+		z-index: 7;
 		display: flex;
 		align-items: center;
 		gap: var(--space-sm);

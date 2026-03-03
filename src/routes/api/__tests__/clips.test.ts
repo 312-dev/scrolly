@@ -616,7 +616,7 @@ describe('POST /api/clips/[id]/reactions', () => {
 			method: 'POST',
 			path: `/api/clips/${data.readyClip.id}/reactions`,
 			params: { id: data.readyClip.id },
-			body: { emoji: '❤️' },
+			body: { emoji: '😂' },
 			user: data.member,
 			group: data.group
 		});
@@ -624,9 +624,9 @@ describe('POST /api/clips/[id]/reactions', () => {
 		expect(res.status).toBe(200);
 		const body = await res.json();
 		expect(body.toggled).toBe(true);
-		expect(body.reactions['❤️']).toBeDefined();
-		expect(body.reactions['❤️'].count).toBe(1);
-		expect(body.reactions['❤️'].reacted).toBe(true);
+		expect(body.reactions['😂']).toBeDefined();
+		expect(body.reactions['😂'].count).toBe(1);
+		expect(body.reactions['😂'].reacted).toBe(true);
 	});
 
 	it('toggles reaction off on second call', async () => {
@@ -634,7 +634,7 @@ describe('POST /api/clips/[id]/reactions', () => {
 			method: 'POST',
 			path: `/api/clips/${data.readyClip.id}/reactions`,
 			params: { id: data.readyClip.id },
-			body: { emoji: '❤️' },
+			body: { emoji: '😂' },
 			user: data.member,
 			group: data.group
 		});
@@ -643,8 +643,8 @@ describe('POST /api/clips/[id]/reactions', () => {
 		const body = await res.json();
 		expect(body.toggled).toBe(false);
 		// Reaction count for this emoji should be 0 or the key absent
-		if (body.reactions['❤️']) {
-			expect(body.reactions['❤️'].count).toBe(0);
+		if (body.reactions['😂']) {
+			expect(body.reactions['😂'].count).toBe(0);
 		}
 	});
 });

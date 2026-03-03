@@ -67,7 +67,7 @@
 		window.addEventListener('popstate', onReelPopState);
 		await tick();
 		if (reelContainer) {
-			reelContainer.scrollTop = index * window.innerHeight;
+			reelContainer.scrollTop = index * reelContainer.clientHeight;
 		}
 	}
 
@@ -405,11 +405,13 @@
 
 	.faves-reel {
 		position: fixed;
-		inset: 0;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: var(--bottom-nav-height, 64px);
 		z-index: 40;
 		background: var(--bg-primary);
 		overscroll-behavior-x: none;
-		--bottom-nav-height: calc(env(safe-area-inset-bottom, 0px) + 14px);
 	}
 
 	.reel-topbar {
@@ -458,20 +460,18 @@
 	}
 
 	.reel-scroll {
-		height: 100dvh;
+		height: 100%;
 		overflow-y: auto;
 		scroll-snap-type: y mandatory;
 		-webkit-overflow-scrolling: touch;
 		overscroll-behavior-y: none;
 		scrollbar-width: none;
+		&::-webkit-scrollbar {
+			display: none;
+		}
 	}
-
-	.reel-scroll::-webkit-scrollbar {
-		display: none;
-	}
-
 	.reel-slot {
-		height: 100dvh;
+		height: 100%;
 		width: 100%;
 		scroll-snap-align: start;
 		scroll-snap-stop: always;

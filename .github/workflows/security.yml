@@ -55,12 +55,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [changes]
-    # Always run on PRs (branch protection requires CodeQL results even for
-    # non-code changes like workflow YAML). Skip only on push/schedule when
-    # no security-relevant files changed.
+    # Only run when security-relevant files changed (not a required check —
+    # branch protection only requires "security-status" which handles skips).
     if: |
       !inputs.skip_codeql &&
-      (github.event_name == 'pull_request' || needs.changes.outputs.security_relevant == 'true' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+      (needs.changes.outputs.security_relevant == 'true' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     permissions:
       security-events: write
     steps:

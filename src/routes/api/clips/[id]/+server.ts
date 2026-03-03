@@ -81,6 +81,8 @@ export const GET: RequestHandler = withClipAuth(async ({ params }, { user, clip 
 		addedByUsername: uploaderUser?.username || 'Unknown',
 		addedByAvatar: uploaderUser?.avatarPath || null,
 		platform: clip.platform,
+		creatorName: clip.creatorName,
+		creatorUrl: clip.creatorUrl,
 		status: clip.status,
 		contentType: clip.contentType,
 		durationSeconds: clip.durationSeconds,

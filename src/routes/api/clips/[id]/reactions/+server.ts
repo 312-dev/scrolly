@@ -63,14 +63,14 @@ export const POST: RequestHandler = withClipAuth(async ({ params, request }, { u
 
 	if (!sameEmoji) {
 		// Add the new reaction (either fresh or replacing a different emoji)
+		const reactionId = uuid();
 		await db.insert(reactions).values({
-			id: uuid(),
+			id: reactionId,
 			clipId,
 			userId,
 			emoji,
 			createdAt: new Date()
 		});
-
 		// Notify clip owner about the new reaction
 		await notifyClipOwner({
 			recipientId: clip.addedBy,

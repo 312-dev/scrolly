@@ -99,12 +99,6 @@
 		display: flex;
 		justify-content: center;
 		padding: max(var(--space-md), env(safe-area-inset-top)) var(--space-lg) var(--space-sm);
-		background: linear-gradient(
-			to bottom,
-			var(--reel-gradient-soft) 0%,
-			var(--reel-gradient-faint) 70%,
-			transparent 100%
-		);
 		pointer-events: none;
 		transition: opacity 0.3s ease;
 	}
@@ -128,7 +122,7 @@
 
 	.filter-tabs button {
 		position: relative;
-		padding: 8px var(--space-md);
+		padding: 6px var(--space-md);
 		background: none;
 		color: var(--reel-text-subtle);
 		border: none;
@@ -137,6 +131,9 @@
 		font-size: 0.9375rem;
 		font-weight: 600;
 		cursor: pointer;
+		text-shadow:
+			0 1px 4px rgba(0, 0, 0, 0.7),
+			0 2px 12px rgba(0, 0, 0, 0.5);
 		transition: color 0.2s ease;
 	}
 
@@ -160,14 +157,16 @@
 		line-height: 1;
 		border-radius: var(--radius-full);
 		vertical-align: middle;
+		box-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
 	}
 
 	.tab-indicator {
 		position: absolute;
 		bottom: 0;
-		height: 3px;
+		height: 2.5px;
 		background: var(--reel-text);
 		border-radius: var(--radius-full);
+		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 		transition:
 			left 0.25s cubic-bezier(0.32, 0.72, 0, 1),
 			width 0.25s cubic-bezier(0.32, 0.72, 0, 1);

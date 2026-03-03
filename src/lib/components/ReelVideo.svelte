@@ -30,6 +30,8 @@
 		videoEl: HTMLVideoElement | null;
 	} = $props();
 
+	let isPortrait = $state(false);
+
 	function getVideoUrl(path: string | null): string {
 		if (!path) return '';
 		return `/api/videos/${basename(path)}`;
@@ -83,6 +85,10 @@
 			loop={!autoScroll || forceLoop}
 			muted
 			class="reel-video"
+			class:portrait={isPortrait}
+			onloadedmetadata={() => {
+				if (videoEl) isPortrait = videoEl.videoHeight > videoEl.videoWidth;
+			}}
 			oncontextmenu={(e) => e.preventDefault()}
 			onended={() => {
 				if (autoScroll && !forceLoop) onended();
@@ -126,6 +132,10 @@
 		top: 0;
 		left: 0;
 		z-index: 1;
+	}
+
+	.reel-video.portrait {
+		object-fit: cover;
 	}
 
 	.reel-placeholder {
