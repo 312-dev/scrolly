@@ -10,8 +10,6 @@
 		userId: string;
 		username: string;
 		avatarPath: string | null;
-		watchPercent: number;
-		status: 'viewed' | 'skipped';
 		watchedAt: string;
 	}
 
@@ -102,17 +100,8 @@
 								<span class="avatar-initial">{viewer.username.charAt(0).toUpperCase()}</span>
 							{/if}
 						</div>
-						<div class="viewer-info">
-							<span class="viewer-name">{viewer.username}</span>
-							<span class="viewer-time">{relativeTime(viewer.watchedAt)}</span>
-						</div>
-						<span
-							class="status-badge"
-							class:viewed={viewer.status === 'viewed'}
-							class:skipped={viewer.status === 'skipped'}
-						>
-							{viewer.status === 'skipped' ? 'Skipped' : 'Viewed'}
-						</span>
+						<span class="viewer-name">{viewer.username}</span>
+						<span class="viewer-time">{relativeTime(viewer.watchedAt)}</span>
 					</div>
 				{/each}
 			</div>
@@ -139,7 +128,7 @@
 		top: calc(56px + env(safe-area-inset-top));
 		right: var(--space-lg);
 		width: calc(100vw - 2 * var(--space-lg));
-		max-width: 400px;
+		max-width: 200px;
 		max-height: 65vh;
 		background: var(--bg-elevated);
 		border-radius: var(--radius-lg);
@@ -218,9 +207,9 @@
 	.viewer-row {
 		display: flex;
 		align-items: center;
+		justify-content: space-between;
 		gap: var(--space-sm);
 		padding: var(--space-xs) var(--space-sm);
-		border-radius: var(--radius-sm);
 		animation: viewer-in 250ms cubic-bezier(0.32, 0.72, 0, 1) both;
 	}
 
@@ -236,8 +225,8 @@
 	}
 
 	.viewer-avatar {
-		width: 34px;
-		height: 34px;
+		width: 28px;
+		height: 28px;
 		border-radius: var(--radius-full);
 		overflow: hidden;
 		flex-shrink: 0;
@@ -250,7 +239,6 @@
 	.avatar-img {
 		width: 100%;
 		height: 100%;
-		border-radius: var(--radius-full);
 		object-fit: cover;
 	}
 
@@ -258,16 +246,11 @@
 		color: var(--text-secondary);
 		font-family: var(--font-display);
 		font-weight: 700;
-		font-size: 0.8125rem;
-	}
-
-	.viewer-info {
-		flex: 1;
-		min-width: 0;
+		font-size: 0.6875rem;
 	}
 
 	.viewer-name {
-		display: block;
+		flex: 1;
 		font-size: 0.8125rem;
 		font-weight: 600;
 		color: var(--text-primary);
@@ -276,24 +259,7 @@
 	.viewer-time {
 		font-size: 0.6875rem;
 		color: var(--text-muted);
-	}
-
-	.status-badge {
-		padding: 3px 10px;
-		border-radius: var(--radius-full);
-		font-size: 0.6875rem;
-		font-weight: 600;
 		flex-shrink: 0;
-	}
-
-	.status-badge.viewed {
-		background: rgba(56, 161, 105, 0.15);
-		color: var(--success);
-	}
-
-	.status-badge.skipped {
-		background: rgba(251, 191, 36, 0.15);
-		color: var(--warning);
 	}
 
 	.spinner {
