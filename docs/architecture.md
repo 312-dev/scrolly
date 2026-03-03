@@ -84,7 +84,7 @@ scrolly/
 │   │   │   ├── BaseSheet.svelte     # Shared drag-to-dismiss bottom sheet base
 │   │   │   ├── ClipOverlay.svelte   # Full-screen single-clip overlay view
 │   │   │   ├── CommentsSheet.svelte # Bottom sheet for comments
-│   │   │   ├── ViewersSheet.svelte  # Bottom sheet for view list
+│   │   │   ├── ViewersSheet.svelte  # Floating panel for view list
 │   │   │   ├── ActivitySheet.svelte # Bottom sheet for in-app notifications
 │   │   │   ├── GifPicker.svelte     # GIPHY search/picker (full or compact carousel mode)
 │   │   │   ├── AddVideo.svelte      # Add video form
