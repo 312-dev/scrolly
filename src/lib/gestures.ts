@@ -148,12 +148,14 @@ export function onTapHold(element: HTMLElement, handlers: TapHoldHandlers): () =
 	element.addEventListener('pointermove', handlePointerMove);
 	element.addEventListener('pointerup', handlePointerUp);
 	element.addEventListener('pointercancel', handlePointerCancel);
+	element.addEventListener('pointerleave', handlePointerCancel);
 
 	return () => {
 		element.removeEventListener('pointerdown', handlePointerDown);
 		element.removeEventListener('pointermove', handlePointerMove);
 		element.removeEventListener('pointerup', handlePointerUp);
 		element.removeEventListener('pointercancel', handlePointerCancel);
+		element.removeEventListener('pointerleave', handlePointerCancel);
 		cancelHold();
 		if (tapTimer) clearTimeout(tapTimer);
 	};
