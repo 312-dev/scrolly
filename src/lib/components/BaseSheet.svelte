@@ -3,18 +3,18 @@
 	import { pushState, beforeNavigate } from '$app/navigation';
 	import { onDestroy } from 'svelte';
 	import { openSheet, closeSheet } from '$lib/stores/sheetOpen';
+	import { createSafeTimeout } from '$lib/safeTimeout';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
 
 	let {
 		title = '',
 		sheetId = 'sheet',
-		showHandle = true,
 		ondismiss,
 		header,
 		children
 	}: {
 		title?: string;
 		sheetId?: string;
-		showHandle?: boolean;
 		ondismiss: () => void;
 		header?: Snippet;
 		children: Snippet;
@@ -22,7 +22,7 @@
 
 	let visible = $state(false);
 	let closedViaBack = false;
-	let timers: ReturnType<typeof setTimeout>[] = [];
+	const { safeTimeout, clearAll } = createSafeTimeout();
 
 	let dragZoneEl: HTMLElement | null = $state(null);
 	let dragY = $state(0);
@@ -77,12 +77,6 @@
 		closedViaBack = true;
 	});
 
-	function safeTimeout(fn: () => void, ms: number) {
-		const id = setTimeout(fn, ms);
-		timers.push(id);
-		return id;
-	}
-
 	// Animate in, lock scroll, manage history
 	$effect(() => {
 		openSheet();
@@ -111,7 +105,7 @@
 		safeTimeout(ondismiss, 300);
 	}
 
-	onDestroy(() => timers.forEach(clearTimeout));
+	onDestroy(clearAll);
 </script>
 
 <div class="base-overlay" class:visible onclick={dismiss} role="presentation"></div>
@@ -131,25 +125,14 @@
 		onpointercancel={endDrag}
 		role="presentation"
 	>
-		{#if showHandle}
-			<div
-				class="base-handle-bar"
-				onclick={dismiss}
-				onkeydown={(e) => {
-					if (e.key === 'Enter' || e.key === ' ') dismiss();
-				}}
-				role="button"
-				tabindex="-1"
-			>
-				<div class="base-handle"></div>
-			</div>
-		{/if}
-
 		{#if header}
 			{@render header()}
 		{:else if title}
 			<div class="base-header">
 				<span class="base-title">{title}</span>
+				<button class="base-close-btn" onclick={dismiss} aria-label="Close">
+					<XIcon size={18} />
+				</button>
 			</div>
 		{/if}
 	</div>
@@ -194,27 +177,36 @@
 		touch-action: none;
 	}
 
-	.base-handle-bar {
-		display: flex;
-		justify-content: center;
-		padding: var(--space-md);
-		cursor: pointer;
-	}
-	.base-handle {
-		width: 36px;
-		height: 4px;
-		background: var(--bg-subtle);
-		border-radius: 2px;
-	}
-
 	.base-header {
-		padding: 0 var(--space-lg) var(--space-md);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: var(--space-md) var(--space-lg);
 		border-bottom: 1px solid var(--border);
+		position: relative;
 	}
 	.base-title {
 		font-family: var(--font-display);
 		font-size: 0.9375rem;
-		font-weight: 600;
+		font-weight: 500;
 		color: var(--text-primary);
+	}
+	.base-close-btn {
+		position: absolute;
+		right: var(--space-lg);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		border-radius: var(--radius-full);
+		background: var(--bg-surface);
+		border: none;
+		color: var(--text-secondary);
+		cursor: pointer;
+		transition: background 0.2s ease;
+	}
+	.base-close-btn:active {
+		background: var(--bg-subtle);
 	}
 </style>

@@ -225,10 +225,6 @@
 		if (ok && clip) clip = { ...clip, status: 'downloading' };
 	}
 
-	function handleCaptionEdit(id: string, newCaption: string) {
-		if (clip) clip = { ...clip, title: newCaption };
-	}
-
 	function handleDelete() {
 		handleDismiss();
 	}
@@ -274,7 +270,6 @@
 				index={0}
 				{autoScroll}
 				{gifEnabled}
-				canEditCaption={clip.addedBy === currentUserId && !clip.seenByOthers}
 				seenByOthers={clip.seenByOthers}
 				hideViewBadge={true}
 				onwatched={handleWatched}
@@ -282,7 +277,6 @@
 				onreaction={handleReaction}
 				onretry={handleRetry}
 				onended={() => {}}
-				oncaptionedit={handleCaptionEdit}
 				ondelete={handleDelete}
 			/>
 		</div>
