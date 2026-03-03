@@ -49,6 +49,7 @@
 	const {
 		clip,
 		currentUserId,
+		isHost = false,
 		active,
 		index,
 		autoScroll,
@@ -65,6 +66,7 @@
 	}: {
 		clip: FeedClip;
 		currentUserId: string;
+		isHost?: boolean;
 		active: boolean;
 		index: number;
 		autoScroll: boolean;
@@ -110,6 +112,9 @@
 	);
 	let extraCommentCount = $state(0);
 	const localCommentCount = $derived(clip.commentCount + extraCommentCount);
+	let captionOverride = $state<string | null | undefined>(undefined);
+	const localCaption = $derived(captionOverride !== undefined ? captionOverride : clip.title);
+	let captionExpanded = $state(false);
 	const isOwn = $derived(clip.addedBy === currentUserId);
 	const reactedEmoji = $derived(
 		Object.entries(clip.reactions).find(([, v]) => v.reacted)?.[0] ?? null
@@ -174,6 +179,7 @@
 		if (!active) {
 			// Reel is no longer visible — cancel everything
 			pendingAutoScroll = false;
+			captionExpanded = false;
 			if (postEngagementTimer) {
 				clearTimeout(postEngagementTimer);
 				postEngagementTimer = null;
@@ -199,20 +205,6 @@
 		}
 	});
 
-	function checkPillOverlap() {
-		if (!pillEl) return;
-		const filterBar = document.querySelector('.filter-tabs');
-		if (!filterBar) return;
-		const pillRect = pillEl.getBoundingClientRect();
-		const barRect = filterBar.getBoundingClientRect();
-		const overlaps =
-			pillRect.right > barRect.left &&
-			pillRect.left < barRect.right &&
-			pillRect.bottom > barRect.top &&
-			pillRect.top < barRect.bottom;
-		filterBarDimmed.set(overlaps);
-	}
-
 	// Contributor pill: expand when a different contributor's clip becomes active
 	$effect(() => {
 		if (!active) {
@@ -229,8 +221,7 @@
 			lastActiveContributor = contributor;
 			pillTimer = setTimeout(() => {
 				pillExpanded = true;
-				// Check overlap after transition completes
-				setTimeout(checkPillOverlap, 1050);
+				filterBarDimmed.set(true);
 				pillTimer = setTimeout(() => {
 					pillExpanded = false;
 					filterBarDimmed.set(false);
@@ -525,6 +516,7 @@
 					pillTimer = null;
 				}
 				pillExpanded = !pillExpanded;
+				filterBarDimmed.set(pillExpanded);
 			}}
 		/>
 	</div>
@@ -588,14 +580,31 @@
 		/>
 	{/if}
 
+	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+	<div
+		class="caption-backdrop"
+		class:visible={captionExpanded}
+		onclick={() => (captionExpanded = false)}
+		onpointerdown={(e) => e.stopPropagation()}
+		ontouchstart={(e) => e.stopPropagation()}
+		ontouchmove={(e) => e.stopPropagation()}
+		ontouchend={(e) => e.stopPropagation()}
+	></div>
+
 	<ReelOverlay
 		platform={clip.platform}
 		creatorName={clip.creatorName}
 		creatorUrl={clip.creatorUrl}
 		contentType={clip.contentType}
-		caption={clip.title}
-		canDelete={clip.addedBy === currentUserId && !seenByOthers}
+		caption={localCaption}
+		canDelete={isHost || (clip.addedBy === currentUserId && !seenByOthers)}
+		canRefetch={isHost}
+		canEditCaption={isHost}
 		clipId={clip.id}
+		bind:expanded={captionExpanded}
+		oncaptionedit={(_, newCaption) => {
+			captionOverride = newCaption;
+		}}
 		{ondelete}
 		{uiHidden}
 	/>
@@ -699,13 +708,13 @@
 	}
 	.top-left-row {
 		position: absolute;
-		top: max(var(--space-md), env(safe-area-inset-top));
+		top: calc(max(var(--space-md), env(safe-area-inset-top)) - 1px);
 		left: var(--space-lg);
 		z-index: 6;
 		display: flex;
 		align-items: center;
 		gap: var(--space-sm);
-		min-height: 40px;
+		height: 34px;
 		transition: opacity 0.3s ease;
 	}
 	.top-left-row.ui-hidden {
@@ -714,17 +723,30 @@
 	}
 	.top-right-row {
 		position: absolute;
-		top: max(var(--space-md), env(safe-area-inset-top));
+		top: calc(max(var(--space-md), env(safe-area-inset-top)) - 1px);
 		right: calc(var(--space-sm) + 44px);
 		z-index: 6;
 		display: flex;
 		align-items: center;
-		min-height: 44px;
+		height: 34px;
 		transition: opacity 0.3s ease;
 	}
 	.top-right-row.ui-hidden {
 		opacity: 0;
 		pointer-events: none;
+	}
+	.caption-backdrop {
+		position: absolute;
+		inset: 0;
+		z-index: 11;
+		background: rgba(0, 0, 0, 0.5);
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity 0.3s ease;
+	}
+	.caption-backdrop.visible {
+		opacity: 1;
+		pointer-events: auto;
 	}
 	.bottom-row {
 		position: absolute;

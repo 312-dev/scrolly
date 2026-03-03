@@ -106,6 +106,7 @@
 	}
 	const pullY = $derived(computePullY(pullDistance, isRefreshing));
 	const currentUserId = $derived(page.data.user?.id ?? '');
+	const isHost = $derived(page.data.group?.createdBy === page.data.user?.id);
 	const autoScroll = $derived(page.data.user?.autoScroll ?? false);
 	const gifEnabled = $derived(!!page.data.gifEnabled);
 	const vapidPublicKey = $derived(page.data.vapidPublicKey as string);
@@ -406,11 +407,13 @@
 		el.addEventListener('pointermove', onPointerMove);
 		el.addEventListener('pointerup', onPointerUp);
 		el.addEventListener('pointercancel', onPointerUp);
+		el.addEventListener('pointerleave', onPointerUp);
 		return () => {
 			el.removeEventListener('pointerdown', onPointerDown);
 			el.removeEventListener('pointermove', onPointerMove);
 			el.removeEventListener('pointerup', onPointerUp);
 			el.removeEventListener('pointercancel', onPointerUp);
+			el.removeEventListener('pointerleave', onPointerUp);
 		};
 	});
 
@@ -715,7 +718,7 @@
 </script>
 
 <svelte:head>
-	<title>scrolly</title>
+	<title>{page.data.group?.name ?? 'scrolly'} · scrolly</title>
 </svelte:head>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -793,6 +796,7 @@
 							<ReelItem
 								{clip}
 								{currentUserId}
+								{isHost}
 								active={i === activeIndex && !overlayActive}
 								index={i}
 								{autoScroll}
@@ -875,6 +879,7 @@
 	<ClipOverlay
 		clipId={overlayClipId}
 		{currentUserId}
+		{isHost}
 		{autoScroll}
 		{gifEnabled}
 		openComments={overlayOpenComments}

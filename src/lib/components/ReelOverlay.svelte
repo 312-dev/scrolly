@@ -2,16 +2,23 @@
 	import PlatformIcon from './PlatformIcon.svelte';
 	import ReelOverlayActions from './ReelOverlayActions.svelte';
 	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
+	import ArrowsClockwiseIcon from 'phosphor-svelte/lib/ArrowsClockwiseIcon';
+	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
+	import { toast } from '$lib/stores/toasts';
 
-	const {
+	let {
 		platform,
 		creatorName = null,
 		creatorUrl = null,
 		contentType = 'video',
 		caption,
 		canDelete = false,
+		canRefetch = false,
+		canEditCaption = false,
 		clipId = '',
 		uiHidden = false,
+		expanded = $bindable(false),
+		oncaptionedit,
 		ondelete
 	}: {
 		platform: string;
@@ -20,13 +27,36 @@
 		contentType?: string;
 		caption: string | null;
 		canDelete?: boolean;
+		canRefetch?: boolean;
+		canEditCaption?: boolean;
 		clipId?: string;
 		uiHidden?: boolean;
+		expanded?: boolean;
+		oncaptionedit?: (clipId: string, newCaption: string | null) => void;
 		ondelete?: (clipId: string) => void;
 	} = $props();
-
-	let expanded = $state(false);
 	let confirmingDelete = $state(false);
+	let editing = $state(false);
+	let refetching = $state(false);
+
+	async function handleRefetch() {
+		if (refetching) return;
+		refetching = true;
+		try {
+			const res = await fetch(`/api/clips/${clipId}/refetch`, { method: 'POST' });
+			if (res.ok) {
+				toast.success('Caption refreshed');
+				// Reload the page to show updated caption
+				window.location.reload();
+			} else {
+				const data = await res.json().catch(() => null);
+				toast.error(data?.error ?? 'Failed to refresh caption');
+			}
+		} catch {
+			toast.error('Failed to refresh caption');
+		}
+		refetching = false;
+	}
 </script>
 
 <!-- eslint-disable svelte/no-navigation-without-resolve -- external creator URL -->
@@ -34,6 +64,7 @@
 <div
 	class="reel-overlay"
 	class:ui-hidden={uiHidden}
+	class:caption-expanded={expanded}
 	onpointerdown={(e) => e.stopPropagation()}
 	ontouchstart={(e) => e.stopPropagation()}
 	ontouchmove={(e) => e.stopPropagation()}
@@ -56,20 +87,42 @@
 				{/if}
 				<span class="platform-badge"><PlatformIcon {platform} size={12} /></span>
 			{/if}
-			{#if canDelete && !confirmingDelete}
+			{#if (canDelete || canRefetch || canEditCaption) && !confirmingDelete && !editing}
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<span
 					class="host-actions-inline"
 					onclick={(e) => e.stopPropagation()}
 					onkeydown={(e) => e.stopPropagation()}
 				>
-					<button
-						class="host-icon-btn delete"
-						onclick={() => (confirmingDelete = true)}
-						aria-label="Delete clip"
-					>
-						<TrashIcon size={13} />
-					</button>
+					{#if canEditCaption}
+						<button
+							class="host-icon-btn"
+							onclick={() => (editing = true)}
+							aria-label="Edit caption"
+						>
+							<PencilSimpleIcon size={13} />
+						</button>
+					{/if}
+					{#if canRefetch}
+						<button
+							class="host-icon-btn"
+							class:refetching
+							onclick={handleRefetch}
+							disabled={refetching}
+							aria-label="Refresh caption"
+						>
+							<ArrowsClockwiseIcon size={13} />
+						</button>
+					{/if}
+					{#if canDelete}
+						<button
+							class="host-icon-btn delete"
+							onclick={() => (confirmingDelete = true)}
+							aria-label="Delete clip"
+						>
+							<TrashIcon size={13} />
+						</button>
+					{/if}
 				</span>
 			{/if}
 		</div>
@@ -78,9 +131,12 @@
 			{clipId}
 			{caption}
 			{canDelete}
+			{canEditCaption}
 			{expanded}
 			onexpandtoggle={() => (expanded = !expanded)}
+			{oncaptionedit}
 			{ondelete}
+			bind:editing
 			bind:confirmingDelete
 		/>
 	</div>
@@ -98,6 +154,9 @@
 	.reel-overlay.ui-hidden {
 		opacity: 0;
 		pointer-events: none;
+	}
+	.reel-overlay.caption-expanded {
+		z-index: 12;
 	}
 	.overlay-content {
 		margin-right: 64px;
@@ -163,5 +222,18 @@
 	}
 	.host-icon-btn.delete:active {
 		color: var(--error);
+	}
+	.host-icon-btn.refetching {
+		animation: spin 0.8s linear infinite;
+		opacity: 0.6;
+		pointer-events: none;
+	}
+	@keyframes spin {
+		from {
+			transform: rotate(0deg);
+		}
+		to {
+			transform: rotate(360deg);
+		}
 	}
 </style>

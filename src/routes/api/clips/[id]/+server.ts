@@ -12,7 +12,13 @@ import {
 	notifications
 } from '$lib/server/db/schema';
 import { eq, and, ne, count, inArray } from 'drizzle-orm';
-import { withClipAuth, mapUsersByIds, groupReactions } from '$lib/server/api-utils';
+import {
+	withClipAuth,
+	mapUsersByIds,
+	groupReactions,
+	parseBody,
+	isResponse
+} from '$lib/server/api-utils';
 import { cleanupClipFiles } from '$lib/server/download-utils';
 
 export const GET: RequestHandler = withClipAuth(async ({ params }, { user, clip }) => {
@@ -91,18 +97,39 @@ export const GET: RequestHandler = withClipAuth(async ({ params }, { user, clip 
 	});
 });
 
-export const DELETE: RequestHandler = withClipAuth(async ({ params }, { user, clip }) => {
-	if (clip.addedBy !== user.id)
-		return json({ error: 'Only the uploader can delete' }, { status: 403 });
+export const PATCH: RequestHandler = withClipAuth(async ({ params, request }, { user, group }) => {
+	// Only the host can edit captions
+	if (group.createdBy !== user.id) {
+		return json({ error: 'Only the host can edit captions' }, { status: 403 });
+	}
 
-	// Only allow deletion if no one else has watched
-	const [watchResult] = await db
-		.select({ count: count() })
-		.from(watched)
-		.where(and(eq(watched.clipId, params.id), ne(watched.userId, clip.addedBy)));
+	const body = await parseBody<{ title?: string }>(request);
+	if (isResponse(body)) return body;
 
-	if (watchResult.count > 0) {
-		return json({ error: 'Clip can no longer be deleted' }, { status: 403 });
+	const title = typeof body.title === 'string' ? body.title.trim().slice(0, 500) || null : null;
+
+	await db.update(clips).set({ title }).where(eq(clips.id, params.id));
+
+	return json({ title });
+});
+
+export const DELETE: RequestHandler = withClipAuth(async ({ params }, { user, group, clip }) => {
+	const isHost = group.createdBy === user.id;
+
+	if (!isHost && clip.addedBy !== user.id) {
+		return json({ error: 'Only the uploader or host can delete' }, { status: 403 });
+	}
+
+	// Non-host uploaders can only delete if no one else has watched
+	if (!isHost) {
+		const [watchResult] = await db
+			.select({ count: count() })
+			.from(watched)
+			.where(and(eq(watched.clipId, params.id), ne(watched.userId, clip.addedBy)));
+
+		if (watchResult.count > 0) {
+			return json({ error: 'Clip can no longer be deleted' }, { status: 403 });
+		}
 	}
 
 	// Fetch comment IDs before the transaction so we can cascade to comment_hearts
