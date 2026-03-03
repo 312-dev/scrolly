@@ -153,9 +153,11 @@ scrolly/
 │   │   ├── api/                     # REST API (see docs/api.md)
 │   │   │   ├── auth/
 │   │   │   ├── clips/
+│   │   │   │   └── [id]/refetch/+server.ts  # Host-only metadata refetch
 │   │   │   ├── gifs/
 │   │   │   ├── group/
 │   │   │   ├── notifications/
+│   │   │   │   └── [id]/+server.ts          # Delete single notification
 │   │   │   ├── profile/
 │   │   │   ├── push/
 │   │   │   ├── videos/

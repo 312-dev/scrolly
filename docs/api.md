@@ -100,10 +100,10 @@ Response: { id, originalUrl, videoPath, audioPath, thumbnailPath, title, artist,
 Request:  { "title": "new caption" }
 Response: { "title": "new caption" }
 ```
-Only allowed by the uploader, and only if no one else has watched the clip.
+Host-only. Only the group host can edit clip captions.
 
 ### DELETE /api/clips/[id]
-Only allowed by the uploader, and only if no one else has watched the clip.
+Host can delete any clip. Non-host uploaders can only delete their own clips if no one else has watched them.
 
 ### GET /api/clips/unwatched-count
 ```
@@ -126,6 +126,7 @@ Response: { "count": 5 }
 | GET | `/api/clips/[id]/reactions` | List reactions |
 | POST | `/api/clips/[id]/reactions` | Toggle a reaction |
 | POST | `/api/clips/[id]/retry` | Retry failed download |
+| POST | `/api/clips/[id]/refetch` | Refetch metadata from source |
 
 ### POST /api/clips/[id]/watched
 ```
@@ -174,6 +175,12 @@ Allowed emojis: ❤️ 👍 👎 😂 ‼️ ❓
 Retries a failed download. Only available for clips with `status: 'failed'`.
 ```
 Response: { "status": "downloading" }
+```
+
+### POST /api/clips/[id]/refetch
+Host-only. Refetches metadata (title, creator info) from the source URL via yt-dlp.
+```
+Response: { "title": "...", "creatorName": "...", "creatorUrl": "..." }
 ```
 
 ## Group Management
@@ -305,6 +312,7 @@ Response: { "clipCount": 42, "memberCount": 8, "storageMb": 1200, "maxStorageMb"
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/notifications` | Paginated notification feed |
+| DELETE | `/api/notifications/[id]` | Delete a single notification |
 | POST | `/api/notifications/mark-read` | Mark notifications as read |
 | GET | `/api/notifications/unread-count` | Unread notification count |
 | GET | `/api/notifications/preferences` | Fetch notification preferences |
@@ -313,7 +321,13 @@ Response: { "clipCount": 42, "memberCount": 8, "storageMb": 1200, "maxStorageMb"
 ### GET /api/notifications
 ```
 Query params: ?limit=30&offset=0
-Response: { "notifications": [{ "id", "type", "clipId", "emoji", "commentPreview", "actorUsername", "actorAvatar", "clipThumbnail", "clipTitle", "read", "createdAt" }] }
+Response: { "notifications": [{ "id", "type", "clipId", "emoji", "commentPreview", "actorUsername", "actorAvatar", "clipThumbnail", "clipTitle", "clipContentType", "read", "createdAt" }] }
+```
+
+### DELETE /api/notifications/[id]
+Deletes a single notification by ID for the current user.
+```
+Response: { "ok": true }
 ```
 
 ### POST /api/notifications/mark-read
