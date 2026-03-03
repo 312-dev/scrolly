@@ -1,6 +1,7 @@
 <script lang="ts">
 	import PlatformIcon from '$lib/components/PlatformIcon.svelte';
 	import { formatSize, formatDate } from '$lib/clipsManager';
+	import { basename } from '$lib/utils';
 	import type { ClipSummary } from '$lib/types';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
@@ -29,7 +30,7 @@
 
 	<div class="clip-thumb">
 		{#if clip.thumbnailPath}
-			<img src="/api/thumbnails/{clip.thumbnailPath.split('/').pop()}" alt="" />
+			<img src="/api/thumbnails/{basename(clip.thumbnailPath)}" alt="" />
 		{:else}
 			<div class="clip-thumb-placeholder">
 				<PlatformIcon platform={clip.platform} size={16} />

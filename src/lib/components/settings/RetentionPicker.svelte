@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { toast } from '$lib/stores/toasts';
+
 	const { currentRetention }: { currentRetention: number | null } = $props();
 
 	let retentionOverride = $state<string | null>(null);
@@ -24,16 +26,24 @@
 
 	async function handleChange(e: Event) {
 		const value = (e.target as HTMLSelectElement).value;
+		const previousValue = retention;
 		retentionOverride = value;
 		saving = true;
 
 		try {
 			const retentionDays = value === 'forever' ? null : parseInt(value);
-			await fetch('/api/group/retention', {
+			const res = await fetch('/api/group/retention', {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ retentionDays })
 			});
+			if (!res.ok) {
+				retentionOverride = previousValue;
+				toast.error('Failed to update retention policy');
+			}
+		} catch {
+			retentionOverride = previousValue;
+			toast.error('Failed to update retention policy');
 		} finally {
 			saving = false;
 		}
@@ -41,11 +51,25 @@
 </script>
 
 <div class="retention-picker">
-	<select value={retention} onchange={handleChange} disabled={saving}>
-		{#each options as opt (opt.value)}
-			<option value={opt.value}>{opt.label}</option>
-		{/each}
-	</select>
+	<div class="select-wrapper">
+		<select value={retention} onchange={handleChange} disabled={saving}>
+			{#each options as opt (opt.value)}
+				<option value={opt.value}>{opt.label}</option>
+			{/each}
+		</select>
+		<svg
+			class="select-chevron"
+			xmlns="http://www.w3.org/2000/svg"
+			width="16"
+			height="16"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="2"
+			stroke-linecap="round"
+			stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg
+		>
+	</div>
 	<p class="desc">{description}</p>
 </div>
 
@@ -54,6 +78,10 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-sm);
+	}
+
+	.select-wrapper {
+		position: relative;
 	}
 
 	select {
@@ -68,10 +96,16 @@
 		cursor: pointer;
 		transition: border-color 0.2s ease;
 		appearance: none;
-		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-		background-repeat: no-repeat;
-		background-position: right var(--space-md) center;
 		padding-right: 2.5rem;
+	}
+
+	.select-chevron {
+		position: absolute;
+		right: var(--space-md);
+		top: 50%;
+		transform: translateY(-50%);
+		color: var(--text-secondary);
+		pointer-events: none;
 	}
 
 	select:focus {

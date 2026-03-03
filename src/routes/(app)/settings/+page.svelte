@@ -40,6 +40,8 @@
 	import GettingStartedChecklist from '$lib/components/settings/GettingStartedChecklist.svelte';
 	import UsernameEdit from '$lib/components/settings/UsernameEdit.svelte';
 	import AvatarCropModal from '$lib/components/AvatarCropModal.svelte';
+	import Toggle from '$lib/components/settings/Toggle.svelte';
+	import SettingRow from '$lib/components/settings/SettingRow.svelte';
 	import ShortcutGuideSheet from '$lib/components/ShortcutGuideSheet.svelte';
 	import AppleLogoIcon from 'phosphor-svelte/lib/AppleLogoIcon';
 	import AndroidLogoIcon from 'phosphor-svelte/lib/AndroidLogoIcon';
@@ -190,6 +192,14 @@
 	}
 
 	const checklistMemberCount = $derived($groupMembers.length);
+	const parsedPlatformFilterList = $derived.by(() => {
+		if (!group?.platformFilterList) return null;
+		try {
+			return JSON.parse(group.platformFilterList);
+		} catch {
+			return null;
+		}
+	});
 
 	function scrollToSection(sectionId: string) {
 		const el = document.getElementById(sectionId);
@@ -274,45 +284,27 @@
 			<div class="settings-section">
 				<h3 class="section-title">Playback</h3>
 				<div class="card">
-					<div class="setting-row">
-						<div class="setting-label">
-							<span class="setting-name">Start muted</span>
-							<span class="setting-desc">Mute videos and songs by default</span>
-						</div>
-						<button
-							class="toggle"
-							class:active={mutedByDefault}
+					<SettingRow name="Start muted" description="Mute videos and songs by default">
+						<Toggle
+							active={mutedByDefault}
 							onclick={toggleMutedByDefault}
-							aria-label="Toggle start muted"
-						>
-							<span class="toggle-thumb"></span>
-						</button>
-					</div>
-					<div class="setting-row">
-						<div class="setting-label">
-							<span class="setting-name">Auto-scroll</span>
-							<span class="setting-desc">Advance to next clip when current one ends</span>
-						</div>
-						<button
-							class="toggle"
-							class:active={autoScroll}
-							onclick={toggleAutoScroll}
-							aria-label="Toggle auto-scroll"
-						>
-							<span class="toggle-thumb"></span>
-						</button>
-					</div>
+							label="Toggle start muted"
+						/>
+					</SettingRow>
+					<SettingRow
+						name="Auto-scroll"
+						description="Advance to next clip when current one ends"
+						last
+					>
+						<Toggle active={autoScroll} onclick={toggleAutoScroll} label="Toggle auto-scroll" />
+					</SettingRow>
 				</div>
 			</div>
 
 			<div class="settings-section">
 				<h3 class="section-title">Feed Order</h3>
 				<div class="card">
-					<div class="setting-row">
-						<div class="setting-label">
-							<span class="setting-desc">Choose how clips are sorted in your feed</span>
-						</div>
-					</div>
+					<SettingRow description="Choose how clips are sorted in your feed" />
 					<div class="theme-toggle feed-sort-toggle">
 						<div class="theme-bg" style="transform: translateX({feedSortIndex * 100}%)"></div>
 						<button
@@ -397,7 +389,7 @@
 			<div class="settings-section" id="section-members">
 				<h3 class="section-title">Members</h3>
 				<div class="card">
-					<MemberList groupId={group.id} hostId={group.createdBy} currentUserId={user.id} />
+					<MemberList hostId={group.createdBy} currentUserId={user.id} />
 				</div>
 			</div>
 			<div class="settings-section">
@@ -414,9 +406,7 @@
 				<div class="card">
 					<PlatformFilter
 						currentMode={group.platformFilterMode}
-						currentPlatforms={group.platformFilterList
-							? JSON.parse(group.platformFilterList)
-							: null}
+						currentPlatforms={parsedPlatformFilterList}
 					/>
 				</div>
 			</div>
@@ -687,42 +677,6 @@
 		color: var(--bg-primary);
 	}
 
-	.setting-row {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: var(--space-md);
-		padding: var(--space-sm) 0;
-		border-bottom: 1px solid var(--bg-surface);
-	}
-
-	.setting-row:first-child {
-		padding-top: 0;
-	}
-
-	.setting-row:last-child {
-		border-bottom: none;
-		padding-bottom: 0;
-	}
-
-	.setting-label {
-		display: flex;
-		flex-direction: column;
-		gap: 1px;
-		min-width: 0;
-	}
-
-	.setting-name {
-		font-size: 0.875rem;
-		font-weight: 500;
-		color: var(--text-primary);
-	}
-
-	.setting-desc {
-		font-size: 0.75rem;
-		color: var(--text-muted);
-	}
-
 	.share-cta {
 		display: flex;
 		align-items: center;
@@ -783,39 +737,6 @@
 		font-weight: 700;
 		padding: var(--space-sm) var(--space-lg);
 		border-radius: var(--radius-full);
-	}
-
-	.toggle {
-		position: relative;
-		width: 44px;
-		height: 26px;
-		border-radius: 13px;
-		border: none;
-		background: var(--border);
-		cursor: pointer;
-		flex-shrink: 0;
-		transition: background 0.2s;
-		padding: 0;
-	}
-
-	.toggle.active {
-		background: var(--accent-primary);
-	}
-
-	.toggle-thumb {
-		position: absolute;
-		top: 2px;
-		left: 2px;
-		width: 22px;
-		height: 22px;
-		border-radius: var(--radius-full);
-		background: var(--constant-white);
-		transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-	}
-
-	.toggle.active .toggle-thumb {
-		transform: translateX(18px);
 	}
 
 	.version-footer {
