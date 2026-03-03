@@ -34,22 +34,29 @@ Take all uncommitted and committed changes on the current branch and drive them 
 
 ## 4. Wait for Automated Release Pipeline
 
-After the PR merges to main, the rest is fully automated:
+After the PR merges to main:
 
-1. **Release workflow** runs → release-please creates/updates a release PR with auto-merge already enabled
+1. **Release workflow** runs → release-please creates/updates a release PR with auto-merge enabled
 2. **Release PR checks** run (release-pr-checks.yml) → posts commit statuses to satisfy branch protection
-3. **Release PR auto-merges** when checks pass → triggers a GitHub release with version tag
-4. **Docker publish** triggers automatically → builds and pushes the image
+3. **Release PR auto-merges** when checks pass
 
-Monitor the pipeline:
+Monitor up to this point:
 - `gh pr list --label "autorelease: pending"` — check for the release PR
 - `gh pr checks <release-pr-number> --watch` — watch release PR checks
-- `gh run list --workflow=docker-publish.yml --limit 1` — check Docker build status
+
+**Important: GITHUB_TOKEN limitation.** When the release PR auto-merges, the push to main does NOT trigger the Release workflow (GitHub prevents GITHUB_TOKEN pushes from triggering workflows). You must manually dispatch it:
+```
+gh workflow run Release
+```
+This triggers release-please to detect the merged release PR and publish the GitHub release + version tag. Then docker-publish.yml fires automatically via workflow_run.
+
+Monitor the rest:
+- `gh run list --workflow=release.yml --limit 1` — confirm Release ran
+- `gh run list --workflow=docker-publish.yml --limit 1` — check Docker build
 
 If anything stalls for more than 5 minutes, investigate:
 - `gh run list` to see workflow status
 - `gh run view <id> --log-failed` for errors
-- Release PR checks may need a manual close/reopen to trigger if workflow_run didn't fire
 
 ## 5. Verify the Release
 
