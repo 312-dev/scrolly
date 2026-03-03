@@ -27,18 +27,20 @@
 	let reelContainer: HTMLDivElement | null = $state(null);
 	let showViewers = $state(false);
 
-	// History management — push a state entry when the reel opens so the
-	// Android back gesture (and browser back button) closes it instead of
-	// navigating away from the favorites page entirely.
+	// Push a history entry when reel opens so back gesture closes it, not navigates away.
 	let reelClosedViaBack = false;
 	let reelDismissed = false;
 
 	function onReelPopState() {
-		reelClosedViaBack = true;
-		closeReel();
+		// Defer so page.state is updated before we inspect it. If favReel is still
+		// set, a sheet on top closed — don't dismiss the reel. If gone, close it.
+		setTimeout(() => {
+			if (page.state.favReel || viewMode !== 'reel') return;
+			reelClosedViaBack = true;
+			closeReel();
+		}, 0);
 	}
 
-	// Close viewers sheet when scrolling to a different clip
 	$effect(() => {
 		// eslint-disable-next-line sonarjs/void-use -- read activeIndex to re-run on scroll
 		void activeIndex;
@@ -46,7 +48,6 @@
 	});
 
 	const currentUserId = $derived(page.data.user?.id ?? '');
-	const autoScroll = $derived(page.data.user?.autoScroll ?? false);
 	const gifEnabled = $derived(!!page.data.gifEnabled);
 	const renderWindow = 2;
 
@@ -138,7 +139,6 @@
 		if (slot) slot.scrollIntoView({ behavior: 'smooth' });
 	}
 
-	// IntersectionObserver to track active clip in reel mode
 	$effect(() => {
 		if (viewMode !== 'reel' || !reelContainer) return;
 		// eslint-disable-next-line sonarjs/void-use -- re-run when clips change
@@ -234,7 +234,7 @@
 							{currentUserId}
 							active={i === activeIndex}
 							index={i}
-							{autoScroll}
+							autoScroll={false}
 							{gifEnabled}
 							canEditCaption={clip.addedBy === currentUserId}
 							seenByOthers={clip.seenByOthers}
