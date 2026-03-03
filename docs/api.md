@@ -73,7 +73,7 @@ Response: { "clips": [...], "hasMore": true }
 ```
 Only returns clips with `status: 'ready'`. Default sort is `oldest` (chronological). `round-robin` interleaves clips across members so no single poster dominates the feed. The `watched` filter sorts by most-recently-watched instead.
 
-Each clip includes: id, originalUrl, title, addedByUsername, addedByAvatar, status, durationSeconds, platform, contentType, createdAt, watched, favorited, reactions, commentCount, unreadCommentCount, viewCount, seenByOthers.
+Each clip includes: id, originalUrl, title, addedByUsername, addedByAvatar, status, durationSeconds, platform, contentType, creatorName, creatorUrl, createdAt, watched, favorited, reactions, commentCount, unreadCommentCount, viewCount, seenByOthers.
 
 ### POST /api/clips
 ```
@@ -92,7 +92,7 @@ Response: { "ok": true, "clipId": "...", "status": "downloading" }   (201 Create
 ### GET /api/clips/[id]
 Returns full clip detail with user context, interaction state, and metadata.
 ```
-Response: { id, originalUrl, videoPath, audioPath, thumbnailPath, title, artist, albumArt, spotifyUrl, appleMusicUrl, youtubeMusicUrl, addedBy, addedByUsername, addedByAvatar, platform, status, contentType, durationSeconds, watched, favorited, reactions, commentCount, unreadCommentCount, viewCount, seenByOthers, createdAt, canEditCaption }
+Response: { id, originalUrl, videoPath, audioPath, thumbnailPath, title, artist, albumArt, spotifyUrl, appleMusicUrl, youtubeMusicUrl, addedBy, addedByUsername, addedByAvatar, platform, status, contentType, durationSeconds, creatorName, creatorUrl, watched, favorited, reactions, commentCount, unreadCommentCount, viewCount, seenByOthers, createdAt, canEditCaption }
 ```
 
 ### PATCH /api/clips/[id]
@@ -134,7 +134,7 @@ Response: { "watched": true }
 ```
 
 ### POST /api/clips/[id]/favorite
-Toggles favorite on/off.
+Toggles favorite on/off. Also syncs with reactions: favoriting creates a ❤️ reaction (with notification), unfavoriting removes the paired ❤️ reaction and its notification.
 ```
 Response: { "favorited": true }
 ```

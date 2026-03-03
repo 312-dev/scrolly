@@ -61,6 +61,8 @@ SQLite database via Drizzle ORM. All IDs are UUIDs stored as text. Timestamps ar
 | apple_music_url | text | Nullable. Cross-platform Apple Music link (music clips). |
 | youtube_music_url | text | Nullable. Cross-platform YouTube Music link (music clips). |
 | file_size_bytes | integer | Nullable. File size for storage tracking. |
+| creator_name | text | Nullable. Original content creator name (from yt-dlp metadata). |
+| creator_url | text | Nullable. Original content creator profile URL. |
 | created_at | integer | Unix timestamp |
 
 Unique index on `(group_id, original_url)` — prevents duplicate URLs within a group.
