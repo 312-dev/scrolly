@@ -15,7 +15,6 @@
 	import ExportIcon from 'phosphor-svelte/lib/ExportIcon';
 
 	const shareUrl = $derived($page.data.shareUrl as string);
-	const fromShortcut = $derived($page.data.fromShortcut as boolean);
 	const platform = $derived(platformLabel(shareUrl));
 	const isValid = $derived(isSupportedUrl(shareUrl));
 	const detectedPlatform = $derived(shareUrl ? detectPlatform(shareUrl) : null);
@@ -36,6 +35,14 @@
 	let success = $state(false);
 	let clipId = $state('');
 	let contentType = $state('');
+	let autoSubmitted = $state(false);
+
+	$effect(() => {
+		if (isValid && platformAllowed && !autoSubmitted) {
+			autoSubmitted = true;
+			handleSubmit();
+		}
+	});
 
 	async function handleSubmit() {
 		error = '';
@@ -105,30 +112,26 @@
 			<h1 class="share-title">Added!</h1>
 			<p class="share-desc">Your clip is downloading.</p>
 			<button class="btn-primary" onclick={openFeed}>Open Scrolly</button>
-		{:else}
+		{:else if loading}
 			<div class="icon-wrap">
 				<ExportIcon size={28} />
 			</div>
-			{#if fromShortcut}
-				<h1 class="share-title">Couldn't add automatically</h1>
-				<p class="share-desc">
-					The shortcut wasn't able to add this clip. Tap below to add it manually.
-				</p>
-			{:else}
-				<h1 class="share-title">Add to feed</h1>
-			{/if}
+			<h1 class="share-title">Adding to feed…</h1>
 			{#if platform}
 				<span class="platform-pill">{platform}</span>
 			{/if}
 			<p class="share-url">{shareUrl}</p>
-
-			{#if error}
-				<p class="share-error">{error}</p>
+		{:else if error}
+			<div class="icon-wrap err">
+				<XCircleIcon size={28} />
+			</div>
+			<h1 class="share-title">Couldn't add clip</h1>
+			<p class="share-error">{error}</p>
+			{#if platform}
+				<span class="platform-pill">{platform}</span>
 			{/if}
-
-			<button class="btn-primary" onclick={handleSubmit} disabled={loading}>
-				{loading ? 'Adding...' : 'Add to feed'}
-			</button>
+			<p class="share-url">{shareUrl}</p>
+			<button class="btn-primary" onclick={handleSubmit} disabled={loading}>Try again</button>
 			<a href={resolve('/')} class="btn-ghost">Cancel</a>
 		{/if}
 	</div>
@@ -175,7 +178,8 @@
 		animation: pop 0.3s cubic-bezier(0.32, 0.72, 0, 1);
 	}
 
-	.icon-wrap.error {
+	.icon-wrap.error,
+	.icon-wrap.err {
 		background: color-mix(in srgb, var(--error) 12%, transparent);
 		color: var(--error);
 	}
