@@ -3,12 +3,16 @@ name: Release
 on:
   push:
     branches: [main]
+  workflow_dispatch: {}
 
 # Note: release-please uses GITHUB_TOKEN, which can't trigger other workflows
-# (GitHub limitation). CI checks on release PRs are handled by
-# release-pr-checks.yml via workflow_run (fires when this workflow completes).
-# That workflow posts commit statuses to the PR head SHA so branch protection
-# sees the results. Docker publishing uses docker-publish.yml (also workflow_run).
+# (GitHub limitation). When the release PR auto-merges, the push to main does
+# NOT trigger this workflow. After the release PR merges, manually dispatch:
+#   gh workflow run Release
+# CI checks on release PRs are handled by release-pr-checks.yml via
+# workflow_run (fires when this workflow completes). That workflow posts commit
+# statuses to the PR head SHA so branch protection sees the results.
+# Docker publishing uses docker-publish.yml (also workflow_run).
 
 permissions: read-all
 
