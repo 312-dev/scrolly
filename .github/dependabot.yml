@@ -7,6 +7,8 @@ updates:
       day: monday
     open-pull-requests-limit: 10
     labels: [dependencies]
+    commit-message:
+      prefix: "chore(deps)"
     groups:
       minor-and-patch:
         update-types: [minor, patch]
@@ -18,3 +20,5 @@ updates:
       day: monday
     open-pull-requests-limit: 5
     labels: [dependencies, ci]
+    commit-message:
+      prefix: "ci(deps)"

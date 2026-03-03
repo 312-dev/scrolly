@@ -27,3 +27,12 @@ jobs:
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      - name: Auto-merge release PR
+        if: steps.rp.outputs.pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUM="${{ steps.rp.outputs.pr }}"
+          echo "Enabling auto-merge for release PR #$PR_NUM"
+          gh pr merge "$PR_NUM" --auto --squash --repo "${{ github.repository }}"

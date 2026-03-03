@@ -11,7 +11,8 @@ on:
     paths-ignore: ['docs/**', '*.md']
   pull_request:
     branches: [main]
-    paths-ignore: ['docs/**', '*.md']
+    # No paths-ignore: always trigger so the required "ci" check is posted.
+    # The changes job below skips heavy work for non-code PRs.
   workflow_dispatch:
 
 concurrency:
@@ -21,7 +22,30 @@ concurrency:
 permissions: read-all
 
 jobs:
+  changes:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            code:
+              - 'src/**'
+              - 'static/**'
+              - 'package*.json'
+              - '*.config.js'
+              - '*.config.ts'
+              - 'tsconfig.json'
+              - 'Dockerfile'
+
   lint-and-check:
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -41,7 +65,7 @@ jobs:
         run: npm ci
 
       - name: Validate commit messages
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
         run: npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
 
       - name: Lint (ratcheted)
@@ -70,10 +94,14 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     if: always()
-    needs: [lint-and-check]
+    needs: [changes, lint-and-check]
     steps:
       - name: Check CI status
         run: |
+          if [[ "${{ github.event_name }}" == "pull_request" && "${{ needs.changes.outputs.code }}" != "true" ]]; then
+            echo "No code changes detected, CI auto-passed"
+            exit 0
+          fi
           if [[ "${{ needs.lint-and-check.result }}" == "failure" || "${{ needs.lint-and-check.result }}" == "cancelled" ]]; then
             echo "CI failed"
             exit 1
