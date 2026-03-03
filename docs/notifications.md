@@ -5,16 +5,24 @@ Scrolly has two notification systems: an **in-app activity feed** and **web push
 ## In-App Activity Feed
 
 The in-app activity feed shows a chronological list of notifications via the `ActivitySheet` component. Users see:
+- New clips added by other group members
 - Reactions on their clips
 - Comments on their clips
 
-New clip notifications are **push-only** — they are not stored in the `notifications` database table. Reaction and comment notifications are stored in the `notifications` table with read/unread tracking. The bottom navigation shows an unread badge count.
+All notification types are stored in the `notifications` database table with read/unread tracking. The bottom navigation shows an unread badge count. Users can dismiss individual notifications via the `DELETE /api/notifications/[id]` endpoint.
+
+### Auto-Clear Behavior
+
+Certain user actions automatically delete related notifications to keep the activity feed clean:
+- **Watching a clip** deletes any `new_clip` notification for that clip
+- **Viewing comments** on a clip deletes `comment`, `reply`, and `mention` notifications for that clip
 
 ### API Endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/notifications` | Paginated notification feed |
+| DELETE | `/api/notifications/[id]` | Delete a single notification |
 | POST | `/api/notifications/mark-read` | Mark notifications as read (all or by clip/type) |
 | GET | `/api/notifications/unread-count` | Unread badge count |
 | GET | `/api/notifications/preferences` | Fetch notification preferences |
@@ -28,7 +36,7 @@ Real-time push notifications via the Web Push Protocol (VAPID).
 
 | Event | Who gets notified | When sent | Preference key |
 |-------|-------------------|-----------|----------------|
-| New clip added | All group members except poster (push only) | After download succeeds (`status: 'ready'`) | `newAdds` |
+| New clip added | All group members except poster (push + in-app) | After download succeeds (`status: 'ready'`) | `newAdds` |
 | Reaction on a clip | Clip owner only (push + in-app) | Immediately after reaction is persisted | `reactions` |
 | Comment on a clip | Clip owner only (push + in-app) | Immediately after comment is persisted | `comments` |
 | Daily reminder | Per-user opt-in | — | `dailyReminder` (not yet scheduled) |
@@ -98,6 +106,7 @@ VAPID_SUBJECT=mailto:you@example.com
 | Subscribe API | `src/routes/api/push/subscribe/+server.ts` | POST/DELETE push subscriptions |
 | Test API | `src/routes/api/push/test/+server.ts` | POST test notification to current user |
 | Notifications API | `src/routes/api/notifications/+server.ts` | GET notification feed |
+| Delete notification API | `src/routes/api/notifications/[id]/+server.ts` | DELETE single notification |
 | Mark-read API | `src/routes/api/notifications/mark-read/+server.ts` | POST mark as read |
 | Unread-count API | `src/routes/api/notifications/unread-count/+server.ts` | GET unread badge count |
 | Preferences API | `src/routes/api/notifications/preferences/+server.ts` | GET/PATCH preferences |
