@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.1](https://github.com/312-dev/scrolly/compare/scrolly-v1.13.0...scrolly-v1.13.1) (2026-03-03)
+
+
+### Documentation
+
+* update API, architecture, and notifications for v1.13.0 ([#58](https://github.com/312-dev/scrolly/issues/58)) ([aca3b69](https://github.com/312-dev/scrolly/commit/aca3b695ac99b0e7783560fd163a3d282dcf0417))
+
 ## [1.13.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.12.0...scrolly-v1.13.0) (2026-03-03)
 
 
