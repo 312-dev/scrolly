@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.10.2](https://github.com/312-dev/scrolly/compare/scrolly-v1.10.1...scrolly-v1.10.2) (2026-03-03)
+
+
+### Bug Fixes
+
+* share auto-submit, favorites reel back-button & auto-scroll ([#48](https://github.com/312-dev/scrolly/issues/48)) ([7efc60a](https://github.com/312-dev/scrolly/commit/7efc60a8de7429ee9df1a9f07f6391bc52205a1e))
+
+
+### Miscellaneous
+
+* **deps-dev:** bump the minor-and-patch group with 2 updates ([#47](https://github.com/312-dev/scrolly/issues/47)) ([91c2ad7](https://github.com/312-dev/scrolly/commit/91c2ad731f22fd7cab384ad14c427cede9768e44))
+
 ## [1.10.1](https://github.com/312-dev/scrolly/compare/scrolly-v1.10.0...scrolly-v1.10.1) (2026-03-02)
 
 
