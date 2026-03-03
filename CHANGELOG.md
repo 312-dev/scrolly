@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.10.2...scrolly-v1.11.0) (2026-03-03)
+
+
+### Features
+
+* reel layout, creator metadata, and UI polish ([#50](https://github.com/312-dev/scrolly/issues/50)) ([5bf5ffb](https://github.com/312-dev/scrolly/commit/5bf5ffb6fd3d6e6c5ee3e7d4a671e20bc04a8ce2))
+
 ## [1.10.2](https://github.com/312-dev/scrolly/compare/scrolly-v1.10.1...scrolly-v1.10.2) (2026-03-03)
 
 
