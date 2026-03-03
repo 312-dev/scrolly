@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.1](https://github.com/312-dev/scrolly/compare/scrolly-v1.14.0...scrolly-v1.14.1) (2026-03-03)
+
+
+### Bug Fixes
+
+* add workflow_dispatch to release workflow for GITHUB_TOKEN gap ([#62](https://github.com/312-dev/scrolly/issues/62)) ([5d52cef](https://github.com/312-dev/scrolly/commit/5d52ceff1d9ed6fb9ebe65d8954e196e2cad104a))
+
 ## [1.14.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.13.1...scrolly-v1.14.0) (2026-03-03)
 
 
