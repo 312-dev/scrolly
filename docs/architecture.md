@@ -116,6 +116,7 @@ scrolly/
 │   │   │   ├── InlineError.svelte
 │   │   │   ├── FilterBar.svelte     # Feed filter tabs
 │   │   │   ├── ShortcutGuideSheet.svelte # iOS Shortcut setup guide
+│   │   │   ├── ShortcutUpgradeBanner.svelte # Legacy shortcut upgrade prompt
 │   │   │   └── settings/
 │   │   │       ├── GroupNameEdit.svelte
 │   │   │       ├── InviteLink.svelte
@@ -141,7 +142,8 @@ scrolly/
 │   │   │   ├── sheetOpen.ts        # Global any-sheet-open state (blocks scroll/nav)
 │   │   │   ├── uiHidden.ts         # Feed UI hidden state (synced from active reel)
 │   │   │   ├── homeTap.ts          # Double-tap home to scroll to top
-│   │   │   └── shortcutNudge.ts    # Share shortcut install nudge
+│   │   │   ├── shortcutNudge.ts    # Share shortcut install nudge
+│   │   │   └── shortcutUpgrade.ts  # Shortcut upgrade banner state
 │   │   ├── types.ts                 # Shared TypeScript types (Clip, etc.)
 │   │   ├── push.ts                  # Client-side push subscription helpers
 │   │   ├── feed.ts                  # Feed data loading
