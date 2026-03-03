@@ -203,10 +203,13 @@
 		border: none;
 		font: inherit;
 		text-align: left;
-		font-size: 0.875rem;
+		font-size: 0.8rem;
 		color: var(--reel-text-bright);
 		text-shadow: 0 1px 4px var(--reel-text-shadow);
 		line-height: 1.4;
+		white-space: pre-wrap;
+		overflow-wrap: break-word;
+		word-break: break-word;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
 		line-clamp: 2;
@@ -220,6 +223,8 @@
 		line-clamp: unset;
 		display: block;
 		overflow: visible;
+		overflow-wrap: break-word;
+		word-break: break-word;
 		cursor: pointer;
 	}
 	.caption-edit {
@@ -233,7 +238,7 @@
 		border: 1px solid var(--reel-text-ghost);
 		border-radius: var(--radius-sm);
 		color: var(--reel-text-bright);
-		font-size: 0.875rem;
+		font-size: 0.8rem;
 		line-height: 1.4;
 		padding: var(--space-sm);
 		resize: none;
@@ -261,7 +266,7 @@
 	.host-action-btn {
 		background: none;
 		border: none;
-		font-size: 0.6875rem;
+		font-size: 0.625rem;
 		font-weight: 600;
 		color: var(--reel-text-faint);
 		cursor: pointer;
@@ -284,11 +289,11 @@
 	}
 	.host-action-dot {
 		color: var(--reel-text-disabled);
-		font-size: 0.6875rem;
+		font-size: 0.625rem;
 		user-select: none;
 	}
 	.confirm-label {
-		font-size: 0.6875rem;
+		font-size: 0.625rem;
 		font-weight: 500;
 		color: var(--reel-text-subtle);
 		text-shadow: 0 1px 3px var(--reel-text-shadow);

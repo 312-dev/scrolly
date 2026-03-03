@@ -114,7 +114,7 @@
 			class:ui-hidden={$feedUiHidden}
 			onclick={() => activitySheetOpen.set(true)}
 		>
-			<BellIcon size={22} />
+			<BellIcon size={20} />
 			{#if $unreadCount > 0}
 				<span class="notif-badge">{$unreadCount > 99 ? '99+' : $unreadCount}</span>
 			{/if}
@@ -189,14 +189,14 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 44px;
-		height: 34px;
+		width: 40px;
+		height: 32px;
 		border-radius: var(--radius-full);
 		color: var(--reel-text);
 		background: none;
 		border: none;
 		cursor: pointer;
-		filter: drop-shadow(0 1px 3px var(--reel-text-shadow));
+		filter: drop-shadow(0 1px 1px var(--reel-text-shadow));
 		transition: opacity 0.3s ease;
 	}
 
@@ -206,8 +206,8 @@
 	}
 
 	.feed-notif-btn :global(svg) {
-		width: 22px;
-		height: 22px;
+		width: 20px;
+		height: 20px;
 	}
 
 	.notif-badge {

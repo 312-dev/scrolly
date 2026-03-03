@@ -17,6 +17,12 @@
 	} = $props();
 </script>
 
+{#if paused && !showPlayIndicator}
+	<div class="paused-indicator icon">
+		<PlayIcon size={40} weight="fill" />
+	</div>
+{/if}
+
 {#if showMuteIndicator}
 	<div class="center-indicator icon">
 		{#if muted}
@@ -72,6 +78,43 @@
 	.center-indicator :global(svg) {
 		width: 24px;
 		height: 24px;
+	}
+
+	.paused-indicator {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		z-index: 9;
+		width: 90px;
+		height: 90px;
+		border-radius: var(--radius-full);
+		background: rgba(0, 0, 0, 0.3);
+		backdrop-filter: blur(6px);
+		-webkit-backdrop-filter: blur(6px);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: rgba(255, 255, 255, 0.7);
+		pointer-events: none;
+		animation: paused-fade-in 0.3s ease forwards;
+	}
+
+	.paused-indicator :global(svg) {
+		width: 40px;
+		height: 40px;
+		margin-left: 3px;
+	}
+
+	@keyframes paused-fade-in {
+		from {
+			opacity: 0;
+			transform: translate(-50%, -50%) scale(0.9);
+		}
+		to {
+			opacity: 1;
+			transform: translate(-50%, -50%) scale(1);
+		}
 	}
 
 	@keyframes indicator-fade {

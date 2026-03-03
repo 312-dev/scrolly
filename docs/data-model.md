@@ -52,7 +52,7 @@ SQLite database via Drizzle ORM. All IDs are UUIDs stored as text. Timestamps ar
 | title | text | User-provided caption, source metadata, or AI-generated. |
 | duration_seconds | integer | Nullable |
 | platform | text | `'tiktok'` / `'instagram'` / `'youtube'` / etc. |
-| status | text | `'downloading'` / `'ready'` / `'failed'` / `'deleted'` |
+| status | text | `'downloading'` / `'pending_trim'` / `'ready'` / `'failed'` / `'deleted'` |
 | content_type | text | `'video'` / `'music'`. Default `'video'`. |
 | audio_path | text | Nullable. Path to audio file (music clips). |
 | artist | text | Nullable. Artist name (music clips). |
@@ -60,6 +60,7 @@ SQLite database via Drizzle ORM. All IDs are UUIDs stored as text. Timestamps ar
 | spotify_url | text | Nullable. Cross-platform Spotify link (music clips). |
 | apple_music_url | text | Nullable. Cross-platform Apple Music link (music clips). |
 | youtube_music_url | text | Nullable. Cross-platform YouTube Music link (music clips). |
+| trim_deadline | integer | Nullable. Unix timestamp deadline for auto-publish if user doesn't trim. |
 | file_size_bytes | integer | Nullable. File size for storage tracking. |
 | creator_name | text | Nullable. Original content creator name (from yt-dlp metadata). |
 | creator_url | text | Nullable. Original content creator profile URL. |
@@ -211,3 +212,4 @@ users  1──∞ verification_codes
 - **SQLite booleans:** Stored as integers (0/1) since SQLite has no native boolean type. Drizzle uses `{ mode: 'boolean' }` for type-safe access.
 - **Music clips:** The `content_type` field distinguishes video clips from music links. Music clips have additional fields for cross-platform streaming URLs resolved via Odesli.
 - **Duplicate URL prevention:** A unique index on `(group_id, original_url)` prevents the same link from being shared twice within a group.
+- **Music clip trim workflow:** Music clips enter `pending_trim` status after download. The user can trim audio via the trim UI or skip trimming. If neither occurs before `trim_deadline`, the clip auto-publishes to `ready` status via the scheduler.

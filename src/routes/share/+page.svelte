@@ -32,6 +32,9 @@
 			? isPlatformAllowed(detectedPlatform, platformFilterMode, platformFilterList)
 			: true
 	);
+	const source = $derived(page.data.source as string | null);
+	const shortcutError = $derived(page.data.shortcutError as string | undefined);
+	const isShortcut = $derived(source === 'shortcut');
 
 	let loading = $state(false);
 	let error = $state('');
@@ -39,24 +42,18 @@
 	let clipId = $state('');
 	let contentType = $state('');
 	let autoSubmitted = $state(false);
-
-	// Music-specific polling state
 	let polling = $state(false);
 	let showTrimPrompt = $state(false);
 	let showTrimModal = $state(false);
-	let trimDeadline = $state<number | null>(null);
-	let secondsLeft = $state(120);
 	let serverArtist = $state<string | null>(null);
 	let serverAlbumArt = $state<string | null>(null);
 	let serverAudioPath = $state<string | null>(null);
 	let serverDuration = $state<number | null>(null);
 	let serverTitle = $state<string | null>(null);
 	let pollTimer: ReturnType<typeof setInterval> | null = null;
-	let countdownTimer: ReturnType<typeof setInterval> | null = null;
 
 	onDestroy(() => {
 		if (pollTimer) clearInterval(pollTimer);
-		if (countdownTimer) clearInterval(countdownTimer);
 	});
 
 	$effect(() => {
@@ -64,37 +61,6 @@
 			autoSubmitted = true;
 			handleSubmit();
 		}
-	});
-
-	// Countdown effect for trim prompt
-	$effect(() => {
-		if (!showTrimPrompt || !trimDeadline) {
-			if (countdownTimer) {
-				clearInterval(countdownTimer);
-				countdownTimer = null;
-			}
-			return;
-		}
-
-		const deadline = trimDeadline;
-		const tick = () => {
-			const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-			secondsLeft = remaining;
-			if (remaining <= 0 && countdownTimer) {
-				clearInterval(countdownTimer);
-				countdownTimer = null;
-				handleSkipTrim();
-			}
-		};
-		tick();
-		countdownTimer = setInterval(tick, 1000);
-
-		return () => {
-			if (countdownTimer) {
-				clearInterval(countdownTimer);
-				countdownTimer = null;
-			}
-		};
 	});
 
 	async function handleSubmit() {
@@ -141,10 +107,8 @@
 		if (data.durationSeconds !== null && data.durationSeconds !== undefined)
 			serverDuration = data.durationSeconds as number;
 		if (data.title) serverTitle = data.title as string;
-
 		if (data.status === 'pending_trim') {
 			stopPolling();
-			trimDeadline = data.trimDeadline ? new Date(data.trimDeadline as string).getTime() : null;
 			showTrimPrompt = true;
 		} else if (data.status === 'ready') {
 			stopPolling();
@@ -162,17 +126,16 @@
 				if (!res.ok) return;
 				handlePollData(await res.json());
 			} catch {
-				// Network error, keep polling
+				/* keep polling */
 			}
 		}, 3000);
 	}
 
 	function openFeed() {
 		if (clipId) {
-			const label = contentType === 'music' ? 'song' : 'video';
 			addToast({
 				type: 'processing',
-				message: `Adding ${label} to feed...`,
+				message: `Adding ${contentType === 'music' ? 'song' : 'video'} to feed...`,
 				clipId,
 				contentType,
 				autoDismiss: 0
@@ -181,16 +144,12 @@
 		goto(resolve('/'));
 	}
 
-	function handleOpenTrim() {
-		showTrimModal = true;
-	}
-
 	async function handleSkipTrim() {
 		showTrimPrompt = false;
 		try {
 			await fetch(`/api/clips/${clipId}/publish`, { method: 'POST' });
 		} catch {
-			// Server auto-publishes after deadline anyway
+			/* server auto-publishes */
 		}
 		success = true;
 	}
@@ -200,11 +159,6 @@
 		showTrimPrompt = false;
 		success = true;
 	}
-
-	function handleTrimDismiss() {
-		showTrimModal = false;
-		handleSkipTrim();
-	}
 </script>
 
 <svelte:head>
@@ -213,14 +167,25 @@
 
 <div class="share-page">
 	<div class="share-card">
-		{#if !isValid}
+		{#if shortcutError}
+			<div class="icon-wrap error">
+				<XCircleIcon size={28} />
+			</div>
+			<h1 class="share-title">Couldn't share</h1>
+			<p class="share-error">{shortcutError}</p>
+			<p class="share-desc">Tap <strong>Done</strong> to close this window.</p>
+		{:else if !isValid}
 			<div class="icon-wrap error">
 				<XCircleIcon size={28} />
 			</div>
 			<h1 class="share-title">Unsupported link</h1>
 			<p class="share-desc">This URL isn't from a supported platform.</p>
 			<p class="share-url">{shareUrl}</p>
-			<a href={resolve('/')} class="btn-secondary">Go to feed</a>
+			{#if isShortcut}
+				<p class="share-desc">Tap <strong>Done</strong> to close this window.</p>
+			{:else}
+				<a href={resolve('/')} class="btn-secondary">Go to feed</a>
+			{/if}
 		{:else if !platformAllowed}
 			<div class="icon-wrap error">
 				<ProhibitIcon size={28} />
@@ -228,32 +193,45 @@
 			<h1 class="share-title">Platform not allowed</h1>
 			<p class="share-desc">{platform} links aren't allowed in this group.</p>
 			<p class="share-url">{shareUrl}</p>
-			<a href={resolve('/')} class="btn-secondary">Go to feed</a>
+			{#if isShortcut}
+				<p class="share-desc">Tap <strong>Done</strong> to close this window.</p>
+			{:else}
+				<a href={resolve('/')} class="btn-secondary">Go to feed</a>
+			{/if}
 		{:else if success}
 			<div class="icon-wrap success">
 				<CheckIcon size={28} weight="bold" />
 			</div>
 			<h1 class="share-title">Added!</h1>
-			<p class="share-desc">Your clip is downloading.</p>
-			<button class="btn-primary" onclick={openFeed}>Open Scrolly</button>
+			{#if isShortcut}
+				<p class="share-desc">
+					Your clip is downloading. Tap <strong>Done</strong> to close this window.
+				</p>
+			{:else}
+				<p class="share-desc">Your clip is downloading.</p>
+				<button class="btn-primary" onclick={openFeed}>Open Scrolly</button>
+			{/if}
 		{:else if showTrimPrompt}
 			<div class="icon-wrap trim">
 				<ScissorsIcon size={28} weight="bold" />
 			</div>
 			<h1 class="share-title">Trim your song?</h1>
-			{#if serverArtist}
-				<p class="share-artist">{serverArtist}</p>
+			{#if serverTitle || serverArtist}
+				<div class="song-card">
+					{#if serverAlbumArt}
+						<img class="song-art" src={serverAlbumArt} alt="" />
+					{/if}
+					<div class="song-info">
+						{#if serverTitle}<span class="song-title">{serverTitle}</span>{/if}
+						{#if serverArtist}<span class="song-artist">{serverArtist}</span>{/if}
+					</div>
+				</div>
 			{/if}
 			<p class="share-desc">Pick your favorite part before sharing</p>
-			<button class="btn-primary" onclick={handleOpenTrim}
+			<button class="btn-primary" onclick={() => (showTrimModal = true)}
 				><ScissorsIcon size={18} weight="bold" /> Trim</button
 			>
-			<button class="btn-ghost" onclick={handleSkipTrim}>
-				Skip — publish full song
-				{#if secondsLeft > 0}
-					<span class="countdown">({secondsLeft}s)</span>
-				{/if}
-			</button>
+			<button class="btn-ghost" onclick={handleSkipTrim}>Skip — publish full song</button>
 		{:else if polling}
 			<div class="icon-wrap">
 				<ExportIcon size={28} />
@@ -284,7 +262,11 @@
 			{/if}
 			<p class="share-url">{shareUrl}</p>
 			<button class="btn-primary" onclick={handleSubmit} disabled={loading}>Try again</button>
-			<a href={resolve('/')} class="btn-ghost">Cancel</a>
+			{#if isShortcut}
+				<p class="share-desc">Or tap <strong>Done</strong> to close this window.</p>
+			{:else}
+				<a href={resolve('/')} class="btn-ghost">Cancel</a>
+			{/if}
 		{/if}
 	</div>
 </div>
@@ -297,7 +279,10 @@
 		albumArt={serverAlbumArt}
 		artist={serverArtist}
 		title={serverTitle}
-		ondismiss={handleTrimDismiss}
+		ondismiss={() => {
+			showTrimModal = false;
+			handleSkipTrim();
+		}}
 		ontrimcomplete={handleTrimComplete}
 	/>
 {/if}
@@ -311,7 +296,6 @@
 		padding: var(--space-xl);
 		background: var(--bg-primary);
 	}
-
 	.share-card {
 		width: 100%;
 		max-width: 380px;
@@ -325,7 +309,6 @@
 		text-align: center;
 		gap: var(--space-sm);
 	}
-
 	.icon-wrap {
 		width: 56px;
 		height: 56px;
@@ -337,23 +320,16 @@
 		margin-bottom: var(--space-sm);
 		color: var(--accent-primary);
 	}
-
-	.icon-wrap.success {
-		background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
-		animation: pop 0.3s cubic-bezier(0.32, 0.72, 0, 1);
-	}
-
+	.icon-wrap.success,
 	.icon-wrap.trim {
 		background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
 		animation: pop 0.3s cubic-bezier(0.32, 0.72, 0, 1);
 	}
-
 	.icon-wrap.error,
 	.icon-wrap.err {
 		background: color-mix(in srgb, var(--error) 12%, transparent);
 		color: var(--error);
 	}
-
 	.share-title {
 		font-family: var(--font-display);
 		font-size: 1.25rem;
@@ -361,19 +337,49 @@
 		color: var(--text-primary);
 		margin: 0;
 	}
-
 	.share-desc {
 		font-size: 0.875rem;
 		color: var(--text-muted);
 		margin: 0;
 	}
-
-	.share-artist {
-		font-size: 0.875rem;
-		color: var(--text-secondary);
-		margin: 0;
+	.song-card {
+		display: flex;
+		align-items: center;
+		gap: var(--space-md);
+		background: var(--bg-surface);
+		border-radius: var(--radius-md);
+		padding: var(--space-md);
+		width: 100%;
+		text-align: left;
 	}
-
+	.song-art {
+		width: 48px;
+		height: 48px;
+		border-radius: var(--radius-sm);
+		object-fit: cover;
+		flex-shrink: 0;
+	}
+	.song-info {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		min-width: 0;
+	}
+	.song-title,
+	.song-artist {
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.song-title {
+		font-size: 0.875rem;
+		font-weight: 600;
+		color: var(--text-primary);
+	}
+	.song-artist {
+		font-size: 0.8125rem;
+		color: var(--text-secondary);
+	}
 	.platform-pill {
 		display: inline-flex;
 		padding: 3px var(--space-sm);
@@ -384,7 +390,6 @@
 		font-weight: 700;
 		letter-spacing: 0.02em;
 	}
-
 	.share-url {
 		font-size: 0.75rem;
 		color: var(--text-muted);
@@ -396,13 +401,11 @@
 		border-radius: var(--radius-sm);
 		width: 100%;
 	}
-
 	.share-error {
 		font-size: 0.8125rem;
 		color: var(--error);
 		margin: 0;
 	}
-
 	.btn-primary {
 		display: flex;
 		align-items: center;
@@ -421,16 +424,13 @@
 		transition: transform 0.1s ease;
 		margin-top: var(--space-sm);
 	}
-
 	.btn-primary:active:not(:disabled) {
 		transform: scale(0.97);
 	}
-
 	.btn-primary:disabled {
 		opacity: 0.4;
 		cursor: not-allowed;
 	}
-
 	.spinner {
 		width: 16px;
 		height: 16px;
@@ -439,13 +439,11 @@
 		border-radius: var(--radius-full);
 		animation: spin 0.8s linear infinite;
 	}
-
 	@keyframes spin {
 		to {
 			transform: rotate(360deg);
 		}
 	}
-
 	.btn-ghost {
 		background: transparent;
 		color: var(--text-secondary);
@@ -456,11 +454,6 @@
 		padding: var(--space-sm);
 		text-decoration: none;
 	}
-
-	.countdown {
-		color: var(--text-muted);
-	}
-
 	.btn-secondary {
 		display: inline-flex;
 		padding: var(--space-sm) var(--space-xl);
@@ -473,7 +466,6 @@
 		text-decoration: none;
 		margin-top: var(--space-sm);
 	}
-
 	@keyframes pop {
 		from {
 			transform: scale(0.8);

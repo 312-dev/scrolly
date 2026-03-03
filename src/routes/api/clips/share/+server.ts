@@ -1,10 +1,9 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import { groups, users, clips, watched } from '$lib/server/db/schema';
-import { eq, and, isNull } from 'drizzle-orm';
+import { clips, watched, users } from '$lib/server/db/schema';
+import { eq, and } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
-import { normalizePhone } from '$lib/server/phone';
 import {
 	isSupportedUrl,
 	detectPlatform,
@@ -16,6 +15,7 @@ import { normalizeUrl } from '$lib/server/download-lock';
 import { startDownload } from '$lib/server/clip-download';
 import { getActiveProvider } from '$lib/server/providers/registry';
 import { createLogger } from '$lib/server/logger';
+import { authenticateShortcutToken } from '$lib/server/shortcut-auth';
 
 const log = createLogger('share');
 
@@ -27,79 +27,6 @@ function shareResponse(
 	extra?: Record<string, unknown>
 ) {
 	return json({ success: success ? 1 : 0, message, ...extra }, { status });
-}
-
-type AuthUser = { id: string; groupId: string | null; phone: string };
-type AuthResult = { user: AuthUser; group: typeof groups.$inferSelect } | { error: Response };
-
-/** Authenticate via shortcut token + single phone number. */
-async function authenticateWithToken(
-	tokenParam: string | null,
-	phone: string | undefined
-): Promise<AuthResult> {
-	// Missing or invalid token = host misconfiguration
-	if (!tokenParam) {
-		return {
-			error: shareResponse(
-				false,
-				"❌  This shortcut isn't set up correctly. Ask your group host to re-share it.",
-				401
-			)
-		};
-	}
-
-	const group = await db.query.groups.findFirst({
-		where: eq(groups.shortcutToken, tokenParam)
-	});
-	if (!group) {
-		return {
-			error: shareResponse(
-				false,
-				"❌  This shortcut isn't set up correctly. Ask your group host to re-share it.",
-				401
-			)
-		};
-	}
-
-	// Missing phone = user misconfiguration (Import Question not set)
-	if (!phone || typeof phone !== 'string' || !phone.trim()) {
-		return {
-			error: shareResponse(
-				false,
-				'❌  This shortcut is missing your phone number. Delete it and install it again from your group.',
-				400
-			)
-		};
-	}
-
-	// Phone can't be normalized = user entered something unrecognizable
-	const normalized = normalizePhone(phone);
-	if (!normalized) {
-		return {
-			error: shareResponse(
-				false,
-				"❌  Your phone number couldn't be recognized. Delete the shortcut and install it again — enter your number with area code.",
-				400
-			)
-		};
-	}
-
-	const groupMembers = await db.query.users.findMany({
-		where: and(eq(users.groupId, group.id), isNull(users.removedAt))
-	});
-
-	const matchedUser = groupMembers.find((u) => u.phone === normalized);
-	if (!matchedUser) {
-		return {
-			error: shareResponse(
-				false,
-				'❌  No account matches this phone number. Delete the shortcut and install it again with the phone number you signed up with.',
-				403
-			)
-		};
-	}
-
-	return { user: matchedUser, group };
 }
 
 export const POST: RequestHandler = async ({ request, url, locals }) => {
@@ -120,14 +47,14 @@ export const POST: RequestHandler = async ({ request, url, locals }) => {
 	}
 
 	// 2. Authenticate — cookie first, then token+phone
-	let authResult: AuthResult;
-	if (locals.user && locals.group) {
-		authResult = { user: locals.user, group: locals.group };
-	} else {
-		authResult = await authenticateWithToken(url.searchParams.get('token'), phone);
-	}
+	const authResult =
+		locals.user && locals.group
+			? { user: locals.user, group: locals.group }
+			: await authenticateShortcutToken(url.searchParams.get('token'), phone);
 
-	if ('error' in authResult) return authResult.error;
+	if ('error' in authResult) {
+		return shareResponse(false, `❌  ${authResult.error}`, 401);
+	}
 	const { user: matchedUser, group } = authResult;
 
 	// 3. Check download provider
@@ -215,6 +142,9 @@ export const POST: RequestHandler = async ({ request, url, locals }) => {
 
 	// 10. Async download (skip trim for shortcut shares — no UI available)
 	await startDownload(clipId, videoUrl, contentType, 'new clip', { skipTrim: true });
+
+	// Record legacy share timestamp for upgrade banner
+	db.update(users).set({ lastLegacyShareAt: now }).where(eq(users.id, matchedUser.id)).run();
 
 	// Push notification is sent after download succeeds (see video/download.ts, music/download.ts)
 

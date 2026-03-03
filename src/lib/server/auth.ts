@@ -31,6 +31,10 @@ function verify(token: string): string | null {
 	return payload;
 }
 
+export function createSessionToken(userId: string): string {
+	return sign(userId);
+}
+
 export function createSessionCookie(userId: string): string {
 	const token = sign(userId);
 	return `${COOKIE_NAME}=${token}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${MAX_AGE}`;

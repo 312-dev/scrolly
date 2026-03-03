@@ -62,6 +62,9 @@
 			</div>
 		{/each}
 		<div class="validation-actions">
+			<button class="action-btn revalidate" onclick={onRevalidate} disabled={validating}>
+				{validating ? 'Checking…' : 'Re-validate'}
+			</button>
 			<button class="action-btn save-anyway" onclick={onSaveAnyway} disabled={saving}>
 				{saving ? 'Saving…' : 'Save Anyway'}
 			</button>

@@ -129,9 +129,13 @@
 
 		{#if clipContentType === 'music' && (serverTitle || serverArtist)}
 			<div class="song-card">
-				{#if serverTitle}<span class="song-title">{serverTitle}</span>{/if}
-				{#if serverTitle && serverArtist}<span class="song-dot">&middot;</span>{/if}
-				{#if serverArtist}<span class="song-artist">{serverArtist}</span>{/if}
+				{#if serverAlbumArt}
+					<img class="song-art" src={serverAlbumArt} alt="" />
+				{/if}
+				<div class="song-info">
+					{#if serverTitle}<span class="song-title">{serverTitle}</span>{/if}
+					{#if serverArtist}<span class="song-artist">{serverArtist}</span>{/if}
+				</div>
 			</div>
 		{/if}
 
@@ -284,8 +288,6 @@
 		height: 32px;
 		color: var(--error);
 	}
-
-	/* Trim prompt icon */
 	.circle-wrap.trim {
 		display: flex;
 		align-items: center;
@@ -319,8 +321,6 @@
 	.countdown {
 		color: var(--text-muted);
 	}
-
-	/* Status labels */
 	.status-label {
 		font-family: var(--font-display);
 		font-size: 1.125rem;
@@ -332,13 +332,26 @@
 	.song-card {
 		display: flex;
 		align-items: center;
-		gap: var(--space-sm);
+		gap: var(--space-md);
 		background: rgba(255, 255, 255, 0.08);
-		border-radius: var(--radius-full);
-		padding: var(--space-sm) var(--space-lg);
+		border-radius: var(--radius-md);
+		padding: var(--space-md);
 		margin-top: var(--space-md);
 		max-width: 100%;
 		overflow: hidden;
+	}
+	.song-art {
+		width: 44px;
+		height: 44px;
+		border-radius: var(--radius-sm);
+		object-fit: cover;
+		flex-shrink: 0;
+	}
+	.song-info {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		min-width: 0;
 	}
 	.song-title {
 		font-size: 0.8125rem;
@@ -347,13 +360,6 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
-		flex-shrink: 1;
-		min-width: 0;
-	}
-	.song-dot {
-		font-size: 0.75rem;
-		color: rgba(255, 255, 255, 0.3);
-		flex-shrink: 0;
 	}
 	.song-artist {
 		font-size: 0.8125rem;
@@ -361,11 +367,8 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
-		flex-shrink: 1;
-		min-width: 0;
 	}
 
-	/* Primary button */
 	.primary-btn {
 		margin-top: var(--space-xl);
 		padding: 14px 32px;
@@ -405,7 +408,6 @@
 		}
 	}
 
-	/* Shortcut nudge */
 	.shortcut-nudge {
 		display: flex;
 		align-items: center;
@@ -444,7 +446,6 @@
 		height: 12px;
 	}
 
-	/* Keyframe animations */
 	@keyframes fade-in {
 		from {
 			opacity: 0;

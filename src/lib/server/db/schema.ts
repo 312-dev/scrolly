@@ -29,6 +29,8 @@ export const users = sqliteTable('users', {
 	mutedByDefault: integer('muted_by_default', { mode: 'boolean' }).notNull().default(true),
 	feedSortOrder: text('feed_sort_order').notNull().default('oldest'),
 	avatarPath: text('avatar_path'),
+	lastLegacyShareAt: integer('last_legacy_share_at', { mode: 'timestamp' }),
+	usedNewShareFlow: integer('used_new_share_flow', { mode: 'boolean' }).notNull().default(false),
 	removedAt: integer('removed_at', { mode: 'timestamp' }),
 	createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
 });

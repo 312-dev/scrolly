@@ -726,11 +726,11 @@
 	.top-right-row {
 		position: absolute;
 		top: calc(max(var(--space-md), env(safe-area-inset-top)) - 1px);
-		right: calc(var(--space-sm) + 44px);
+		right: calc(var(--space-sm) + 40px);
 		z-index: 6;
 		display: flex;
 		align-items: center;
-		height: 34px;
+		height: 32px;
 		transition: opacity 0.3s ease;
 	}
 	.top-right-row.ui-hidden {
@@ -753,8 +753,8 @@
 	.bottom-row {
 		position: absolute;
 		bottom: 14px;
-		left: var(--space-lg);
-		right: var(--space-lg);
+		left: var(--space-sm);
+		right: var(--space-sm);
 		z-index: 7;
 		display: flex;
 		align-items: center;

@@ -9,6 +9,7 @@
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
 	import { addVideoModalOpen } from '$lib/stores/addVideoModal';
 	import ClipOverlay from '$lib/components/ClipOverlay.svelte';
+	import ShortcutUpgradeBanner from '$lib/components/ShortcutUpgradeBanner.svelte';
 	import { addToast, toast, clipReadySignal, clipOverlaySignal } from '$lib/stores/toasts';
 	import {
 		isStandalone,
@@ -110,6 +111,9 @@
 	const autoScroll = $derived(page.data.user?.autoScroll ?? false);
 	const gifEnabled = $derived(!!page.data.gifEnabled);
 	const vapidPublicKey = $derived(page.data.vapidPublicKey as string);
+	const lastLegacyShareAt = $derived(page.data.user?.lastLegacyShareAt ?? null);
+	const usedNewShareFlow = $derived(page.data.user?.usedNewShareFlow ?? false);
+	const shortcutUrl = $derived(page.data.group?.shortcutUrl ?? null);
 
 	let pushSupported = $state(false);
 	let pushEnabled = $state(false);
@@ -874,6 +878,10 @@
 		{/if}
 	</div>
 </div>
+
+{#if !overlayActive}
+	<ShortcutUpgradeBanner {lastLegacyShareAt} {usedNewShareFlow} {shortcutUrl} />
+{/if}
 
 {#if overlayClipId}
 	<ClipOverlay

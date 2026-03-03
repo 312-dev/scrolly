@@ -64,7 +64,7 @@
 	ontouchmove={(e) => e.stopPropagation()}
 	ontouchend={(e) => e.stopPropagation()}
 >
-	<ChatIcon size={18} />
+	<ChatIcon size={16} />
 	{#if cycleItems.length > 1}
 		<div class="preview-container">
 			{#key currentIndex}
@@ -85,7 +85,7 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-sm);
-		height: 44px;
+		height: 40px;
 		padding: 0 var(--space-md);
 		border-radius: var(--radius-full);
 		background: var(--reel-icon-circle-bg);
@@ -101,14 +101,14 @@
 		background: var(--reel-icon-circle-active);
 	}
 	.comment-prompt :global(svg) {
-		width: 18px;
-		height: 18px;
+		width: 16px;
+		height: 16px;
 		flex-shrink: 0;
 		color: var(--reel-text-subtle);
 		filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
 	}
 	.comment-prompt span {
-		font-size: 0.875rem;
+		font-size: 0.8rem;
 		color: var(--reel-text-subtle);
 		text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 	}
@@ -117,16 +117,16 @@
 		min-width: 0;
 		position: relative;
 		overflow: hidden;
-		height: 1.25rem;
-		line-height: 1.25rem;
+		height: 1.125rem;
+		line-height: 1.125rem;
 	}
 	.preview-text {
 		position: absolute;
 		top: 0;
 		left: 0;
 		right: 0;
-		height: 1.25rem;
-		line-height: 1.25rem;
+		height: 1.125rem;
+		line-height: 1.125rem;
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;

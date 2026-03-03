@@ -13,7 +13,7 @@
 	import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
 	import CopyIcon from 'phosphor-svelte/lib/CopyIcon';
 
-	const TEMPLATE_SHORTCUT_URL = 'https://www.icloud.com/shortcuts/e85e8b8f2ce1446b8bd89849ac62967f';
+	const TEMPLATE_SHORTCUT_URL = 'https://www.icloud.com/shortcuts/122be5b2c1cf49b4a07e5fc6bf77b08e';
 	const ICLOUD_SHORTCUT_RE = /^https:\/\/www\.icloud\.com\/shortcuts\/[a-f0-9]{32}\/?$/;
 
 	const appUrl = $derived(page.data.appUrl as string);
@@ -448,13 +448,22 @@
 								<span>{@html warning.message}</span>
 							</div>
 						{/each}
-						<button
-							class="save-link-btn"
-							onclick={() => doSave(icloudLink.trim())}
-							disabled={savingLink}
-						>
-							{savingLink ? 'Saving…' : 'Save Anyway'}
-						</button>
+						<div class="validation-actions">
+							<button
+								class="save-link-btn revalidate-btn"
+								onclick={validateAndSave}
+								disabled={validating}
+							>
+								{validating ? 'Validating…' : 'Re-validate'}
+							</button>
+							<button
+								class="save-link-btn skip-btn"
+								onclick={() => doSave(icloudLink.trim())}
+								disabled={savingLink}
+							>
+								{savingLink ? 'Saving…' : 'Save Anyway'}
+							</button>
+						</div>
 					{/if}
 				</div>
 			{/if}
