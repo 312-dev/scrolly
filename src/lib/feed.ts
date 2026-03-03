@@ -1,7 +1,8 @@
 import type { FeedClip } from '$lib/types';
 import { fetchUnwatchedCount } from '$lib/stores/notifications';
+import { clearPushNotifications } from '$lib/push';
 
-export type FeedFilter = 'all' | 'unwatched' | 'watched' | 'favorites';
+export type FeedFilter = 'all' | 'unwatched' | 'watched' | 'favorites' | 'uploads';
 export type FeedSort = 'oldest' | 'round-robin';
 
 export function buildClipParams(
@@ -38,6 +39,7 @@ export async function fetchClips(
 export async function markClipWatched(clipId: string): Promise<void> {
 	await fetch(`/api/clips/${clipId}/watched`, { method: 'POST' });
 	fetchUnwatchedCount();
+	clearPushNotifications(`new-clip-${clipId}`);
 }
 
 export async function toggleClipFavorite(clipId: string): Promise<{ favorited: boolean } | null> {

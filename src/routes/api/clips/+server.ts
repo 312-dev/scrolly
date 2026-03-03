@@ -64,8 +64,29 @@ function validateClipUrl(
 	return null;
 }
 
-const VALID_FILTERS = ['unwatched', 'watched', 'favorites'] as const;
+const VALID_FILTERS = ['unwatched', 'watched', 'favorites', 'uploads'] as const;
 const VALID_SORTS = ['oldest', 'round-robin'] as const;
+
+function applyFilter(
+	allClips: (typeof clips.$inferSelect)[],
+	filter: string | null,
+	watchedIds: Set<string>,
+	favIds: Set<string>,
+	userId: string
+): (typeof clips.$inferSelect)[] {
+	switch (filter) {
+		case 'unwatched':
+			return allClips.filter((c) => !watchedIds.has(c.id));
+		case 'watched':
+			return allClips.filter((c) => watchedIds.has(c.id));
+		case 'favorites':
+			return allClips.filter((c) => favIds.has(c.id));
+		case 'uploads':
+			return allClips.filter((c) => c.addedBy === userId);
+		default:
+			return allClips;
+	}
+}
 
 function countByClipId(items: { clipId: string }[], clipIds: Set<string>): Map<string, number> {
 	const counts = new Map<string, number>();
@@ -104,6 +125,10 @@ function applySortOrder(
 	watchedRows: { clipId: string; watchedAt: Date }[],
 	favRows: { clipId: string; createdAt: Date }[]
 ): ClipRow[] {
+	if (filter === 'uploads') {
+		// Uploads tab: newest first
+		return [...clipList].reverse();
+	}
 	if (filter === 'favorites') {
 		// Favorites tab: sort by most recently favorited
 		const favAtMap = new Map(favRows.map((f) => [f.clipId, f.createdAt.getTime()]));
@@ -145,7 +170,7 @@ function applySortOrder(
 export const GET: RequestHandler = withAuth(async ({ url }, { user }) => {
 	const filter = url.searchParams.get('filter');
 	if (filter && !(VALID_FILTERS as readonly string[]).includes(filter)) {
-		return badRequest('Invalid filter. Must be unwatched, watched, or favorites');
+		return badRequest('Invalid filter. Must be unwatched, watched, favorites, or uploads');
 	}
 	const sort = url.searchParams.get('sort') || 'oldest';
 	if (!(VALID_SORTS as readonly string[]).includes(sort)) {
@@ -174,13 +199,7 @@ export const GET: RequestHandler = withAuth(async ({ url }, { user }) => {
 	const favIds = new Set(favRows.map((f) => f.clipId));
 
 	// Apply filter before pagination so we only fetch related data for visible clips
-	if (filter === 'unwatched') {
-		allClips = allClips.filter((c) => !watchedIds.has(c.id));
-	} else if (filter === 'watched') {
-		allClips = allClips.filter((c) => watchedIds.has(c.id));
-	} else if (filter === 'favorites') {
-		allClips = allClips.filter((c) => favIds.has(c.id));
-	}
+	allClips = applyFilter(allClips, filter, watchedIds, favIds, userId);
 
 	allClips = applySortOrder(allClips, sort, filter, watchedRows, favRows);
 
