@@ -68,7 +68,7 @@ Response: { "user": { ... }, "group": { ... } }
 
 ### GET /api/clips
 ```
-Query params: ?filter=unwatched|watched|favorites&sort=oldest|round-robin&limit=20&offset=0
+Query params: ?filter=unwatched|watched|favorites|uploads&sort=oldest|round-robin&limit=20&offset=0
 Response: { "clips": [...], "hasMore": true }
 ```
 Only returns clips with `status: 'ready'`. Default sort is `oldest` (chronological). `round-robin` interleaves clips across members so no single poster dominates the feed. The `watched` filter sorts by most-recently-watched instead.
@@ -127,6 +127,9 @@ Response: { "count": 5 }
 | POST | `/api/clips/[id]/reactions` | Toggle a reaction |
 | POST | `/api/clips/[id]/retry` | Retry failed download |
 | POST | `/api/clips/[id]/refetch` | Refetch metadata from source |
+| POST | `/api/clips/[id]/trim` | Trim music clip audio |
+| GET | `/api/clips/[id]/waveform` | Get waveform peaks for trim UI |
+| POST | `/api/clips/[id]/publish` | Publish music clip (skip trim) |
 
 ### POST /api/clips/[id]/watched
 ```
@@ -181,6 +184,25 @@ Response: { "status": "downloading" }
 Host-only. Refetches metadata (title, creator info) from the source URL via yt-dlp.
 ```
 Response: { "title": "...", "creatorName": "...", "creatorUrl": "..." }
+```
+
+### POST /api/clips/[id]/trim
+Trims a music clip's audio to the specified time range. Only available for clips with `contentType: 'music'`.
+```
+Request:  { "startSeconds": 15.0, "endSeconds": 45.0 }
+Response: { "ok": true }
+```
+
+### GET /api/clips/[id]/waveform
+Returns normalized waveform peak data for the clip's audio file, used by the trim UI.
+```
+Response: { "peaks": [0.1, 0.3, 0.8, ...] }   (200 values, normalized 0-1)
+```
+
+### POST /api/clips/[id]/publish
+Publishes a music clip that is in `pending_trim` status, skipping the trim step.
+```
+Response: { "ok": true }
 ```
 
 ## Group Management
@@ -355,6 +377,7 @@ Response: { "preferences": { ... } }
 | POST | `/api/profile/avatar` | Upload profile avatar |
 | DELETE | `/api/profile/avatar` | Delete profile avatar |
 | GET | `/api/profile/avatar/[filename]` | Serve avatar image |
+| GET | `/api/profile/stats` | User profile statistics |
 
 ### POST /api/profile/preferences
 ```
@@ -376,6 +399,12 @@ Response: { "ok": true }
 
 ### GET /api/profile/avatar/[filename]
 Serves the avatar image with JPEG content-type and cache headers.
+
+### GET /api/profile/stats
+Returns aggregate stats for the current user.
+```
+Response: { "uploads": 12, "saves": 45, "minutesWatched": 123.5 }
+```
 
 ## GIFs
 

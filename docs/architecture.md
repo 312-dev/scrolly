@@ -63,7 +63,11 @@ scrolly/
 │   │   │   ├── video/
 │   │   │   │   └── download.ts      # Video download orchestration + metadata
 │   │   │   ├── music/
-│   │   │   │   └── download.ts      # Odesli link resolution + audio download
+│   │   │   │   ├── download.ts      # Odesli link resolution + audio download
+│   │   │   │   └── publish.ts       # Publish music clip after trim
+│   │   │   ├── audio/
+│   │   │   │   ├── trim.ts            # FFmpeg audio trimming
+│   │   │   │   └── waveform.ts        # Waveform peak generation
 │   │   │   ├── sms/
 │   │   │   │   └── verify.ts        # Twilio SMS verification codes
 │   │   │   ├── auth.ts              # Session management, invite code validation
@@ -78,6 +82,7 @@ scrolly/
 │   │   │   ├── ReelIndicators.svelte # Mute/play/speed flash indicators
 │   │   │   ├── ActionSidebar.svelte # Right-side action buttons (+ MusicDisc for music clips)
 │   │   │   ├── MusicDisc.svelte     # Spinning album art disc (music clips, inside ActionSidebar)
+│   │   │   ├── MusicTrimModal.svelte  # Music clip trim interface
 │   │   │   ├── CommentPrompt.svelte # Comment bar at bottom of reel
 │   │   │   ├── ProgressBar.svelte   # Scrubable playback progress bar
 │   │   │   ├── SkeletonReel.svelte  # Loading skeleton for reel
@@ -90,6 +95,8 @@ scrolly/
 │   │   │   ├── AddVideo.svelte      # Add video form
 │   │   │   ├── AddVideoModal.svelte # Modal wrapper for AddVideo
 │   │   │   ├── AvatarCropModal.svelte # Profile picture crop UI
+│   │   │   ├── MeGrid.svelte         # Profile clip grid (favorites/uploads)
+│   │   │   ├── MeReelView.svelte     # Profile reel overlay view
 │   │   │   ├── CommentInput.svelte  # Rich comment input with GIF and mention support
 │   │   │   ├── CommentRow.svelte    # Single comment row with hearts and replies
 │   │   │   ├── MentionInput.svelte  # Input with @mention autocomplete
@@ -98,6 +105,7 @@ scrolly/
 │   │   │   ├── ReelOverlayActions.svelte # Reaction pills on reel overlay
 │   │   │   ├── EmojiShower.svelte   # Animated emoji celebration
 │   │   │   ├── ConfirmDialog.svelte
+│   │   │   ├── TrimWaveform.svelte    # Waveform visualization with trim handles
 │   │   │   ├── ToastStack.svelte    # Toast notification stack
 │   │   │   ├── InstallBanner.svelte # PWA install prompt
 │   │   │   ├── SwUpdateToast.svelte # Service worker update prompt
@@ -154,18 +162,22 @@ scrolly/
 │   │   │   ├── auth/
 │   │   │   ├── clips/
 │   │   │   │   └── [id]/refetch/+server.ts  # Host-only metadata refetch
+│   │   │   │   └── [id]/trim/+server.ts      # Music clip trim
+│   │   │   │   └── [id]/waveform/+server.ts  # Waveform data
+│   │   │   │   └── [id]/publish/+server.ts   # Publish after trim
 │   │   │   ├── gifs/
 │   │   │   ├── group/
 │   │   │   ├── notifications/
 │   │   │   │   └── [id]/+server.ts          # Delete single notification
 │   │   │   ├── profile/
+│   │   │   │   └── stats/+server.ts          # User profile stats
 │   │   │   ├── push/
 │   │   │   ├── videos/
 │   │   │   ├── thumbnails/
 │   │   │   └── health/
 │   │   └── (app)/                   # Authenticated route group
 │   │       ├── +page.svelte         # Feed (TikTok-style reel)
-│   │       ├── favorites/+page.svelte # Favorites feed (grid + reel view)
+│   │       ├── me/+page.svelte      # Profile page (avatar, stats, faves/uploads)
 │   │       └── settings/+page.svelte # User + group settings
 │   ├── service-worker.ts           # PWA caching, offline support
 │   └── app.html
