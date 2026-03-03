@@ -132,7 +132,7 @@
 		align-items: center;
 		justify-content: center;
 		overflow: hidden;
-		padding-bottom: calc(var(--bottom-nav-height, 64px) + 34px);
+		padding-bottom: 34px;
 	}
 
 	.music-bg {

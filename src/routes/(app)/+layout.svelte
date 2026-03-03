@@ -65,6 +65,10 @@
 		document.addEventListener('click', handleFirstInteraction, true);
 		document.addEventListener('touchstart', handleFirstInteraction, true);
 
+		// Lock to portrait orientation (works in installed PWA / fullscreen contexts)
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any -- lock() not in all TS lib defs
+		(screen.orientation as any)?.lock?.('portrait-primary').catch(() => {});
+
 		// Sync theme-color meta tags with current theme for PWA chrome blending
 		const themeObserver = new MutationObserver(() => syncThemeColor());
 		themeObserver.observe(document.documentElement, {
@@ -304,8 +308,8 @@
 		backdrop-filter: blur(20px);
 		-webkit-backdrop-filter: blur(20px);
 		border-top: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
-		padding: var(--space-sm) 0;
-		padding-bottom: max(var(--space-sm), env(safe-area-inset-bottom));
+		padding: var(--space-xs) 0;
+		padding-bottom: max(var(--space-xs), env(safe-area-inset-bottom));
 		z-index: 10;
 		transition: opacity 0.3s ease;
 	}
@@ -320,8 +324,8 @@
 	}
 
 	.bottom-tabs.overlay-mode {
-		background: linear-gradient(transparent, var(--reel-gradient-heavy));
-		border-top: none;
+		background: var(--reel-bg-elevated);
+		border-top-color: transparent;
 		backdrop-filter: none;
 		-webkit-backdrop-filter: none;
 		z-index: 50;
@@ -332,12 +336,12 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 3px;
+		gap: 2px;
 		text-decoration: none;
 		color: var(--text-muted);
 		font-size: 0.625rem;
 		font-family: var(--font-body);
-		padding: var(--space-xs) 0;
+		padding: 2px 0;
 		transition: color 0.2s ease;
 		background: none;
 		border: none;

@@ -200,6 +200,8 @@
 
 	function completeSwipe(goingNext: boolean, newIndex: number) {
 		const vw = window.innerWidth;
+		// Clear pull-snapping to prevent its CSS transition from overriding the swipe animation
+		pullSnapping = false;
 		swipeAnimating = true;
 		swipeX = goingNext ? -vw : vw;
 
@@ -345,6 +347,10 @@
 				isHorizontal = Math.abs(dx) > Math.abs(dy);
 				if (!isHorizontal) return;
 				isHorizontalSwiping = true;
+				// Reset pull-to-refresh state so its CSS transition doesn't
+				// compete with the swipe animation on pointerup
+				pullDistance = 0;
+				isPullingActive = false;
 			}
 
 			if (!isHorizontal) return;
@@ -896,7 +902,7 @@
 		animation: spin 0.8s linear infinite;
 	}
 	.reel-scroll {
-		height: 100dvh;
+		height: calc(100dvh - var(--bottom-nav-height, 64px));
 		overflow-y: auto;
 		scroll-snap-type: y mandatory;
 		overscroll-behavior-y: none;
@@ -906,7 +912,7 @@
 		display: none;
 	}
 	.reel-slot {
-		height: 100dvh;
+		height: calc(100dvh - var(--bottom-nav-height, 64px));
 		width: 100%;
 		scroll-snap-align: start;
 		scroll-snap-stop: always;
@@ -935,7 +941,7 @@
 		scroll-snap-align: none;
 	}
 	.reel-empty {
-		height: 100dvh;
+		height: calc(100dvh - var(--bottom-nav-height, 64px));
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -1010,7 +1016,7 @@
 		transition: transform 0.25s ease;
 	}
 	.drop-target {
-		height: 100dvh;
+		height: calc(100dvh - var(--bottom-nav-height, 64px));
 		position: relative;
 		overflow: hidden;
 	}

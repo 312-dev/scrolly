@@ -46,9 +46,11 @@
 		height: 18px;
 		flex-shrink: 0;
 		color: var(--reel-text-subtle);
+		filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
 	}
 	.comment-prompt span {
 		font-size: 0.875rem;
 		color: var(--reel-text-subtle);
+		text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 	}
 </style>

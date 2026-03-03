@@ -3,6 +3,7 @@
 		currentTime,
 		duration,
 		isDesktop,
+		active = true,
 		onseek,
 		onscrubstart,
 		onscrubend,
@@ -11,6 +12,7 @@
 		currentTime: number;
 		duration: number;
 		isDesktop: boolean;
+		active?: boolean;
 		onseek: (time: number) => void;
 		onscrubstart?: () => void;
 		onscrubend?: () => void;
@@ -75,7 +77,7 @@
 	class="progress-bar"
 	class:desktop={isDesktop}
 	class:scrubbing
-	class:ui-hidden={uiHidden}
+	class:ui-hidden={uiHidden || !active}
 	bind:this={barEl}
 	onpointerdown={handlePointerDown}
 	onpointermove={handlePointerMove}
@@ -101,16 +103,15 @@
 
 <style>
 	.progress-bar {
-		position: absolute;
-		bottom: calc(var(--bottom-nav-height, 64px) + 42px);
+		position: fixed;
+		bottom: var(--bottom-nav-height, 64px);
 		left: 0;
 		right: 0;
-		z-index: 6;
-		height: 48px;
+		z-index: 51;
 		display: flex;
-		align-items: center;
+		align-items: flex-end;
 		cursor: pointer;
-		padding: 0;
+		padding: 12px 0 1px;
 		touch-action: none;
 		transition: opacity 0.3s ease;
 	}

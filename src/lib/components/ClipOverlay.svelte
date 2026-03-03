@@ -296,14 +296,14 @@
 <style>
 	.clip-overlay {
 		position: fixed;
-		inset: 0;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: var(--bottom-nav-height, 64px);
 		z-index: 40;
 		background: var(--bg-primary);
 		touch-action: pan-y;
 		overscroll-behavior-x: none;
-		/* No tab bar — baseline is safe area minus the 4px bar gap, so the comment bar
-		   lands flush at the safe area edge. Clamped at 0 for devices with no safe area. */
-		--bottom-nav-height: max(0px, calc(env(safe-area-inset-bottom, 0px) - 4px));
 		animation: slide-in-right 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
 	}
 
@@ -369,12 +369,12 @@
 	}
 
 	.overlay-reel {
-		height: 100dvh;
+		height: 100%;
 		width: 100%;
 	}
 
 	.overlay-error {
-		height: 100dvh;
+		height: 100%;
 		display: flex;
 		flex-direction: column;
 		align-items: center;

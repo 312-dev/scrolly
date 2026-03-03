@@ -24,7 +24,7 @@
 <style>
 	.skeleton {
 		position: relative;
-		height: 100dvh;
+		height: calc(100dvh - var(--bottom-nav-height, 64px));
 		width: 100%;
 		background: var(--bg-primary);
 		overflow: hidden;
@@ -53,7 +53,7 @@
 	.sidebar-bones {
 		position: absolute;
 		right: var(--space-lg);
-		bottom: calc(var(--bottom-nav-height, 64px) + 84px);
+		bottom: 74px;
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-lg);
@@ -69,7 +69,7 @@
 
 	.overlay-bones {
 		position: absolute;
-		bottom: calc(var(--bottom-nav-height, 64px) + 84px);
+		bottom: 74px;
 		left: var(--space-lg);
 		right: calc(var(--space-lg) + 64px);
 		display: flex;
@@ -79,7 +79,7 @@
 
 	.comment-bone {
 		position: absolute;
-		bottom: calc(var(--bottom-nav-height, 64px) + 4px);
+		bottom: 14px;
 		left: var(--space-lg);
 		right: var(--space-lg);
 		height: 44px;

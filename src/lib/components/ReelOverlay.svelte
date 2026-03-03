@@ -8,6 +8,9 @@
 		username,
 		avatarPath = null,
 		platform,
+		creatorName = null,
+		creatorUrl = null,
+		contentType = 'video',
 		caption,
 		canEditCaption = false,
 		seenByOthers = false,
@@ -19,6 +22,9 @@
 		username: string;
 		avatarPath?: string | null;
 		platform: string;
+		creatorName?: string | null;
+		creatorUrl?: string | null;
+		contentType?: string;
 		caption: string | null;
 		canEditCaption?: boolean;
 		seenByOthers?: boolean;
@@ -35,6 +41,7 @@
 	const initials = $derived(username.replace('@', '').slice(0, 2).toUpperCase());
 </script>
 
+<!-- eslint-disable svelte/no-navigation-without-resolve -- external creator URL -->
 <div class="reel-overlay" class:ui-hidden={uiHidden}>
 	<div class="overlay-content">
 		<div class="overlay-user">
@@ -43,8 +50,21 @@
 			{:else}
 				<span class="overlay-avatar overlay-avatar-fallback">{initials}</span>
 			{/if}
-			<span class="username">@{username}</span>
-			<span class="platform-badge"><PlatformIcon {platform} size={12} /></span>
+			{#if contentType !== 'music' && creatorName}
+				{#if creatorUrl}
+					<a
+						href={creatorUrl}
+						target="_blank"
+						rel="noopener noreferrer"
+						class="username"
+						onclick={(e) => e.stopPropagation()}
+						onkeydown={(e) => e.stopPropagation()}>{creatorName}</a
+					>
+				{:else}
+					<span class="username">{creatorName}</span>
+				{/if}
+				<span class="platform-badge"><PlatformIcon {platform} size={12} /></span>
+			{/if}
 			{#if canModify && !editing && !confirmingDelete}
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<span
@@ -83,7 +103,7 @@
 <style>
 	.reel-overlay {
 		position: absolute;
-		bottom: calc(var(--bottom-nav-height, 64px) + 84px);
+		bottom: 74px;
 		left: var(--space-lg);
 		right: var(--space-lg);
 		z-index: 5;
@@ -103,8 +123,8 @@
 		margin-bottom: var(--space-xs);
 	}
 	.overlay-avatar {
-		width: 36px;
-		height: 36px;
+		width: 30px;
+		height: 30px;
 		border-radius: var(--radius-full);
 		object-fit: cover;
 		flex-shrink: 0;
@@ -119,15 +139,22 @@
 		-webkit-backdrop-filter: blur(6px);
 		color: var(--reel-text-medium);
 		font-family: var(--font-display);
-		font-size: 0.75rem;
+		font-size: 0.6875rem;
 		font-weight: 700;
 	}
 	.username {
 		font-family: var(--font-display);
 		font-weight: 700;
-		font-size: 1rem;
+		font-size: 0.875rem;
 		color: var(--reel-text);
 		text-shadow: 0 1px 4px var(--reel-text-shadow);
+		text-decoration: none;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	a.username:active {
+		opacity: 0.7;
 	}
 	.platform-badge {
 		display: inline-flex;
@@ -137,6 +164,7 @@
 		border-radius: var(--radius-full);
 		background: var(--reel-frosted-bg);
 		color: var(--reel-text-medium);
+		flex-shrink: 0;
 	}
 	.host-actions-inline {
 		display: inline-flex;
