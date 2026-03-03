@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { deduplicatedDownload } from '../download-lock';
 import { getActiveProvider } from '../providers/registry';
 import type { AudioDownloadResult } from '../providers/types';
-import { DATA_DIR, getMaxFileSize, cleanupClipFiles } from '$lib/server/download-utils';
+import { DATA_DIR, getClipWithMaxFileSize, cleanupClipFiles } from '$lib/server/download-utils';
 import { notifyNewClip } from '$lib/server/push';
 import { createLogger } from '$lib/server/logger';
 
@@ -72,7 +72,8 @@ async function finalizeMusicClip(
 	clipId: string,
 	result: AudioDownloadResult,
 	metadata: MusicMetadata,
-	maxFileSizeBytes: number | null
+	maxFileSizeBytes: number | null,
+	existingTitle: string | null
 ): Promise<void> {
 	// Calculate file size
 	let fileSizeBytes = 0;
@@ -103,9 +104,8 @@ async function finalizeMusicClip(
 		return;
 	}
 
-	// Keep existing title (caption from SMS) if present
-	const existing = await db.query.clips.findFirst({ where: eq(clips.id, clipId) });
-	const title = existing?.title || metadata.title || null;
+	// Keep existing title (caption from SMS or metadata update) if present
+	const title = existingTitle || metadata.title || null;
 
 	await db
 		.update(clips)
@@ -125,11 +125,12 @@ async function finalizeMusicClip(
 }
 
 async function downloadMusicInner(clipId: string, url: string): Promise<void> {
-	const maxFileSizeBytes = await getMaxFileSize(clipId);
+	// Single query: fetch clip record + group's max file size via JOIN
+	const data = getClipWithMaxFileSize(clipId);
+	if (!data) return;
+	const { clip, maxFileSizeBytes } = data;
 
 	// Resolve the active provider for this clip's group
-	const clip = await db.query.clips.findFirst({ where: eq(clips.id, clipId) });
-	if (!clip) return;
 	const provider = await getActiveProvider(clip.groupId);
 	if (!provider) {
 		await db
@@ -147,10 +148,12 @@ async function downloadMusicInner(clipId: string, url: string): Promise<void> {
 		const metadata = await resolveOdesli(url);
 
 		// Step 2: Update clip immediately with metadata (UI can show song info while downloading)
+		// Preserve user-provided caption if present (e.g. from SMS share)
+		const resolvedTitle = clip.title || metadata.title;
 		await db
 			.update(clips)
 			.set({
-				title: metadata.title,
+				title: resolvedTitle,
 				artist: metadata.artist,
 				albumArt: metadata.albumArt,
 				spotifyUrl: metadata.spotifyUrl,
@@ -188,7 +191,7 @@ async function downloadMusicInner(clipId: string, url: string): Promise<void> {
 		}
 
 		if (result) {
-			await finalizeMusicClip(clipId, result, metadata, maxFileSizeBytes);
+			await finalizeMusicClip(clipId, result, metadata, maxFileSizeBytes, resolvedTitle ?? null);
 		} else {
 			// Failed to download audio, but metadata + platform links are still visible
 			await cleanupClipFiles(clipId);

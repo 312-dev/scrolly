@@ -5,7 +5,7 @@ import { deduplicatedDownload } from '../download-lock';
 import { getActiveProvider } from '../providers/registry';
 import {
 	DATA_DIR,
-	getMaxFileSize,
+	getClipWithMaxFileSize,
 	cleanupClipFiles,
 	totalFileSize
 } from '$lib/server/download-utils';
@@ -48,11 +48,12 @@ async function handleDownloadError(
 }
 
 async function downloadVideoInner(clipId: string, url: string): Promise<void> {
-	const maxFileSizeBytes = await getMaxFileSize(clipId);
+	// Single query: fetch clip record + group's max file size via JOIN
+	const data = getClipWithMaxFileSize(clipId);
+	if (!data) return;
+	const { clip, maxFileSizeBytes } = data;
 
 	// Resolve the active provider for this clip's group
-	const clip = await db.query.clips.findFirst({ where: eq(clips.id, clipId) });
-	if (!clip) return;
 	const provider = await getActiveProvider(clip.groupId);
 	if (!provider) {
 		await db
@@ -97,10 +98,7 @@ async function downloadVideoInner(clipId: string, url: string): Promise<void> {
 		}
 
 		// Keep existing title (caption from SMS) if present, otherwise use provider-extracted title
-		const existing = await db.query.clips.findFirst({
-			where: eq(clips.id, clipId)
-		});
-		const title = existing?.title || result.title || null;
+		const title = clip.title || result.title || null;
 
 		await db
 			.update(clips)
