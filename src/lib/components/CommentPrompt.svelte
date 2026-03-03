@@ -88,17 +88,17 @@
 		height: 44px;
 		padding: 0 var(--space-md);
 		border-radius: var(--radius-full);
-		background: var(--reel-glass-pill-bg);
+		background: var(--reel-icon-circle-bg);
 		backdrop-filter: blur(20px);
 		-webkit-backdrop-filter: blur(20px);
-		border: 1px solid var(--reel-glass-border);
+		border: none;
 		cursor: pointer;
 		font: inherit;
 		text-align: left;
 		transition: background 0.2s ease;
 	}
 	.comment-prompt:active {
-		background: var(--reel-frosted-bg-active);
+		background: var(--reel-icon-circle-active);
 	}
 	.comment-prompt :global(svg) {
 		width: 18px;

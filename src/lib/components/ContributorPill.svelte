@@ -140,7 +140,7 @@
 
 	.expanded .pill-name {
 		max-width: 150px;
-		padding-right: 12px;
+		padding-right: 10px;
 		padding-left: 11px;
 		opacity: 1;
 	}

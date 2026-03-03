@@ -189,13 +189,13 @@
 	.feed-notif-btn {
 		position: fixed;
 		top: max(var(--space-md), env(safe-area-inset-top));
-		right: var(--space-lg);
+		right: var(--space-sm);
 		z-index: 20;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 40px;
-		height: 40px;
+		width: 44px;
+		height: 44px;
 		border-radius: var(--radius-full);
 		color: var(--reel-text);
 		background: none;

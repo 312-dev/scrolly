@@ -124,7 +124,7 @@
 		position: relative;
 		padding: 6px var(--space-md);
 		background: none;
-		color: var(--reel-text-subtle);
+		color: rgba(255, 255, 255, 0.65);
 		border: none;
 		border-radius: 0;
 		font-family: var(--font-display);
