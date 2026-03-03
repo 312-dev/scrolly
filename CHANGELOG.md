@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.13.1...scrolly-v1.14.0) (2026-03-03)
+
+
+### Features
+
+* music trim, Me page, and UI polish ([#60](https://github.com/312-dev/scrolly/issues/60)) ([728f3c3](https://github.com/312-dev/scrolly/commit/728f3c3d244b1a33c1ce1ae596dda0c07b6b31b1))
+
 ## [1.13.1](https://github.com/312-dev/scrolly/compare/scrolly-v1.13.0...scrolly-v1.13.1) (2026-03-03)
 
 
