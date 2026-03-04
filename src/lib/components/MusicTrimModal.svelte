@@ -220,6 +220,7 @@
 				{currentTime}
 				{playing}
 				onseek={handleSeek}
+				{formatTime}
 			/>
 
 			<div class="time-labels">
