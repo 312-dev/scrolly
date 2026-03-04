@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onDestroy } from 'svelte';
 	import { showShortcutNudge, dismissShortcutNudge } from '$lib/stores/shortcutNudge';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
@@ -12,7 +11,6 @@
 		serverTitle,
 		serverArtist,
 		serverAlbumArt,
-		trimDeadline = null,
 		ondismiss,
 		onretry,
 		onsaveandview,
@@ -25,7 +23,6 @@
 		serverTitle: string | null;
 		serverArtist: string | null;
 		serverAlbumArt: string | null;
-		trimDeadline?: number | null;
 		ondismiss: () => void;
 		onretry: () => void;
 		onsaveandview: () => void;
@@ -33,42 +30,6 @@
 		ontrim?: () => void;
 		onskiptrim?: () => void;
 	} = $props();
-
-	let secondsLeft = $state(120);
-	let countdownTimer: ReturnType<typeof setInterval> | null = null;
-
-	$effect(() => {
-		if (phase !== 'trim_prompt' || !trimDeadline) {
-			if (countdownTimer) {
-				clearInterval(countdownTimer);
-				countdownTimer = null;
-			}
-			return;
-		}
-
-		const tick = () => {
-			const remaining = Math.max(0, Math.ceil((trimDeadline - Date.now()) / 1000));
-			secondsLeft = remaining;
-			if (remaining <= 0 && countdownTimer) {
-				clearInterval(countdownTimer);
-				countdownTimer = null;
-				onskiptrim?.();
-			}
-		};
-		tick();
-		countdownTimer = setInterval(tick, 1000);
-
-		return () => {
-			if (countdownTimer) {
-				clearInterval(countdownTimer);
-				countdownTimer = null;
-			}
-		};
-	});
-
-	onDestroy(() => {
-		if (countdownTimer) clearInterval(countdownTimer);
-	});
 
 	function getStatusText(p: typeof phase, ct: string): string {
 		if (p === 'uploading') return ct === 'music' ? 'Hang tight...' : 'Downloading video...';
@@ -148,12 +109,7 @@
 			<button class="primary-btn" onclick={ontrim}
 				><ScissorsIcon size={18} weight="bold" /> Trim</button
 			>
-			<button class="skip-btn" onclick={onskiptrim}>
-				Skip — publish full song
-				{#if secondsLeft > 0}
-					<span class="countdown">({secondsLeft}s)</span>
-				{/if}
-			</button>
+			<button class="skip-btn" onclick={onskiptrim}> Skip — publish full song </button>
 		{:else if phase === 'done'}
 			<button class="primary-btn" onclick={onsaveandview}>View in feed</button>
 
@@ -317,9 +273,6 @@
 	}
 	.skip-btn:active {
 		opacity: 0.7;
-	}
-	.countdown {
-		color: var(--text-muted);
 	}
 	.status-label {
 		font-family: var(--font-display);

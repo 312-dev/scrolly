@@ -21,9 +21,9 @@
 	let serverAudioPath = $state<string | null>(null);
 	let serverDuration = $state<number | null>(null);
 	let serverTitle = $state<string | null>(null);
-	let trimDeadline = $state<number | null>(null);
 	let showTrimModal = $state(false);
 	let pollTimer: ReturnType<typeof setInterval> | null = null;
+	let pingTimer: ReturnType<typeof setInterval> | null = null;
 	let addVideoRef = $state<ReturnType<typeof AddVideo> | null>(null);
 	let sheetRef = $state<ReturnType<typeof BaseSheet> | null>(null);
 
@@ -36,9 +36,10 @@
 		}
 	});
 
-	// Clean up poll timer on unmount
+	// Clean up timers on unmount
 	onDestroy(() => {
 		if (pollTimer) clearInterval(pollTimer);
+		if (pingTimer) clearInterval(pingTimer);
 		clearAll();
 	});
 
@@ -56,6 +57,24 @@
 		pollTimer = null;
 	}
 
+	function startPinging() {
+		sendPing();
+		pingTimer = setInterval(sendPing, 10_000);
+	}
+
+	function stopPinging() {
+		if (pingTimer) clearInterval(pingTimer);
+		pingTimer = null;
+	}
+
+	async function sendPing() {
+		try {
+			await fetch(`/api/clips/${clipId}/ping`, { method: 'POST' });
+		} catch {
+			// Best-effort — server auto-publishes if pings stop
+		}
+	}
+
 	function handlePollData(data: Record<string, unknown>) {
 		if (data.artist) serverArtist = data.artist as string;
 		if (data.albumArt) serverAlbumArt = data.albumArt as string;
@@ -66,8 +85,8 @@
 
 		if (data.status === 'pending_trim' && data.contentType === 'music') {
 			stopPolling();
-			trimDeadline = data.trimDeadline ? new Date(data.trimDeadline as string).getTime() : null;
 			phase = 'trim_prompt';
+			startPinging();
 		} else if (data.status === 'ready') {
 			stopPolling();
 			phase = 'done';
@@ -104,6 +123,7 @@
 	}
 
 	function dismiss() {
+		stopPinging();
 		// If still uploading or waiting for trim, push a background toast
 		if (phase === 'uploading' || phase === 'trim_prompt') {
 			addToast({
@@ -133,15 +153,17 @@
 	}
 
 	async function handleSkipTrim() {
+		stopPinging();
 		try {
 			await fetch(`/api/clips/${clipId}/publish`, { method: 'POST' });
 		} catch {
-			// Server auto-publishes after deadline anyway
+			// Server auto-publishes if pings stop
 		}
 		phase = 'done';
 	}
 
 	function handleTrimComplete() {
+		stopPinging();
 		showTrimModal = false;
 		phase = 'done';
 	}
@@ -182,7 +204,6 @@
 				{serverTitle}
 				{serverArtist}
 				{serverAlbumArt}
-				{trimDeadline}
 				ondismiss={dismiss}
 				onretry={handleRetry}
 				onsaveandview={handleSaveAndView}
