@@ -19,6 +19,7 @@
  *     };
  *   });
  */
+import { untrack } from 'svelte';
 import { pushState } from '$app/navigation';
 import { page } from '$app/state';
 
@@ -55,7 +56,10 @@ export function createOverlayHistory<K extends PageStateKey>(
 		attach(ondismiss: () => void) {
 			// Merge with current page state so parent overlay markers survive.
 			// e.g. { meReel: true } + { sheet: 'comments' } = { meReel: true, sheet: 'comments' }
-			pushState('', { ...page.state, [stateKey]: stateValue });
+			// Use untrack() to read page.state without subscribing — otherwise the
+			// $effect that calls attach() would re-run when pushState updates it.
+			const currentState = untrack(() => page.state);
+			pushState('', { ...currentState, [stateKey]: stateValue });
 
 			const handlePopState = () => {
 				// Defer so SvelteKit's own popstate handler updates page.state first.
