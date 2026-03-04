@@ -126,7 +126,7 @@
 			{#if reactedEmoji && reactedEmoji !== '❤️' && REACTION_MAP.has(reactedEmoji)}
 				<span class="reaction-emoji">{reactedEmoji}</span>
 			{:else}
-				<HeartIcon size={24} weight="fill" />
+				<HeartIcon size={24} weight={favorited ? 'fill' : 'regular'} />
 			{/if}
 		</span>
 		{#if reactionCount > 0}
@@ -258,10 +258,6 @@
 		margin-bottom: -3px;
 	}
 
-	.sidebar-btn.active .icon-circle {
-		background: color-mix(in srgb, var(--accent-magenta) 20%, transparent);
-	}
-
 	.sidebar-btn.active {
 		color: var(--accent-magenta);
 	}
@@ -304,11 +300,16 @@
 		text-shadow: 0 1px 1px var(--reel-text-shadow);
 	}
 
-	.sidebar-btn.muted-state .icon-circle {
+	.sidebar-btn.muted-state .icon-circle::before {
+		content: '';
+		position: absolute;
+		inset: 2px;
+		border-radius: var(--radius-full);
 		background: var(--reel-text);
 	}
 
 	.sidebar-btn.muted-state .icon-circle :global(svg) {
+		position: relative;
 		color: #000;
 		filter: none;
 	}
