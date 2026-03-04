@@ -34,11 +34,11 @@
 {/if}
 
 {#if showPlayIndicator}
-	<div class="center-indicator icon">
+	<div class="play-indicator icon">
 		{#if paused}
-			<PauseIcon size={24} weight="fill" />
+			<PauseIcon size={40} weight="fill" />
 		{:else}
-			<PlayIcon size={24} weight="fill" />
+			<PlayIcon size={40} weight="fill" />
 		{/if}
 	</div>
 {/if}
@@ -78,6 +78,31 @@
 	.center-indicator :global(svg) {
 		width: 24px;
 		height: 24px;
+	}
+
+	.play-indicator {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		z-index: 10;
+		width: 90px;
+		height: 90px;
+		border-radius: var(--radius-full);
+		background: rgba(0, 0, 0, 0.3);
+		backdrop-filter: blur(6px);
+		-webkit-backdrop-filter: blur(6px);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: rgba(255, 255, 255, 0.7);
+		pointer-events: none;
+		animation: indicator-fade 0.8s ease forwards;
+	}
+
+	.play-indicator :global(svg) {
+		width: 40px;
+		height: 40px;
 	}
 
 	.paused-indicator {

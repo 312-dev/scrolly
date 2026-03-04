@@ -1,9 +1,9 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { pushState, beforeNavigate } from '$app/navigation';
-	import { page } from '$app/state';
+	import { beforeNavigate } from '$app/navigation';
 	import { onDestroy } from 'svelte';
 	import { openSheet, closeSheet } from '$lib/stores/sheetOpen';
+	import { createOverlayHistory } from '$lib/overlayHistory';
 	import { createSafeTimeout } from '$lib/safeTimeout';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 
@@ -22,7 +22,6 @@
 	} = $props();
 
 	let visible = $state(false);
-	let closedViaBack = false;
 	const { safeTimeout, clearAll } = createSafeTimeout();
 
 	let dragZoneEl: HTMLElement | null = $state(null);
@@ -73,10 +72,8 @@
 		}
 	}
 
-	// Prevent history.back() in cleanup when a real navigation occurs (e.g. clicking a link inside the sheet)
-	beforeNavigate(() => {
-		closedViaBack = true;
-	});
+	const overlay = createOverlayHistory('sheet', sheetId);
+	beforeNavigate(overlay.onBeforeNavigate);
 
 	// Animate in, lock scroll, manage history
 	$effect(() => {
@@ -86,28 +83,12 @@
 		});
 		document.body.style.overflow = 'hidden';
 
-		pushState('', { sheet: sheetId });
-		const handlePopState = () => {
-			// Defer so SvelteKit updates page.state before we check.
-			// If our sheet is still in the state, a child sheet closed — not us.
-			setTimeout(() => {
-				if (page.state?.sheet === sheetId) return;
-				closedViaBack = true;
-				ondismiss();
-			}, 0);
-		};
-		const handleBeforeUnload = () => {
-			closedViaBack = true;
-		};
-		window.addEventListener('popstate', handlePopState);
-		window.addEventListener('beforeunload', handleBeforeUnload);
+		const cleanupHistory = overlay.attach(ondismiss);
 
 		return () => {
 			closeSheet();
 			document.body.style.overflow = '';
-			window.removeEventListener('popstate', handlePopState);
-			window.removeEventListener('beforeunload', handleBeforeUnload);
-			if (!closedViaBack) history.back();
+			cleanupHistory();
 		};
 	});
 

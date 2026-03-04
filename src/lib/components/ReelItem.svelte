@@ -114,7 +114,8 @@
 	let extraCommentCount = $state(0);
 	const localCommentCount = $derived(clip.commentCount + extraCommentCount);
 	let captionOverride = $state<string | null | undefined>(undefined);
-	const localCaption = $derived(captionOverride !== undefined ? captionOverride : clip.title);
+	const defaultCaption = $derived(clip.contentType === 'music' ? null : clip.title);
+	const localCaption = $derived(captionOverride !== undefined ? captionOverride : defaultCaption);
 	let captionExpanded = $state(false);
 	const isOwn = $derived(clip.addedBy === currentUserId);
 	const reactedEmoji = $derived(

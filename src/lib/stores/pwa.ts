@@ -36,11 +36,20 @@ let deferredPrompt: any = null;
 
 export const canInstall = writable(false);
 
-const IOS_DISMISS_KEY = 'scrolly_ios_install_dismissed';
+const DISMISS_KEY = 'scrolly_install_dismissed_at';
+const DISMISS_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 1 week
 
-function loadIosDismissed(): boolean {
+function loadDismissed(): boolean {
 	if (typeof window === 'undefined') return false;
-	return localStorage.getItem(IOS_DISMISS_KEY) === '1';
+	const raw = localStorage.getItem(DISMISS_KEY);
+	if (!raw) return false;
+	const dismissedAt = parseInt(raw, 10);
+	if (isNaN(dismissedAt)) return false;
+	if (Date.now() - dismissedAt > DISMISS_DURATION_MS) {
+		localStorage.removeItem(DISMISS_KEY);
+		return false;
+	}
+	return true;
 }
 
 export const installDismissed = writable(false);
@@ -63,7 +72,8 @@ export function initInstallPrompt(): void {
 	// iOS Safari: check if previously dismissed
 	const ios = detectIosSafari();
 	isIosSafari.set(ios);
-	if (ios && loadIosDismissed()) {
+	const dismissed = loadDismissed();
+	if (dismissed) {
 		installDismissed.set(true);
 	}
 
@@ -94,9 +104,8 @@ export async function triggerInstall(): Promise<boolean> {
 
 export function dismissInstall(): void {
 	installDismissed.set(true);
-	// Persist dismissal for iOS (no beforeinstallprompt to re-trigger)
 	if (typeof window !== 'undefined') {
-		localStorage.setItem(IOS_DISMISS_KEY, '1');
+		localStorage.setItem(DISMISS_KEY, String(Date.now()));
 	}
 }
 

@@ -1,16 +1,20 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import { comments, commentHearts, commentViews, clips, reactions } from '$lib/server/db/schema';
-import { eq, and, ne, inArray } from 'drizzle-orm';
-import { v4 as uuid } from 'uuid';
 import {
-	withClipAuth,
-	parseBody,
-	isResponse,
-	mapUsersByIds,
-	notifyClipOwner
-} from '$lib/server/api-utils';
+	comments,
+	commentHearts,
+	commentViews,
+	reactions,
+	users,
+	notificationPreferences,
+	notifications
+} from '$lib/server/db/schema';
+import { eq, and, ne, inArray, isNull } from 'drizzle-orm';
+import { v4 as uuid } from 'uuid';
+import { withClipAuth, parseBody, isResponse, mapUsersByIds } from '$lib/server/api-utils';
+import { sendNotification } from '$lib/server/push';
+import { env } from '$env/dynamic/private';
 import { extractMentions, notifyMentions } from '$lib/server/mentions';
 
 export const GET: RequestHandler = withClipAuth(async ({ params }, { user }) => {
@@ -123,53 +127,66 @@ export const GET: RequestHandler = withClipAuth(async ({ params }, { user }) => 
 	return json({ comments: formatted, reactionEvents });
 });
 
-/** Determine the notification recipient and dispatch. Returns recipient ID or null. */
+/** Notify all group members about a comment or reply. Returns notified user IDs. */
 async function dispatchCommentNotification(
 	clipId: string,
 	parentId: string | null,
-	actor: { id: string; username: string; avatarPath: string | null },
+	actor: { id: string; username: string; avatarPath: string | null; groupId: string },
 	preview: string
-): Promise<string | null> {
-	if (parentId) {
-		const parentComment = await db.query.comments.findFirst({
-			where: eq(comments.id, parentId)
+): Promise<string[]> {
+	const type = parentId ? 'reply' : 'comment';
+	const pushTitle = parentId
+		? `${actor.username} replied to a comment`
+		: `${actor.username} commented on a clip`;
+	const pushTag = `${type}-${clipId}-${actor.id}`;
+
+	const groupMembers = await db.query.users.findMany({
+		where: and(eq(users.groupId, actor.groupId), isNull(users.removedAt))
+	});
+	const targets = groupMembers.filter((m) => m.id !== actor.id);
+	if (targets.length === 0) return [];
+
+	const targetIds = targets.map((u) => u.id);
+	const allPrefs = await db.query.notificationPreferences.findMany({
+		where: inArray(notificationPreferences.userId, targetIds)
+	});
+	const prefsMap = new Map(allPrefs.map((p) => [p.userId, p]));
+
+	const image =
+		actor.avatarPath && env.ORIGIN
+			? `${env.ORIGIN}/api/profile/avatar/${actor.avatarPath}`
+			: undefined;
+
+	const notifiedIds: string[] = [];
+
+	for (const recipient of targets) {
+		const prefs = prefsMap.get(recipient.id);
+		const prefEnabled = !prefs || prefs.comments;
+
+		if (prefEnabled) {
+			sendNotification(recipient.id, {
+				title: pushTitle,
+				body: preview,
+				url: `/?clip=${clipId}&comments=true`,
+				tag: pushTag,
+				...(image ? { image } : {})
+			}).catch(() => {});
+		}
+
+		await db.insert(notifications).values({
+			id: uuid(),
+			userId: recipient.id,
+			type,
+			clipId,
+			actorId: actor.id,
+			commentPreview: preview,
+			createdAt: new Date()
 		});
-		if (parentComment && parentComment.userId !== actor.id) {
-			await notifyClipOwner({
-				recipientId: parentComment.userId,
-				actorId: actor.id,
-				actorUsername: actor.username,
-				actorAvatarPath: actor.avatarPath,
-				clipId,
-				type: 'reply',
-				preferenceKey: 'comments',
-				pushTitle: `${actor.username} replied to you`,
-				pushBody: preview,
-				pushTag: `reply-${clipId}-${actor.id}`,
-				commentPreview: preview
-			});
-			return parentComment.userId;
-		}
-	} else {
-		const clip = await db.query.clips.findFirst({ where: eq(clips.id, clipId) });
-		if (clip && clip.addedBy !== actor.id) {
-			await notifyClipOwner({
-				recipientId: clip.addedBy,
-				actorId: actor.id,
-				actorUsername: actor.username,
-				actorAvatarPath: actor.avatarPath,
-				clipId,
-				type: 'comment',
-				preferenceKey: 'comments',
-				pushTitle: `${actor.username} commented on your clip`,
-				pushBody: preview,
-				pushTag: `comment-${clipId}-${actor.id}`,
-				commentPreview: preview
-			});
-			return clip.addedBy;
-		}
+
+		notifiedIds.push(recipient.id);
 	}
-	return null;
+
+	return notifiedIds;
 }
 
 function isValidGiphyUrl(url: string): boolean {
@@ -229,17 +246,16 @@ export const POST: RequestHandler = withClipAuth(async ({ params, request }, { u
 	});
 
 	const preview = hasText ? trimmed.slice(0, 80) : '[GIF]';
-	const commentRecipientId = await dispatchCommentNotification(
+	const notifiedUserIds = await dispatchCommentNotification(
 		clipId,
 		body.parentId || null,
 		user,
 		preview
 	);
 
-	// Dispatch @mention notifications (exclude user who already got comment/reply notification)
+	// Dispatch @mention notifications (exclude users already notified via comment/reply)
 	const mentionedUsernames = extractMentions(trimmed);
 	if (mentionedUsernames.length > 0) {
-		const excludeUserIds = commentRecipientId ? [commentRecipientId] : [];
 		notifyMentions({
 			mentionedUsernames,
 			actorId: user.id,
@@ -248,7 +264,7 @@ export const POST: RequestHandler = withClipAuth(async ({ params, request }, { u
 			clipId,
 			groupId: user.groupId,
 			commentPreview: preview,
-			excludeUserIds
+			excludeUserIds: notifiedUserIds
 		}).catch(() => {});
 	}
 

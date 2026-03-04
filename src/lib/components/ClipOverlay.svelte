@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { pushState, beforeNavigate } from '$app/navigation';
-	import { page } from '$app/state';
+	import { beforeNavigate } from '$app/navigation';
 	import { fetchUnwatchedCount } from '$lib/stores/notifications';
 	import { openCommentsSignal } from '$lib/stores/toasts';
+	import { createOverlayHistory } from '$lib/overlayHistory';
 	import {
 		fetchSingleClip,
 		markClipWatched,
@@ -57,13 +57,10 @@
 	let showViewers = $state(false);
 
 	// History management
-	let closedViaBack = false;
 	let dismissed = false;
 
-	// Prevent history.back() in cleanup when a real navigation or reload occurs
-	beforeNavigate(() => {
-		closedViaBack = true;
-	});
+	const overlay = createOverlayHistory('clipOverlay', clipId);
+	beforeNavigate(overlay.onBeforeNavigate);
 
 	function handleDismiss() {
 		if (dismissed) return;
@@ -92,25 +89,7 @@
 
 	// History: push state on mount, pop on dismiss
 	$effect(() => {
-		pushState('', { clipOverlay: clipId });
-		const handlePopState = () => {
-			setTimeout(() => {
-				if (page.state?.clipOverlay) return;
-				closedViaBack = true;
-				handleDismiss();
-			}, 0);
-		};
-		const handleBeforeUnload = () => {
-			closedViaBack = true;
-		};
-		window.addEventListener('popstate', handlePopState);
-		window.addEventListener('beforeunload', handleBeforeUnload);
-
-		return () => {
-			window.removeEventListener('popstate', handlePopState);
-			window.removeEventListener('beforeunload', handleBeforeUnload);
-			if (!closedViaBack) history.back();
-		};
+		return overlay.attach(handleDismiss);
 	});
 
 	// Swipe-to-dismiss gesture (swipe right — back the way the overlay came)
