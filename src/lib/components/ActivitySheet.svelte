@@ -143,7 +143,8 @@
 					const q = shouldOpenComments
 						? `clip=${targetClipId}&comments=true`
 						: `clip=${targetClipId}`;
-					goto(resolve(`/?${q}`));
+					// eslint-disable-next-line svelte/no-navigation-without-resolve -- resolve() expects route ID, not URL with query params
+					goto(`/?${q}`);
 				}
 			}, 0);
 		}, 300);
