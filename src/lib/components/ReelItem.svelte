@@ -498,30 +498,32 @@
 </script>
 
 <div class="reel-item" data-index={index} bind:this={itemEl}>
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div
-		class="top-left-row"
-		class:ui-hidden={uiHidden}
-		bind:this={pillEl}
-		onpointerdown={(e) => e.stopPropagation()}
-		ontouchstart={(e) => e.stopPropagation()}
-		ontouchmove={(e) => e.stopPropagation()}
-		ontouchend={(e) => e.stopPropagation()}
-	>
-		<ContributorPill
-			username={clip.addedByUsername}
-			avatarPath={clip.addedByAvatar}
-			expanded={pillExpanded}
-			ontap={() => {
-				if (pillTimer) {
-					clearTimeout(pillTimer);
-					pillTimer = null;
-				}
-				pillExpanded = !pillExpanded;
-				filterBarDimmed.set(pillExpanded);
-			}}
-		/>
-	</div>
+	{#if !hideViewBadge}
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div
+			class="top-left-row"
+			class:ui-hidden={uiHidden}
+			bind:this={pillEl}
+			onpointerdown={(e) => e.stopPropagation()}
+			ontouchstart={(e) => e.stopPropagation()}
+			ontouchmove={(e) => e.stopPropagation()}
+			ontouchend={(e) => e.stopPropagation()}
+		>
+			<ContributorPill
+				username={clip.addedByUsername}
+				avatarPath={clip.addedByAvatar}
+				expanded={pillExpanded}
+				ontap={() => {
+					if (pillTimer) {
+						clearTimeout(pillTimer);
+						pillTimer = null;
+					}
+					pillExpanded = !pillExpanded;
+					filterBarDimmed.set(pillExpanded);
+				}}
+			/>
+		</div>
+	{/if}
 
 	{#if !hideViewBadge && clip.viewCount > 0}
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
