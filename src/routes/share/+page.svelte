@@ -227,7 +227,7 @@
 			{#if isShortcut}
 				<p class="share-desc">Your clip is downloading. {closeText}</p>
 			{:else}
-				<p class="share-desc">Your clip is downloading.</p>
+				<p class="share-desc">You can close this anytime. We'll handle the rest.</p>
 				<button class="btn-primary" onclick={openFeed}>Open Scrolly</button>
 			{/if}
 		{:else if showTrimPrompt}
@@ -259,7 +259,7 @@
 			{#if platform}
 				<span class="platform-pill">{platform}</span>
 			{/if}
-			<p class="share-desc">Hang tight — you can trim it when it's ready</p>
+			<p class="share-desc">Close anytime, or hang tight to trim it.</p>
 			<button class="btn-primary" disabled><span class="spinner"></span> Trim</button>
 		{:else if loading}
 			<div class="icon-wrap">

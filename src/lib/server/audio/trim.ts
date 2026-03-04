@@ -17,6 +17,7 @@ export async function trimAudio(
 	startSeconds: number,
 	endSeconds: number
 ): Promise<TrimResult> {
+	const t0 = performance.now();
 	const tempPath = audioPath.replace(/\.\w+$/, '.trimmed.mp3');
 
 	const ffmpeg = spawn('ffmpeg', [
@@ -61,7 +62,16 @@ export async function trimAudio(
 
 	// eslint-disable-next-line security/detect-non-literal-fs-filename
 	const s = await stat(audioPath);
-	log.info({ audioPath, startSeconds, endSeconds, fileSizeBytes: s.size }, 'audio trimmed');
+	log.info(
+		{
+			audioPath,
+			startSeconds,
+			endSeconds,
+			fileSizeBytes: s.size,
+			durationMs: Math.round(performance.now() - t0)
+		},
+		'audio trimmed'
+	);
 
 	return { fileSizeBytes: s.size };
 }

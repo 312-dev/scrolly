@@ -230,24 +230,34 @@ VPS (Ubuntu, e.g., DigitalOcean or Hetzner)
 7. Configure Twilio for SMS verification codes (see deployment docs)
 8. Set up a reverse proxy (Caddy, nginx, etc.) for HTTPS
 
-### ORIGIN and CSRF Protection
+### Reverse Proxy Configuration
 
-SvelteKit has built-in CSRF protection that checks the `Origin` header on form submissions. Behind a reverse proxy, SvelteKit can't determine the correct origin on its own and will reject requests with a **silent 403** — the rejection happens before the request reaches app-level logging, so nothing appears in `docker logs` or application output.
+Scrolly works behind any reverse proxy (Caddy, nginx, Nginx Proxy Manager, etc.). Three environment variables must be set on the Scrolly container:
 
-**Set the `ORIGIN` environment variable** to your public URL (e.g., `ORIGIN=https://scrolly.example.com`):
+| Variable | Example | Purpose |
+|----------|---------|---------|
+| `ORIGIN` | `https://scrolly.example.com` | CSRF protection — must match public URL |
+| `ADDRESS_HEADER` | `X-Forwarded-For` | Tells SvelteKit to read client IP from proxy header |
+| `XFF_DEPTH` | `1` | Number of trusted proxies (1 for a single proxy like NPM or Caddy) |
 
-- **Docker:** `docker-compose.yml` sets this automatically from `PUBLIC_APP_URL`. The Caddy overlay sets it from `DOMAIN`.
-- **Manual:** Set `ORIGIN` in your shell environment or process manager config.
+**`ORIGIN`** — SvelteKit's CSRF protection checks the `Origin` header on form submissions. Behind a proxy, SvelteKit can't determine the correct origin and silently rejects requests with a **403** that never reaches app-level logging. Set `ORIGIN` to your public URL (protocol + domain, no trailing slash).
 
-This only affects form submissions (SvelteKit form actions). API endpoints (`/api/*` routes via `+server.ts`) are not subject to CSRF origin checks.
+- **Docker:** Set in `docker-compose.yml` (from `PUBLIC_APP_URL` or `DOMAIN`).
+- **Manual:** Set in your shell environment or process manager config.
 
-**Troubleshooting:** If you see unexplained 403 errors on POST requests that don't appear in your app logs, check that `ORIGIN` matches the URL users access in their browser (protocol + domain, no trailing slash).
+**`ADDRESS_HEADER` + `XFF_DEPTH`** — By default, SvelteKit's `getClientAddress()` returns the socket IP, which behind a proxy is the proxy's internal IP (e.g., `172.17.0.1`). This breaks rate limiting — all users share one bucket. Setting `ADDRESS_HEADER=X-Forwarded-For` tells adapter-node to read the real client IP from the proxy header. `XFF_DEPTH` controls how many rightmost IPs to skip (to prevent client spoofing). Set to `1` for a single proxy.
 
-### Nginx Proxy Buffer Size (502 for Authenticated Users)
+**Troubleshooting:**
+- **Silent 403 on POST requests** that don't appear in app logs → `ORIGIN` doesn't match the browser URL.
+- **All users rate-limited together** → `ADDRESS_HEADER` not set; rate limiter sees the proxy IP for everyone.
 
-Nginx's default `proxy_buffer_size` is 4KB. Scrolly sets a signed session cookie plus additional preference cookies (theme, etc.) on every authenticated response. If the combined `Set-Cookie` response headers exceed 4KB, nginx fails to forward the response and returns an **instant 502** — only for users who already have a session cookie. Users without cookies (unauthenticated) are unaffected, and direct connections to the app bypass nginx and work fine.
+### Nginx / Nginx Proxy Manager
 
-**Symptom:** Authenticated users get 502s through the proxy. Deleting cookies in the browser immediately resolves it. Nginx error log shows:
+NPM automatically forwards `X-Forwarded-For` — no custom location or header configuration needed for IP forwarding or rate limiting (rate limiting is handled at the app level).
+
+**Required: proxy buffer size increase.** Scrolly sets a signed session cookie plus preference cookies on every authenticated response. If the combined `Set-Cookie` headers exceed nginx's default 4KB buffer, nginx returns an **instant 502** for authenticated users only. Unauthenticated users and direct connections are unaffected.
+
+**Symptom:** Authenticated users get 502s through the proxy. Deleting cookies in the browser resolves it. Nginx error log shows:
 ```
 upstream sent too big header while reading response header from upstream
 ```
@@ -260,7 +270,7 @@ proxy_busy_buffers_size  64k;
 large_client_header_buffers 4 32k;
 ```
 
-**Fix — Nginx Proxy Manager (GUI):**
+**Fix — Nginx Proxy Manager:**
 
 Edit your proxy host → Advanced tab → paste into Custom Nginx Configuration:
 ```nginx

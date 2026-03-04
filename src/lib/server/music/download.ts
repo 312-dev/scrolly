@@ -41,11 +41,15 @@ interface MusicMetadata {
 }
 
 async function resolveOdesli(url: string): Promise<MusicMetadata> {
+	const t0 = performance.now();
 	const apiUrl = `https://api.song.link/v1-alpha.1/links?url=${encodeURIComponent(url)}`;
 	const res = await fetch(apiUrl, { signal: AbortSignal.timeout(15000) });
 
 	if (!res.ok) {
-		log.error({ status: res.status, url }, 'odesli API error');
+		log.error(
+			{ status: res.status, url, durationMs: Math.round(performance.now() - t0) },
+			'odesli API error'
+		);
 		return {
 			title: null,
 			artist: null,
@@ -58,6 +62,8 @@ async function resolveOdesli(url: string): Promise<MusicMetadata> {
 
 	const data: OdesliResponse = await res.json();
 	const entity = data.entitiesByUniqueId[data.entityUniqueId];
+
+	log.info({ url, durationMs: Math.round(performance.now() - t0) }, 'odesli resolved');
 
 	return {
 		title: entity?.title || null,
@@ -122,15 +128,19 @@ async function finalizeMusicClip(
 			})
 			.where(eq(clips.id, clipId));
 
+		const t0 = performance.now();
 		await notifyNewClip(clipId).catch((err) =>
 			log.error({ err, clipId }, 'push notification failed')
 		);
+		log.info({ clipId, durationMs: Math.round(performance.now() - t0) }, 'notifications sent');
 		return;
 	}
 
 	// Generate waveform for trim UI (best-effort — trim works without it)
 	try {
+		const t0 = performance.now();
 		await generateWaveform(result.audioPath, clipId);
+		log.info({ clipId, durationMs: Math.round(performance.now() - t0) }, 'waveform generated');
 	} catch (err) {
 		log.warn({ err, clipId }, 'waveform generation failed');
 	}
@@ -182,11 +192,11 @@ async function downloadMusicInner(
 		const metadata = await resolveOdesli(url);
 
 		// Step 2: Update clip immediately with metadata (UI can show song info while downloading)
-		// Keep user-provided caption only — don't auto-fill with song name
+		let t0 = performance.now();
 		await db
 			.update(clips)
 			.set({
-				title: clip.title || null,
+				title: clip.title || metadata.title || null,
 				artist: metadata.artist,
 				albumArt: metadata.albumArt,
 				spotifyUrl: metadata.spotifyUrl,
@@ -194,6 +204,7 @@ async function downloadMusicInner(
 				youtubeMusicUrl: metadata.youtubeMusicUrl
 			})
 			.where(eq(clips.id, clipId));
+		log.info({ clipId, durationMs: Math.round(performance.now() - t0) }, 'metadata saved');
 
 		// Step 3: Search YouTube and download audio via provider
 		let result: AudioDownloadResult | null = null;
@@ -205,32 +216,55 @@ async function downloadMusicInner(
 
 		if (metadata.title && metadata.artist) {
 			try {
+				t0 = performance.now();
 				result = await provider.downloadAudio(
 					`ytsearch1:${metadata.title} ${metadata.artist}`,
 					downloadOptions
 				);
+				log.info(
+					{ clipId, durationMs: Math.round(performance.now() - t0), method: 'yt-search' },
+					'audio downloaded'
+				);
 			} catch (err) {
-				log.error({ err, title: metadata.title, artist: metadata.artist }, 'youtube search failed');
+				log.error(
+					{
+						err,
+						title: metadata.title,
+						artist: metadata.artist,
+						durationMs: Math.round(performance.now() - t0)
+					},
+					'youtube search failed'
+				);
 			}
 		}
 
 		// Step 4: Fallback — try the YouTube Music URL directly
 		if (!result && metadata.youtubeMusicUrl) {
 			try {
+				t0 = performance.now();
 				result = await provider.downloadAudio(metadata.youtubeMusicUrl, downloadOptions);
+				log.info(
+					{ clipId, durationMs: Math.round(performance.now() - t0), method: 'yt-music-url' },
+					'audio downloaded'
+				);
 			} catch (err) {
-				log.error({ err }, 'youtube music URL download failed');
+				log.error(
+					{ err, durationMs: Math.round(performance.now() - t0) },
+					'youtube music URL download failed'
+				);
 			}
 		}
 
 		if (result) {
+			t0 = performance.now();
 			await finalizeMusicClip(
 				clipId,
 				result,
 				maxFileSizeBytes,
-				clip.title || null,
+				clip.title || metadata.title || null,
 				options?.skipTrim
 			);
+			log.info({ clipId, durationMs: Math.round(performance.now() - t0) }, 'finalize complete');
 		} else {
 			// Failed to download audio, but metadata + platform links are still visible
 			await cleanupClipFiles(clipId);

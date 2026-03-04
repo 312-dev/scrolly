@@ -101,6 +101,7 @@ export async function deduplicatedDownload(
 	const normalized = normalizeUrl(url);
 
 	// Phase 1: Check DB for an already-completed clip with this URL
+	let t0 = performance.now();
 	const readyClip = await db.query.clips.findFirst({
 		where: and(
 			eq(clips.originalUrl, normalized),
@@ -110,7 +111,10 @@ export async function deduplicatedDownload(
 	});
 
 	if (readyClip) {
-		log.info({ url, sourceClipId: readyClip.id }, 'reusing existing download');
+		log.info(
+			{ url, sourceClipId: readyClip.id, durationMs: Math.round(performance.now() - t0) },
+			'reusing existing download'
+		);
 		try {
 			await copyResultToClip(clipId, clipToResult(readyClip));
 			return;
@@ -123,8 +127,13 @@ export async function deduplicatedDownload(
 	// Phase 2: Check if this URL is already being downloaded
 	const inflight = activeDownloads.get(normalized);
 	if (inflight) {
+		t0 = performance.now();
 		log.info({ url }, 'waiting on active download');
 		const result = await inflight;
+		log.info(
+			{ url, durationMs: Math.round(performance.now() - t0) },
+			'active download wait complete'
+		);
 		if (result.status === 'ready' || result.status === 'pending_trim') {
 			try {
 				await copyResultToClip(clipId, result);

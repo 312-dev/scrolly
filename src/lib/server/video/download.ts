@@ -54,7 +54,9 @@ async function downloadVideoInner(clipId: string, url: string): Promise<void> {
 	const { clip, maxFileSizeBytes } = data;
 
 	// Resolve the active provider for this clip's group
+	let t0 = performance.now();
 	const provider = await getActiveProvider(clip.groupId);
+	log.info({ clipId, durationMs: Math.round(performance.now() - t0) }, 'provider resolved');
 	if (!provider) {
 		await db
 			.update(clips)
@@ -68,11 +70,16 @@ async function downloadVideoInner(clipId: string, url: string): Promise<void> {
 	}
 
 	try {
+		t0 = performance.now();
 		const result = await provider.downloadVideo(url, {
 			outputDir: DATA_DIR,
 			clipId,
 			maxFileSizeBytes
 		});
+		log.info(
+			{ clipId, durationMs: Math.round(performance.now() - t0), platform: clip.platform },
+			'video downloaded'
+		);
 
 		// Post-download file size safety net
 		const fileSizeBytes = await totalFileSize([result.videoPath, result.thumbnailPath]);
@@ -100,6 +107,7 @@ async function downloadVideoInner(clipId: string, url: string): Promise<void> {
 		// Keep existing title (caption from SMS) if present, otherwise use provider-extracted title
 		const title = clip.title || result.title || null;
 
+		t0 = performance.now();
 		await db
 			.update(clips)
 			.set({
@@ -113,11 +121,14 @@ async function downloadVideoInner(clipId: string, url: string): Promise<void> {
 				creatorUrl: result.creatorUrl
 			})
 			.where(eq(clips.id, clipId));
+		log.info({ clipId, durationMs: Math.round(performance.now() - t0) }, 'clip marked ready');
 
 		// Notify group now that the clip is actually ready
+		t0 = performance.now();
 		await notifyNewClip(clipId).catch((err) =>
 			log.error({ err, clipId }, 'push notification failed')
 		);
+		log.info({ clipId, durationMs: Math.round(performance.now() - t0) }, 'notifications sent');
 	} catch (err) {
 		await handleDownloadError(clipId, err, maxFileSizeBytes);
 	}
