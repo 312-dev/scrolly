@@ -55,12 +55,22 @@
 		(e.target as HTMLElement).releasePointerCapture(e.pointerId);
 		dragging = null;
 	}
+
+	function handleClick(e: MouseEvent) {
+		// Don't seek if we were dragging a handle
+		if (dragging) return;
+		// Don't seek if the click target is a handle
+		if ((e.target as HTMLElement).closest('.handle')) return;
+		const time = timeFromPointer(e.clientX);
+		onseek?.(time);
+	}
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	class="waveform-wrapper"
 	bind:this={container}
+	onclick={handleClick}
 	onpointermove={handlePointerMove}
 	onpointerup={handlePointerUp}
 >
@@ -134,6 +144,7 @@
 		height: 100px;
 		touch-action: none;
 		user-select: none;
+		cursor: pointer;
 	}
 	.range-bg {
 		position: absolute;
