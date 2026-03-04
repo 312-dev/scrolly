@@ -37,7 +37,7 @@ Real-time push notifications via the Web Push Protocol (VAPID).
 | Event | Who gets notified | When sent | Preference key |
 |-------|-------------------|-----------|----------------|
 | New clip added | All group members except poster (push only) | After download succeeds (`status: 'ready'`) | `newAdds` |
-| Reaction on a clip | Clip owner only (push + in-app) | Immediately after reaction is persisted | `reactions` |
+| Reaction on a clip | All group members except reactor (push + in-app) | Immediately after reaction is persisted | `reactions` |
 | Comment on a clip | All group members except commenter (push + in-app) | Immediately after comment is persisted | `comments` |
 | Reply to a comment | All group members except replier (push + in-app) | Immediately after reply is persisted | `comments` |
 | Daily reminder | Per-user opt-in | — | `dailyReminder` (not yet scheduled) |
