@@ -36,9 +36,10 @@ Real-time push notifications via the Web Push Protocol (VAPID).
 
 | Event | Who gets notified | When sent | Preference key |
 |-------|-------------------|-----------|----------------|
-| New clip added | All group members except poster (push + in-app) | After download succeeds (`status: 'ready'`) | `newAdds` |
+| New clip added | All group members except poster (push only) | After download succeeds (`status: 'ready'`) | `newAdds` |
 | Reaction on a clip | Clip owner only (push + in-app) | Immediately after reaction is persisted | `reactions` |
-| Comment on a clip | Clip owner only (push + in-app) | Immediately after comment is persisted | `comments` |
+| Comment on a clip | All group members except commenter (push + in-app) | Immediately after comment is persisted | `comments` |
+| Reply to a comment | All group members except replier (push + in-app) | Immediately after reply is persisted | `comments` |
 | Daily reminder | Per-user opt-in | — | `dailyReminder` (not yet scheduled) |
 
 **Timing rationale:** New clip notifications are deferred until the download pipeline finishes successfully. This avoids notifying users about clips that may fail to download. If a download fails, no notification is sent. Reactions and comments notify immediately since the action is already complete.
