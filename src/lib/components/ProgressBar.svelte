@@ -111,7 +111,7 @@
 		display: flex;
 		align-items: flex-end;
 		cursor: pointer;
-		padding: 12px 0 1px;
+		padding: 12px 0 0;
 		touch-action: none;
 		transition: opacity 0.3s ease;
 	}
