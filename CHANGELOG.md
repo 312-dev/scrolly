@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.16.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.15.1...scrolly-v1.16.0) (2026-03-04)
+
+
+### Features
+
+* ping-based trim heartbeat, iOS close hints, UI fixes ([#68](https://github.com/312-dev/scrolly/issues/68)) ([cee4b70](https://github.com/312-dev/scrolly/commit/cee4b701ea27f8f6065ade01762cc615035e59c7))
+
 ## [1.15.1](https://github.com/312-dev/scrolly/compare/scrolly-v1.15.0...scrolly-v1.15.1) (2026-03-03)
 
 
