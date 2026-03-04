@@ -131,6 +131,7 @@ Response: { "count": 5 }
 | POST | `/api/clips/[id]/trim` | Trim music clip audio |
 | GET | `/api/clips/[id]/waveform` | Get waveform peaks for trim UI |
 | POST | `/api/clips/[id]/publish` | Publish music clip (skip trim) |
+| POST | `/api/clips/[id]/ping` | Extend trim deadline (heartbeat) |
 
 ### POST /api/clips/[id]/watched
 ```
@@ -202,6 +203,12 @@ Response: { "peaks": [0.1, 0.3, 0.8, ...] }   (200 values, normalized 0-1)
 
 ### POST /api/clips/[id]/publish
 Publishes a music clip that is in `pending_trim` status, skipping the trim step.
+```
+Response: { "ok": true }
+```
+
+### POST /api/clips/[id]/ping
+Extends the trim deadline for a music clip in `pending_trim` status. The client sends pings every 10s to keep the trim UI active. When pings stop, the server auto-publishes after the deadline (30s). Only the uploader can ping.
 ```
 Response: { "ok": true }
 ```
