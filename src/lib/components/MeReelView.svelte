@@ -175,9 +175,9 @@
 		top: 0;
 		left: 0;
 		right: 0;
-		bottom: var(--bottom-nav-height, 64px);
+		bottom: calc(var(--bottom-nav-height, 64px) - 1px);
 		z-index: 40;
-		background: var(--bg-primary);
+		background: var(--reel-bg);
 		overscroll-behavior-x: none;
 	}
 	.reel-topbar {

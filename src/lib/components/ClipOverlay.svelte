@@ -289,9 +289,9 @@
 		top: 0;
 		left: 0;
 		right: 0;
-		bottom: var(--bottom-nav-height, 64px);
+		bottom: calc(var(--bottom-nav-height, 64px) - 1px);
 		z-index: 40;
-		background: var(--bg-primary);
+		background: var(--reel-bg);
 		touch-action: pan-y;
 		overscroll-behavior-x: none;
 		animation: slide-in-right 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
