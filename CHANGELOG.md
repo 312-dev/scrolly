@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.19.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.18.0...scrolly-v1.19.0) (2026-03-04)
+
+
+### Features
+
+* group-wide comment notifications + overlay refactor ([#76](https://github.com/312-dev/scrolly/issues/76)) ([790c630](https://github.com/312-dev/scrolly/commit/790c630200e6fb62498aa459c2e67b0013c671fd))
+
 ## [1.18.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.17.0...scrolly-v1.18.0) (2026-03-04)
 
 
