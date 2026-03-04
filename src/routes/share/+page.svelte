@@ -35,6 +35,12 @@
 	const source = $derived(page.data.source as string | null);
 	const shortcutError = $derived(page.data.shortcutError as string | undefined);
 	const isShortcut = $derived(source === 'shortcut');
+	const isIOS = $derived(
+		typeof navigator !== 'undefined' && /iPhone|iPad|iPod/.test(navigator.userAgent)
+	);
+	const closeText = $derived(
+		isIOS ? 'Tap the ✕ in the top left to close this window.' : 'Tap Done to close this window.'
+	);
 
 	let loading = $state(false);
 	let error = $state('');
@@ -51,9 +57,11 @@
 	let serverDuration = $state<number | null>(null);
 	let serverTitle = $state<string | null>(null);
 	let pollTimer: ReturnType<typeof setInterval> | null = null;
+	let pingTimer: ReturnType<typeof setInterval> | null = null;
 
 	onDestroy(() => {
 		if (pollTimer) clearInterval(pollTimer);
+		if (pingTimer) clearInterval(pingTimer);
 	});
 
 	$effect(() => {
@@ -110,6 +118,7 @@
 		if (data.status === 'pending_trim') {
 			stopPolling();
 			showTrimPrompt = true;
+			startPinging();
 		} else if (data.status === 'ready') {
 			stopPolling();
 			success = true;
@@ -131,6 +140,16 @@
 		}, 3000);
 	}
 
+	const sendPing = () => fetch(`/api/clips/${clipId}/ping`, { method: 'POST' }).catch(() => {});
+	function startPinging() {
+		sendPing();
+		pingTimer = setInterval(sendPing, 10_000);
+	}
+	function stopPinging() {
+		if (pingTimer) clearInterval(pingTimer);
+		pingTimer = null;
+	}
+
 	function openFeed() {
 		if (clipId) {
 			addToast({
@@ -145,16 +164,18 @@
 	}
 
 	async function handleSkipTrim() {
+		stopPinging();
 		showTrimPrompt = false;
 		try {
 			await fetch(`/api/clips/${clipId}/publish`, { method: 'POST' });
 		} catch {
-			/* server auto-publishes */
+			// Server auto-publishes if pings stop
 		}
 		success = true;
 	}
 
 	function handleTrimComplete() {
+		stopPinging();
 		showTrimModal = false;
 		showTrimPrompt = false;
 		success = true;
@@ -173,7 +194,7 @@
 			</div>
 			<h1 class="share-title">Couldn't share</h1>
 			<p class="share-error">{shortcutError}</p>
-			<p class="share-desc">Tap <strong>Done</strong> to close this window.</p>
+			<p class="share-desc">{closeText}</p>
 		{:else if !isValid}
 			<div class="icon-wrap error">
 				<XCircleIcon size={28} />
@@ -182,7 +203,7 @@
 			<p class="share-desc">This URL isn't from a supported platform.</p>
 			<p class="share-url">{shareUrl}</p>
 			{#if isShortcut}
-				<p class="share-desc">Tap <strong>Done</strong> to close this window.</p>
+				<p class="share-desc">{closeText}</p>
 			{:else}
 				<a href={resolve('/')} class="btn-secondary">Go to feed</a>
 			{/if}
@@ -194,7 +215,7 @@
 			<p class="share-desc">{platform} links aren't allowed in this group.</p>
 			<p class="share-url">{shareUrl}</p>
 			{#if isShortcut}
-				<p class="share-desc">Tap <strong>Done</strong> to close this window.</p>
+				<p class="share-desc">{closeText}</p>
 			{:else}
 				<a href={resolve('/')} class="btn-secondary">Go to feed</a>
 			{/if}
@@ -204,9 +225,7 @@
 			</div>
 			<h1 class="share-title">Added!</h1>
 			{#if isShortcut}
-				<p class="share-desc">
-					Your clip is downloading. Tap <strong>Done</strong> to close this window.
-				</p>
+				<p class="share-desc">Your clip is downloading. {closeText}</p>
 			{:else}
 				<p class="share-desc">Your clip is downloading.</p>
 				<button class="btn-primary" onclick={openFeed}>Open Scrolly</button>
@@ -263,7 +282,7 @@
 			<p class="share-url">{shareUrl}</p>
 			<button class="btn-primary" onclick={handleSubmit} disabled={loading}>Try again</button>
 			{#if isShortcut}
-				<p class="share-desc">Or tap <strong>Done</strong> to close this window.</p>
+				<p class="share-desc">Or {closeText.toLowerCase()}</p>
 			{:else}
 				<a href={resolve('/')} class="btn-ghost">Cancel</a>
 			{/if}

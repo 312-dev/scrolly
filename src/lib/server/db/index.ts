@@ -98,6 +98,39 @@ function recoverPendingMigrations(folder: string) {
 }
 /* eslint-enable security/detect-non-literal-fs-filename */
 
+/* eslint-disable security/detect-non-literal-fs-filename */
+function catchSkippedMigrations(folder: string) {
+	const journalPath = resolve(folder, 'meta/_journal.json');
+	const journal = JSON.parse(readFileSync(journalPath, 'utf-8')) as {
+		entries: { when: number; tag: string }[];
+	};
+
+	const appliedRows = sqlite
+		.prepare('SELECT created_at FROM __drizzle_migrations ORDER BY created_at')
+		.all() as { created_at: number }[];
+	const appliedSet = new Set(appliedRows.map((r) => r.created_at));
+
+	let recovered = 0;
+	for (const entry of journal.entries) {
+		if (appliedSet.has(entry.when)) continue;
+
+		const sqlFile = readFileSync(resolve(folder, `${entry.tag}.sql`), 'utf-8');
+		const hash = createHash('sha256').update(sqlFile).digest('hex');
+
+		log.warn({ tag: entry.tag }, 'Found skipped migration — applying now');
+		execIdempotent(sqlFile);
+
+		sqlite
+			.prepare('INSERT INTO __drizzle_migrations ("hash", "created_at") VALUES (?, ?)')
+			.run(hash, entry.when);
+		recovered++;
+	}
+	if (recovered > 0) {
+		log.info({ count: recovered }, 'Recovered skipped migrations');
+	}
+}
+/* eslint-enable security/detect-non-literal-fs-filename */
+
 const startMs = Date.now();
 try {
 	migrate(db, { migrationsFolder });
@@ -118,6 +151,11 @@ try {
 	log.warn({ error: cause?.message }, 'Migration conflict — schema already matches, recovering');
 	recoverPendingMigrations(migrationsFolder);
 }
+
+// Catch migrations silently skipped due to out-of-order journal timestamps.
+// Drizzle skips entries where `when <= max(created_at)`, so a manually-created migration
+// with a high timestamp can cause later migrations with lower timestamps to be skipped.
+catchSkippedMigrations(migrationsFolder);
 
 // Backfill shortcut tokens for existing groups that don't have one
 import { isNull, eq } from 'drizzle-orm';

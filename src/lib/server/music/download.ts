@@ -69,7 +69,7 @@ async function resolveOdesli(url: string): Promise<MusicMetadata> {
 	};
 }
 
-const TRIM_WINDOW_SECONDS = 120;
+const INITIAL_TRIM_DEADLINE_SECONDS = 30;
 
 async function finalizeMusicClip(
 	clipId: string,
@@ -136,7 +136,7 @@ async function finalizeMusicClip(
 	}
 
 	// Mark as pending_trim with a deadline for auto-publish
-	const trimDeadline = new Date(Date.now() + TRIM_WINDOW_SECONDS * 1000);
+	const trimDeadline = new Date(Date.now() + INITIAL_TRIM_DEADLINE_SECONDS * 1000);
 
 	await db
 		.update(clips)

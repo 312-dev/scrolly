@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import {
 		showInstallBanner,
 		showIosInstallBanner,
@@ -11,7 +12,8 @@
 	let showingInstructions = $state(false);
 
 	const isIos = $derived($showIosInstallBanner);
-	const show = $derived($showInstallBanner || $showIosInstallBanner);
+	const isShareFlow = $derived(page.url.pathname.startsWith('/share'));
+	const show = $derived(($showInstallBanner || $showIosInstallBanner) && !isShareFlow);
 
 	async function handleInstall() {
 		if (isIos) {
