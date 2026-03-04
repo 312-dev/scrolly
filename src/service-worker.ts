@@ -133,12 +133,13 @@ sw.addEventListener('notificationclick', (event) => {
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					(sw.navigator as any).clearAppBadge?.()?.catch?.(() => {});
 				}),
-			// Focus or open the app
-			sw.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+			// Focus or open the app — await each step so the SW stays alive
+			// until the navigation completes
+			sw.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clients) => {
 				for (const client of clients) {
 					if (client.url.includes(sw.location.origin) && 'focus' in client) {
-						client.focus();
-						client.navigate(url);
+						const focused = await client.focus();
+						await focused.navigate(url);
 						return;
 					}
 				}

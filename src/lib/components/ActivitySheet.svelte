@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { beforeNavigate } from '$app/navigation';
+	import { beforeNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { onDestroy } from 'svelte';
 	import { relativeTime } from '$lib/utils';
@@ -126,12 +126,27 @@
 	function handleNotificationClick(e: Event, n: Notification) {
 		e.preventDefault();
 		visible = false;
+
+		const targetClipId = n.clipId;
+		const shouldOpenComments = n.type !== 'reaction';
+
 		safeTimeout(() => {
 			ondismiss();
-			clipOverlaySignal.set(n.clipId);
-			if (n.type !== 'reaction') {
-				openCommentsSignal.set(n.clipId);
-			}
+
+			// Cleanup calls history.back() which queues an async popstate — defer
+			// overlay opening so popstate settles before ClipOverlay mounts.
+			setTimeout(() => {
+				if (window.location.pathname === '/') {
+					clipOverlaySignal.set(targetClipId);
+					if (shouldOpenComments) openCommentsSignal.set(targetClipId);
+				} else {
+					const q = shouldOpenComments
+						? `clip=${targetClipId}&comments=true`
+						: `clip=${targetClipId}`;
+					// eslint-disable-next-line svelte/no-navigation-without-resolve -- resolve() expects route ID, not URL with query params
+					goto(`/?${q}`);
+				}
+			}, 0);
 		}, 300);
 	}
 
