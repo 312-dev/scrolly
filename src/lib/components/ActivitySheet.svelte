@@ -143,9 +143,9 @@
 			return 'mentioned you';
 		}
 		if (n.type === 'reply') {
-			return 'replied to your comment';
+			return 'replied to a comment';
 		}
-		return 'commented on your clip';
+		return 'commented on a clip';
 	}
 
 	async function dismissNotification(e: Event, n: Notification) {
@@ -203,7 +203,7 @@
 										<span class="actor-name">{n.actorUsername}</span>
 										{description(n)}
 									</p>
-									{#if (n.type === 'comment' || n.type === 'mention') && n.commentPreview}
+									{#if (n.type === 'comment' || n.type === 'reply' || n.type === 'mention') && n.commentPreview}
 										<p class="comment-preview">{n.commentPreview}</p>
 									{/if}
 									<span class="notification-time">{relativeTime(n.createdAt)}</span>

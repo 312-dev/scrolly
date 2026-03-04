@@ -153,7 +153,7 @@
 			/>
 		</SettingRow>
 
-		<SettingRow name="Comments" description="When someone comments on your clip">
+		<SettingRow name="Comments" description="When someone comments or replies on any clip">
 			<Toggle
 				active={prefs.comments && pushEnabled}
 				disabled={!pushEnabled}
