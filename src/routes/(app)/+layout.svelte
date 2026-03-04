@@ -297,10 +297,8 @@
 		right: 0;
 		display: flex;
 		align-items: center;
-		background: color-mix(in srgb, var(--bg-elevated) 30%, transparent);
-		backdrop-filter: blur(20px);
-		-webkit-backdrop-filter: blur(20px);
-		border-top: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+		background: var(--bg-primary);
+		border-top: 1px solid var(--border);
 		padding: var(--space-xs) 0;
 		padding-bottom: max(var(--space-xs), env(safe-area-inset-bottom));
 		z-index: 10;
@@ -315,8 +313,6 @@
 	.bottom-tabs.overlay-mode {
 		background: var(--reel-bg-elevated);
 		border-top-color: transparent;
-		backdrop-filter: none;
-		-webkit-backdrop-filter: none;
 		z-index: 50;
 	}
 
