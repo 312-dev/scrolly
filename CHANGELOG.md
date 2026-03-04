@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.17.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.16.0...scrolly-v1.17.0) (2026-03-04)
+
+
+### Features
+
+* verbose logging, pipeline timing, trim waveform redesign ([#72](https://github.com/312-dev/scrolly/issues/72)) ([6ad9cb1](https://github.com/312-dev/scrolly/commit/6ad9cb1e8d1010faeec71ee3a09db67a8f463884))
+
+
+### Documentation
+
+* add clip ping endpoint to API reference ([#70](https://github.com/312-dev/scrolly/issues/70)) ([c06903e](https://github.com/312-dev/scrolly/commit/c06903e4ac4cad9e884d190557d0d64bb93bb050))
+
 ## [1.16.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.15.1...scrolly-v1.16.0) (2026-03-04)
 
 
