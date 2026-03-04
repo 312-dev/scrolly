@@ -82,6 +82,7 @@ Push notifications won't work without these. The app will still function, but us
 | `DATA_DIR` | `./data` | Directory for database and media files |
 | `LOG_LEVEL` | `info` | Logging level (`trace`, `debug`, `info`, `warn`, `error`, `fatal`) |
 | `BACKUP_RETENTION_COUNT` | `7` | Number of daily database backups to keep |
+| `RATE_LIMITING` | `false` | Set to `true` to enable API rate limiting. Recommended for public-facing deployments. |
 | `VERBOSE_REQUESTS` | `false` | Enables detailed per-request logging (IP, user-agent, headers, query params). Sensitive values are redacted. Useful for debugging proxy/network issues. |
 | `ADDRESS_HEADER` | — | Header name for reading real client IP from reverse proxy (e.g., `X-Forwarded-For`). Required behind a proxy for correct rate limiting. |
 | `XFF_DEPTH` | `1` | Number of trusted proxies to skip when reading client IP from proxy headers. Set to `1` for a single proxy. |

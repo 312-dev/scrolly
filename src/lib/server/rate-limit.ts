@@ -10,22 +10,30 @@ interface RateLimitConfig {
 	maxRequests: number;
 }
 
+const enabled = process.env.RATE_LIMITING === 'true';
+
 const store = new Map<string, RateLimitEntry>();
 
-// Cleanup expired entries every 60 seconds
-setInterval(() => {
-	const now = Date.now();
-	for (const [key, entry] of store) {
-		if (now >= entry.resetAt) {
-			store.delete(key);
+// Cleanup expired entries every 60 seconds (only when rate limiting is on)
+if (enabled) {
+	setInterval(() => {
+		const now = Date.now();
+		for (const [key, entry] of store) {
+			if (now >= entry.resetAt) {
+				store.delete(key);
+			}
 		}
-	}
-}, 60_000);
+	}, 60_000);
+}
 
 export function checkRateLimit(
 	key: string,
 	config: RateLimitConfig
 ): { allowed: boolean; remaining: number; resetAt: number } {
+	if (!enabled) {
+		return { allowed: true, remaining: config.maxRequests, resetAt: 0 };
+	}
+
 	const now = Date.now();
 	const entry = store.get(key);
 
