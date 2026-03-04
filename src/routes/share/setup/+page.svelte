@@ -13,7 +13,7 @@
 	import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
 	import CopyIcon from 'phosphor-svelte/lib/CopyIcon';
 
-	const TEMPLATE_SHORTCUT_URL = 'https://www.icloud.com/shortcuts/122be5b2c1cf49b4a07e5fc6bf77b08e';
+	const TEMPLATE_SHORTCUT_URL = 'https://www.icloud.com/shortcuts/7408eaef702342f0b38d3d01acf6fcb0';
 	const ICLOUD_SHORTCUT_RE = /^https:\/\/www\.icloud\.com\/shortcuts\/[a-f0-9]{32}\/?$/;
 
 	const appUrl = $derived(page.data.appUrl as string);
