@@ -6,8 +6,29 @@ import { createLogger } from '$lib/server/logger';
 import { checkRateLimit, rateLimitResponse } from '$lib/server/rate-limit';
 
 const log = createLogger('http');
+const verboseRequests = process.env.VERBOSE_REQUESTS === 'true';
 
 startScheduler();
+
+const REDACTED_HEADERS = new Set(['cookie', 'set-cookie', 'authorization', 'x-session-token']);
+
+function getRequestHeaders(request: Request): Record<string, string> {
+	const headers: Record<string, string> = {};
+	request.headers.forEach((value, key) => {
+		headers[key] = REDACTED_HEADERS.has(key) ? '[redacted]' : value;
+	});
+	return headers;
+}
+
+function getQueryParams(url: URL): Record<string, string> | undefined {
+	if (url.searchParams.size === 0) return undefined;
+	const params: Record<string, string> = {};
+	url.searchParams.forEach((value, key) => {
+		// Redact token-like params
+		params[key] = key.toLowerCase().includes('token') ? '[redacted]' : value;
+	});
+	return params;
+}
 
 function applyRateLimit(event: RequestEvent): Response | null {
 	const path = new URL(event.request.url).pathname;
@@ -137,16 +158,34 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// Request logging (skip static assets and health checks)
 	if (!path.startsWith('/_app/') && path !== '/api/health') {
 		const duration = Date.now() - start;
-		log.info(
-			{
-				method: event.request.method,
-				path,
-				status: response.status,
-				duration,
-				userId: event.locals.user?.id
-			},
-			`${event.request.method} ${path} ${response.status} ${duration}ms`
-		);
+		const url = new URL(event.request.url);
+		const baseFields = {
+			method: event.request.method,
+			path,
+			status: response.status,
+			duration,
+			userId: event.locals.user?.id
+		};
+
+		if (verboseRequests) {
+			log.info(
+				{
+					...baseFields,
+					ip: event.getClientAddress(),
+					userAgent: event.request.headers.get('user-agent') || undefined,
+					referer: event.request.headers.get('referer') || undefined,
+					contentType: event.request.headers.get('content-type') || undefined,
+					contentLength: event.request.headers.get('content-length') || undefined,
+					query: getQueryParams(url),
+					requestHeaders: getRequestHeaders(event.request),
+					responseContentType: response.headers.get('content-type') || undefined,
+					responseContentLength: response.headers.get('content-length') || undefined
+				},
+				`${event.request.method} ${path} ${response.status} ${duration}ms`
+			);
+		} else {
+			log.info(baseFields, `${event.request.method} ${path} ${response.status} ${duration}ms`);
+		}
 	}
 
 	return response;
