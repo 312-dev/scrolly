@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.19.1](https://github.com/312-dev/scrolly/compare/scrolly-v1.19.0...scrolly-v1.19.1) (2026-03-04)
+
+
+### Documentation
+
+* update notification types for group-wide comments ([#78](https://github.com/312-dev/scrolly/issues/78)) ([04720e0](https://github.com/312-dev/scrolly/commit/04720e0af7a9d9dc488026effd971e893168ca82))
+
 ## [1.19.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.18.0...scrolly-v1.19.0) (2026-03-04)
 
 
