@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.19.3](https://github.com/312-dev/scrolly/compare/scrolly-v1.19.2...scrolly-v1.19.3) (2026-03-04)
+
+
+### Bug Fixes
+
+* notification click routing race conditions ([#82](https://github.com/312-dev/scrolly/issues/82)) ([76639a4](https://github.com/312-dev/scrolly/commit/76639a42795cfcba9ac60d9bcefd3c55c62b4d2f))
+
 ## [1.19.2](https://github.com/312-dev/scrolly/compare/scrolly-v1.19.1...scrolly-v1.19.2) (2026-03-04)
 
 
