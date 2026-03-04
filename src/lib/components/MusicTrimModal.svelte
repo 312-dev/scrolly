@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { pushState, beforeNavigate } from '$app/navigation';
-	import { page } from '$app/state';
+	import { beforeNavigate } from '$app/navigation';
 	import { basename } from '$lib/utils';
+	import { createOverlayHistory } from '$lib/overlayHistory';
 	import PlayIcon from 'phosphor-svelte/lib/PlayIcon';
 	import PauseIcon from 'phosphor-svelte/lib/PauseIcon';
 	import SpinnerGapIcon from 'phosphor-svelte/lib/SpinnerGapIcon';
@@ -34,12 +34,10 @@
 	let audioEl = $state<HTMLAudioElement | null>(null);
 	let waveformPeaks = $state<number[] | null>(null);
 	let waveformLoading = $state(true);
-	let closedViaBack = false;
 	let detectedDuration = $state<number | null>(null);
 
-	beforeNavigate(() => {
-		closedViaBack = true;
-	});
+	const overlay = createOverlayHistory('sheet', 'musicTrim');
+	beforeNavigate(overlay.onBeforeNavigate);
 
 	const durationSeconds = $derived(durationProp ?? detectedDuration ?? 0);
 
@@ -62,25 +60,11 @@
 		});
 		document.body.style.overflow = 'hidden';
 
-		pushState('', { sheet: 'musicTrim' });
-		const handlePopState = () => {
-			setTimeout(() => {
-				if (page.state?.sheet === 'musicTrim') return;
-				closedViaBack = true;
-				ondismiss();
-			}, 0);
-		};
-		const handleBeforeUnload = () => {
-			closedViaBack = true;
-		};
-		window.addEventListener('popstate', handlePopState);
-		window.addEventListener('beforeunload', handleBeforeUnload);
+		const cleanupHistory = overlay.attach(ondismiss);
 
 		return () => {
 			document.body.style.overflow = '';
-			window.removeEventListener('popstate', handlePopState);
-			window.removeEventListener('beforeunload', handleBeforeUnload);
-			if (!closedViaBack) history.back();
+			cleanupHistory();
 		};
 	});
 

@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import { pushState } from '$app/navigation';
-	import { page } from '$app/state';
+	import { beforeNavigate } from '$app/navigation';
 	import { basename } from '$lib/utils';
+	import { createOverlayHistory } from '$lib/overlayHistory';
 	import type { FeedClip } from '$lib/types';
 	import ReelItem from './ReelItem.svelte';
 	import ViewBadge from './ViewBadge.svelte';
@@ -39,34 +39,40 @@
 	let reelContainer = $state<HTMLDivElement | null>(null);
 	let showViewers = $state(false);
 	const renderWindow = 2;
-	let closedViaBack = false;
 	let dismissed = false;
 
 	$effect(() => {
 		if (activeIndex >= 0) showViewers = false;
 	});
 
-	function onPopState() {
-		setTimeout(() => {
-			if (page.state.meReel) return;
-			closedViaBack = true;
-			close();
-		}, 0);
-	}
+	const overlay = createOverlayHistory('meReel', true);
+	beforeNavigate(overlay.onBeforeNavigate);
 
 	// Mount: push history state, scroll to start index
 	$effect(() => {
-		pushState('', { meReel: true });
-		window.addEventListener('popstate', onPopState);
+		const cleanupHistory = overlay.attach(close);
 
 		tick().then(() => {
 			if (reelContainer) reelContainer.scrollTop = startIndex * reelContainer.clientHeight;
 		});
 
-		return () => {
-			window.removeEventListener('popstate', onPopState);
-			if (!closedViaBack) history.back();
-		};
+		return cleanupHistory;
+	});
+
+	// Keyboard navigation for reels
+	$effect(() => {
+		function handleKeydown(e: KeyboardEvent) {
+			if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+			if (e.key === 'ArrowDown') {
+				e.preventDefault();
+				scrollToIndex(activeIndex + 1);
+			} else if (e.key === 'ArrowUp') {
+				e.preventDefault();
+				scrollToIndex(activeIndex - 1);
+			}
+		}
+		document.addEventListener('keydown', handleKeydown);
+		return () => document.removeEventListener('keydown', handleKeydown);
 	});
 
 	// Intersection observer for active index

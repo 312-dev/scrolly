@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { pushState, beforeNavigate } from '$app/navigation';
-	import { page } from '$app/state';
+	import { beforeNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { onDestroy } from 'svelte';
 	import { relativeTime } from '$lib/utils';
 	import { fetchUnreadCount } from '$lib/stores/notifications';
 	import { openSheet, closeSheet } from '$lib/stores/sheetOpen';
 	import { clipOverlaySignal, openCommentsSignal } from '$lib/stores/toasts';
+	import { createOverlayHistory } from '$lib/overlayHistory';
 	import { createSafeTimeout } from '$lib/safeTimeout';
 	import BellIcon from 'phosphor-svelte/lib/BellIcon';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
@@ -37,13 +37,10 @@
 	let items = $state<Notification[]>([]);
 	let loading = $state(true);
 	let visible = $state(false);
-	let closedViaBack = false;
 	const { safeTimeout, clearAll } = createSafeTimeout();
 
-	// Prevent history.back() in cleanup when a real navigation or reload occurs
-	beforeNavigate(() => {
-		closedViaBack = true;
-	});
+	const overlay = createOverlayHistory('sheet', 'activity');
+	beforeNavigate(overlay.onBeforeNavigate);
 
 	const grouped = $derived.by(() => {
 		if (items.length === 0) return [];
@@ -83,26 +80,12 @@
 		});
 		document.body.style.overflow = 'hidden';
 
-		pushState('', { sheet: 'activity' });
-		const handlePopState = () => {
-			setTimeout(() => {
-				if (page.state?.sheet === 'activity') return;
-				closedViaBack = true;
-				ondismiss();
-			}, 0);
-		};
-		const handleBeforeUnload = () => {
-			closedViaBack = true;
-		};
-		window.addEventListener('popstate', handlePopState);
-		window.addEventListener('beforeunload', handleBeforeUnload);
+		const cleanupHistory = overlay.attach(ondismiss);
 
 		return () => {
 			closeSheet();
 			document.body.style.overflow = '';
-			window.removeEventListener('popstate', handlePopState);
-			window.removeEventListener('beforeunload', handleBeforeUnload);
-			if (!closedViaBack) history.back();
+			cleanupHistory();
 		};
 	});
 

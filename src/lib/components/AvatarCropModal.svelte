@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { pushState, beforeNavigate } from '$app/navigation';
-	import { page } from '$app/state';
+	import { beforeNavigate } from '$app/navigation';
+	import { createOverlayHistory } from '$lib/overlayHistory';
 	import Cropper from 'svelte-easy-crop';
 
 	const {
@@ -15,12 +15,9 @@
 
 	let visible = $state(false);
 	let uploading = $state(false);
-	let closedViaBack = false;
 
-	// Prevent history.back() in cleanup when a real navigation or reload occurs
-	beforeNavigate(() => {
-		closedViaBack = true;
-	});
+	const overlay = createOverlayHistory('sheet', 'avatarCrop');
+	beforeNavigate(overlay.onBeforeNavigate);
 
 	let crop = $state({ x: 0, y: 0 });
 	let zoom = $state(1);
@@ -32,25 +29,11 @@
 		});
 		document.body.style.overflow = 'hidden';
 
-		pushState('', { sheet: 'avatarCrop' });
-		const handlePopState = () => {
-			setTimeout(() => {
-				if (page.state?.sheet === 'avatarCrop') return;
-				closedViaBack = true;
-				ondismiss();
-			}, 0);
-		};
-		const handleBeforeUnload = () => {
-			closedViaBack = true;
-		};
-		window.addEventListener('popstate', handlePopState);
-		window.addEventListener('beforeunload', handleBeforeUnload);
+		const cleanupHistory = overlay.attach(ondismiss);
 
 		return () => {
 			document.body.style.overflow = '';
-			window.removeEventListener('popstate', handlePopState);
-			window.removeEventListener('beforeunload', handleBeforeUnload);
-			if (!closedViaBack) history.back();
+			cleanupHistory();
 		};
 	});
 
