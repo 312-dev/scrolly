@@ -1,17 +1,18 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import { reactions, notifications } from '$lib/server/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { reactions, notifications, users, notificationPreferences } from '$lib/server/db/schema';
+import { eq, and, inArray, isNull } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
 import {
 	withClipAuth,
 	groupReactions,
 	parseBody,
 	isResponse,
-	badRequest,
-	notifyClipOwner
+	badRequest
 } from '$lib/server/api-utils';
+import { sendNotification } from '$lib/server/push';
+import { env } from '$env/dynamic/private';
 import { ALLOWED_EMOJIS } from '$lib/server/constants';
 
 export const GET: RequestHandler = withClipAuth(async ({ params }, { user }) => {
@@ -25,7 +26,58 @@ export const GET: RequestHandler = withClipAuth(async ({ params }, { user }) => 
 	return json({ reactions: groupReactions(allReactions, userId) });
 });
 
-export const POST: RequestHandler = withClipAuth(async ({ params, request }, { user, clip }) => {
+async function dispatchReactionNotification(
+	clipId: string,
+	emoji: string,
+	actor: { id: string; username: string; avatarPath: string | null; groupId: string }
+): Promise<void> {
+	const groupMembers = await db.query.users.findMany({
+		where: and(eq(users.groupId, actor.groupId), isNull(users.removedAt))
+	});
+	const targets = groupMembers.filter((m) => m.id !== actor.id);
+	if (targets.length === 0) return;
+
+	const targetIds = targets.map((u) => u.id);
+	const allPrefs = await db.query.notificationPreferences.findMany({
+		where: inArray(notificationPreferences.userId, targetIds)
+	});
+	const prefsMap = new Map(allPrefs.map((p) => [p.userId, p]));
+
+	const image =
+		actor.avatarPath && env.ORIGIN
+			? `${env.ORIGIN}/api/profile/avatar/${actor.avatarPath}`
+			: undefined;
+
+	const pushTitle = `${actor.username} reacted ${emoji}`;
+	const pushTag = `reaction-${clipId}-${actor.id}`;
+
+	for (const recipient of targets) {
+		const prefs = prefsMap.get(recipient.id);
+		const prefEnabled = !prefs || prefs.reactions;
+
+		if (prefEnabled) {
+			sendNotification(recipient.id, {
+				title: pushTitle,
+				body: 'on a clip',
+				url: `/?clip=${clipId}`,
+				tag: pushTag,
+				...(image ? { image } : {})
+			}).catch(() => {});
+		}
+
+		await db.insert(notifications).values({
+			id: uuid(),
+			userId: recipient.id,
+			type: 'reaction',
+			clipId,
+			actorId: actor.id,
+			emoji,
+			createdAt: new Date()
+		});
+	}
+}
+
+export const POST: RequestHandler = withClipAuth(async ({ params, request }, { user }) => {
 	const body = await parseBody<{ emoji?: string }>(request);
 	if (isResponse(body)) return body;
 
@@ -71,20 +123,7 @@ export const POST: RequestHandler = withClipAuth(async ({ params, request }, { u
 			emoji,
 			createdAt: new Date()
 		});
-		// Notify clip owner about the new reaction
-		await notifyClipOwner({
-			recipientId: clip.addedBy,
-			actorId: userId,
-			actorUsername: user.username,
-			actorAvatarPath: user.avatarPath,
-			clipId,
-			type: 'reaction',
-			preferenceKey: 'reactions',
-			pushTitle: `${user.username} reacted ${emoji}`,
-			pushBody: 'on your clip',
-			pushTag: `reaction-${clipId}-${user.id}`,
-			emoji
-		});
+		await dispatchReactionNotification(clipId, emoji, user);
 	}
 
 	// Return updated reactions for this clip
