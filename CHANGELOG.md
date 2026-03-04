@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.19.2](https://github.com/312-dev/scrolly/compare/scrolly-v1.19.1...scrolly-v1.19.2) (2026-03-04)
+
+
+### Bug Fixes
+
+* overlay polish, sidebar fixes, and group-wide reaction notifications ([#80](https://github.com/312-dev/scrolly/issues/80)) ([1e19424](https://github.com/312-dev/scrolly/commit/1e194241d7d003ca40b0e10079bea8849a54d93e))
+
 ## [1.19.1](https://github.com/312-dev/scrolly/compare/scrolly-v1.19.0...scrolly-v1.19.1) (2026-03-04)
 
 
