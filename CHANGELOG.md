@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.18.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.17.0...scrolly-v1.18.0) (2026-03-04)
+
+
+### Features
+
+* RATE_LIMITING env var and config docs ([#75](https://github.com/312-dev/scrolly/issues/75)) ([4032791](https://github.com/312-dev/scrolly/commit/4032791c4027368ffc9fc9eb1e9a61c86caab3f3))
+
+
+### Documentation
+
+* add VERBOSE_REQUESTS, ADDRESS_HEADER, XFF_DEPTH to config reference ([#73](https://github.com/312-dev/scrolly/issues/73)) ([ed88e96](https://github.com/312-dev/scrolly/commit/ed88e96058720af45b81245c353f844e14b7e117))
+
 ## [1.17.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.16.0...scrolly-v1.17.0) (2026-03-04)
 
 
