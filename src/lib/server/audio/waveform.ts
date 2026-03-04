@@ -22,6 +22,7 @@ export function waveformPath(clipId: string): string {
  * Saves result as JSON alongside the audio file.
  */
 export async function generateWaveform(audioPath: string, clipId: string): Promise<WaveformData> {
+	const t0 = performance.now();
 	const ffmpeg = spawn('ffmpeg', [
 		'-i',
 		audioPath,
@@ -54,6 +55,7 @@ export async function generateWaveform(audioPath: string, clipId: string): Promi
 		throw new Error(`FFmpeg waveform generation failed with exit code ${exitCode}`);
 	}
 
+	const ffmpegMs = Math.round(performance.now() - t0);
 	const pcm = Buffer.concat(chunks);
 	const sampleCount = pcm.length / 2; // 16-bit = 2 bytes per sample
 	const durationSeconds = sampleCount / 8000;
@@ -88,8 +90,9 @@ export async function generateWaveform(audioPath: string, clipId: string): Promi
 	// eslint-disable-next-line security/detect-non-literal-fs-filename
 	await writeFile(waveformPath(clipId), JSON.stringify(data));
 
+	const totalMs = Math.round(performance.now() - t0);
 	log.info(
-		{ clipId, peaks: normalized.length, durationSeconds: data.durationSeconds },
+		{ clipId, peaks: normalized.length, durationSeconds: data.durationSeconds, ffmpegMs, totalMs },
 		'waveform generated'
 	);
 	return data;

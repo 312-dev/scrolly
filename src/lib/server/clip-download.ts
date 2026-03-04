@@ -15,10 +15,17 @@ export async function startDownload(
 	label: string,
 	options?: { skipTrim?: boolean }
 ) {
+	const t0 = performance.now();
 	await db.update(clips).set({ status: 'downloading' }).where(eq(clips.id, clipId));
 
+	const onComplete = () => {
+		const durationMs = Math.round(performance.now() - t0);
+		log.info({ clipId, contentType, durationMs }, `pipeline complete (${label})`);
+	};
+
 	const onError = async (err: unknown) => {
-		log.error({ err, clipId }, `download failed (${label})`);
+		const durationMs = Math.round(performance.now() - t0);
+		log.error({ err, clipId, durationMs }, `download failed (${label})`);
 		await db
 			.update(clips)
 			.set({ status: 'failed' })
@@ -26,8 +33,8 @@ export async function startDownload(
 	};
 
 	if (contentType === 'music') {
-		downloadMusic(clipId, url, { skipTrim: options?.skipTrim }).catch(onError);
+		downloadMusic(clipId, url, { skipTrim: options?.skipTrim }).then(onComplete).catch(onError);
 	} else {
-		downloadVideo(clipId, url).catch(onError);
+		downloadVideo(clipId, url).then(onComplete).catch(onError);
 	}
 }
