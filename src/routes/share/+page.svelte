@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable max-lines */
 	import { onDestroy } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
