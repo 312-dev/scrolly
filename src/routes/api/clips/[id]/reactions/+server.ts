@@ -1,7 +1,14 @@
+import { basename } from 'node:path';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import { reactions, notifications, users, notificationPreferences } from '$lib/server/db/schema';
+import {
+	clips,
+	reactions,
+	notifications,
+	users,
+	notificationPreferences
+} from '$lib/server/db/schema';
 import { eq, and, inArray, isNull } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
 import {
@@ -37,16 +44,36 @@ async function dispatchReactionNotification(
 	const targets = groupMembers.filter((m) => m.id !== actor.id);
 	if (targets.length === 0) return;
 
+	// Fetch clip for title + thumbnail context
+	const clip = await db.query.clips.findFirst({
+		where: eq(clips.id, clipId),
+		columns: { title: true, addedBy: true, thumbnailPath: true, contentType: true }
+	});
+
+	let pushBody: string;
+	if (clip?.title) {
+		const icon = clip.contentType === 'music' ? '🎵' : '🎬';
+		pushBody = `${icon} ${clip.title}`;
+	} else if (clip) {
+		const uploader = await db.query.users.findFirst({
+			where: eq(users.id, clip.addedBy),
+			columns: { username: true }
+		});
+		pushBody = `on a clip by ${uploader?.username ?? 'someone'}`;
+	} else {
+		pushBody = 'on a clip';
+	}
+
+	const image =
+		clip?.thumbnailPath && env.ORIGIN
+			? `${env.ORIGIN}/api/thumbnails/${basename(clip.thumbnailPath)}`
+			: undefined;
+
 	const targetIds = targets.map((u) => u.id);
 	const allPrefs = await db.query.notificationPreferences.findMany({
 		where: inArray(notificationPreferences.userId, targetIds)
 	});
 	const prefsMap = new Map(allPrefs.map((p) => [p.userId, p]));
-
-	const image =
-		actor.avatarPath && env.ORIGIN
-			? `${env.ORIGIN}/api/profile/avatar/${actor.avatarPath}`
-			: undefined;
 
 	const pushTitle = `${actor.username} reacted ${emoji}`;
 	const pushTag = `reaction-${clipId}-${actor.id}`;
@@ -58,7 +85,7 @@ async function dispatchReactionNotification(
 		if (prefEnabled) {
 			sendNotification(recipient.id, {
 				title: pushTitle,
-				body: 'on a clip',
+				body: pushBody,
 				url: `/?clip=${clipId}`,
 				tag: pushTag,
 				...(image ? { image } : {})

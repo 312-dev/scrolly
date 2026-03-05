@@ -74,6 +74,10 @@ export async function sendNotification(
 	}
 
 	const payloadStr = JSON.stringify(finalPayload);
+	log.info(
+		{ userId, url: finalPayload.url, tag: finalPayload.tag, title: finalPayload.title },
+		'sending push notification'
+	);
 
 	await Promise.allSettled(
 		subs.map(async (sub) => {

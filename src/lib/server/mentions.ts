@@ -1,5 +1,6 @@
+import { basename } from 'node:path';
 import { db } from '$lib/server/db';
-import { users, notificationPreferences, notifications } from '$lib/server/db/schema';
+import { clips, users, notificationPreferences, notifications } from '$lib/server/db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
 import { sendNotification } from '$lib/server/push';
 import { env } from '$env/dynamic/private';
@@ -41,6 +42,33 @@ export async function notifyMentions(opts: {
 	const excludeSet = new Set(opts.excludeUserIds ?? []);
 	excludeSet.add(opts.actorId); // never notify self
 
+	// Fetch clip for title + thumbnail context
+	const clip = await db.query.clips.findFirst({
+		where: eq(clips.id, opts.clipId),
+		columns: { title: true, addedBy: true, thumbnailPath: true, contentType: true }
+	});
+
+	let clipContext: string;
+	if (clip?.title) {
+		const icon = clip.contentType === 'music' ? '🎵' : '🎬';
+		clipContext = `${icon} ${clip.title}`;
+	} else if (clip) {
+		const uploader = await db.query.users.findFirst({
+			where: eq(users.id, clip.addedBy),
+			columns: { username: true }
+		});
+		clipContext = `on a clip by ${uploader?.username ?? 'someone'}`;
+	} else {
+		clipContext = 'on a clip';
+	}
+
+	const pushBody = `💬 "${opts.commentPreview}" · ${clipContext}`;
+
+	const image =
+		clip?.thumbnailPath && env.ORIGIN
+			? `${env.ORIGIN}/api/thumbnails/${basename(clip.thumbnailPath)}`
+			: undefined;
+
 	// Look up all active members in the group
 	const groupMembers = await db.query.users.findMany({
 		where: and(eq(users.groupId, opts.groupId), isNull(users.removedAt))
@@ -60,13 +88,9 @@ export async function notifyMentions(opts: {
 
 		// Send push if preference allows (default true if no prefs row)
 		if (!prefs || prefs.mentions) {
-			const image =
-				opts.actorAvatarPath && env.ORIGIN
-					? `${env.ORIGIN}/api/profile/avatar/${opts.actorAvatarPath}`
-					: undefined;
 			sendNotification(recipient.id, {
 				title: `${opts.actorUsername} mentioned you`,
-				body: opts.commentPreview,
+				body: pushBody,
 				url: `/?clip=${opts.clipId}&comments=true`,
 				tag: `mention-${opts.clipId}-${opts.actorId}`,
 				...(image ? { image } : {})

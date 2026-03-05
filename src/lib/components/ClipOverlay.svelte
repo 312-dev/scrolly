@@ -64,14 +64,17 @@
 
 	function handleDismiss() {
 		if (dismissed) return;
+		console.log('[ClipOverlay] handleDismiss called for:', clipId);
 		dismissed = true;
 		ondismiss();
 	}
 
 	// Load clip data
 	$effect(() => {
+		console.log('[ClipOverlay] mounted for clipId:', clipId, 'openComments:', openComments);
 		(async () => {
 			const data = await fetchSingleClip(clipId);
+			console.log('[ClipOverlay] fetchSingleClip result:', data ? 'loaded' : 'null', data?.id);
 			if (data) {
 				clip = data;
 			} else {
@@ -81,6 +84,7 @@
 
 			// Open comments after clip loads if requested
 			if (openComments && data) {
+				console.log('[ClipOverlay] requesting comments open via signal');
 				// Short delay for ReelItem to mount
 				setTimeout(() => openCommentsSignal.set(clipId), 100);
 			}

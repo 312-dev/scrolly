@@ -124,7 +124,7 @@
 				aria-label="Send comment"
 				onmousedown={(e) => e.preventDefault()}
 			>
-				<PaperPlaneTiltIcon size={20} weight={canSubmit ? 'fill' : 'regular'} />
+				<PaperPlaneTiltIcon size={18} weight={canSubmit ? 'fill' : 'regular'} />
 			</button>
 		</div>
 	</div>
@@ -198,10 +198,10 @@
 
 	.input-bar {
 		display: flex;
-		padding: var(--space-md) var(--space-lg);
+		padding: var(--space-sm) var(--space-md);
 		border-top: 1px solid var(--border);
 		background: var(--bg-surface);
-		padding-bottom: max(var(--space-md), env(safe-area-inset-bottom));
+		padding-bottom: max(var(--space-sm), env(safe-area-inset-bottom));
 	}
 
 	/* The pill is the visible rounded container — holds both the textarea and the action icons. */
@@ -234,11 +234,11 @@
 	}
 	.input-pill :global(.overlay-input),
 	.input-pill :global(.highlight-mirror) {
-		font-size: 1rem;
-		padding: 12px var(--space-md);
+		font-size: 0.875rem;
+		padding: var(--space-sm) var(--space-md);
 	}
 	.input-pill :global(textarea.overlay-input) {
-		height: calc(1.4em + 24px);
+		height: calc(1.4em + 16px);
 		-webkit-appearance: none;
 		appearance: none;
 	}
@@ -282,8 +282,8 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 26px;
-		height: 26px;
+		width: 24px;
+		height: 24px;
 		padding: 0;
 		background: none;
 		border: none;

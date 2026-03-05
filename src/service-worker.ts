@@ -113,6 +113,8 @@ sw.addEventListener('notificationclick', (event) => {
 	event.notification.close();
 
 	const url = event.notification.data?.url || '/';
+	console.log('[SW notificationclick] data:', JSON.stringify(event.notification.data));
+	console.log('[SW notificationclick] navigating to:', url);
 
 	event.waitUntil(
 		Promise.all([
@@ -136,13 +138,18 @@ sw.addEventListener('notificationclick', (event) => {
 			// Focus or open the app — await each step so the SW stays alive
 			// until the navigation completes
 			sw.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clients) => {
+				console.log('[SW notificationclick] found', clients.length, 'client(s)');
 				for (const client of clients) {
 					if (client.url.includes(sw.location.origin) && 'focus' in client) {
+						console.log('[SW notificationclick] focusing existing client:', client.url);
 						const focused = await client.focus();
+						console.log('[SW notificationclick] calling navigate to:', url);
 						await focused.navigate(url);
+						console.log('[SW notificationclick] navigate complete');
 						return;
 					}
 				}
+				console.log('[SW notificationclick] no existing client, opening new window');
 				return sw.clients.openWindow(url);
 			})
 		])

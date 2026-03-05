@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable max-lines */
 	import { onDestroy } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -66,7 +67,17 @@
 
 	$effect(() => {
 		if (isValid && platformAllowed && !autoSubmitted) {
+			// Guard against iOS web view double-loads (SFSafariViewController can reload after initial render)
+			const key = `share_submitted:${shareUrl}`;
+			if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(key)) {
+				autoSubmitted = true;
+				success = true;
+				return;
+			}
 			autoSubmitted = true;
+			if (typeof sessionStorage !== 'undefined') {
+				sessionStorage.setItem(key, '1');
+			}
 			handleSubmit();
 		}
 	});
@@ -82,6 +93,11 @@
 			});
 			const data = await res.json();
 			if (!res.ok) {
+				if (res.status === 409 && data.addedBy === page.data.user?.id) {
+					// Same user double-submitted — treat as success (iOS web view reload)
+					success = true;
+					return;
+				}
 				error = data.error || 'Failed to add clip';
 				return;
 			}

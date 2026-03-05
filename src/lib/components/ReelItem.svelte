@@ -318,8 +318,19 @@
 	// Deep-link: open comments sheet when signaled (e.g., from push notification)
 	$effect(() => {
 		const target = $openCommentsSignal;
+		if (target && active) {
+			console.log(
+				'[ReelItem] openCommentsSignal:',
+				target,
+				'clip.id:',
+				clip.id,
+				'match:',
+				target === clip.id
+			);
+		}
 		if (target === clip.id && active) {
 			openCommentsSignal.set(null);
+			console.log('[ReelItem] opening comments sheet for clip:', clip.id);
 			showComments = true;
 		}
 	});

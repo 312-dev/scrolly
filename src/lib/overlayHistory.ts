@@ -36,6 +36,9 @@ export function createOverlayHistory<K extends PageStateKey>(
 	stateValue: NonNullable<App.PageState[K]>
 ) {
 	let closedViaBack = false;
+	// Deferred back timer — allows a re-attach (effect re-run) to cancel it
+	// before it fires, preventing the double-back that navigates past the app.
+	let pendingBack: ReturnType<typeof setTimeout> | null = null;
 
 	return {
 		/**
@@ -45,6 +48,10 @@ export function createOverlayHistory<K extends PageStateKey>(
 		 */
 		onBeforeNavigate() {
 			closedViaBack = true;
+			if (pendingBack !== null) {
+				clearTimeout(pendingBack);
+				pendingBack = null;
+			}
 		},
 
 		/**
@@ -54,17 +61,55 @@ export function createOverlayHistory<K extends PageStateKey>(
 		 * @param ondismiss - Called when the overlay should close (back button pressed)
 		 */
 		attach(ondismiss: () => void) {
+			// If a previous cleanup deferred a history.back(), cancel it — we're
+			// re-attaching (effect re-run), so the history entry is still ours.
+			if (pendingBack !== null) {
+				console.log('[overlayHistory] cancelling pending back (effect re-run):', stateKey);
+				clearTimeout(pendingBack);
+				pendingBack = null;
+			}
+
 			// Merge with current page state so parent overlay markers survive.
 			// e.g. { meReel: true } + { sheet: 'comments' } = { meReel: true, sheet: 'comments' }
 			// Use untrack() to read page.state without subscribing — otherwise the
 			// $effect that calls attach() would re-run when pushState updates it.
 			const currentState = untrack(() => page.state);
-			pushState('', { ...currentState, [stateKey]: stateValue });
+
+			// Only push a new history entry if our state isn't already present.
+			// On effect re-runs, the state from the previous attach is still there.
+			const alreadyPresent = currentState?.[stateKey] === stateValue;
+			if (!alreadyPresent) {
+				console.log(
+					'[overlayHistory] attach:',
+					stateKey,
+					'=',
+					stateValue,
+					'merging with:',
+					JSON.stringify(currentState)
+				);
+				pushState('', { ...currentState, [stateKey]: stateValue });
+			} else {
+				console.log(
+					'[overlayHistory] attach (re-run, state already present):',
+					stateKey,
+					'=',
+					stateValue
+				);
+			}
 
 			const handlePopState = () => {
 				// Defer so SvelteKit's own popstate handler updates page.state first.
 				setTimeout(() => {
+					console.log(
+						'[overlayHistory] popstate:',
+						stateKey,
+						'current value:',
+						page.state?.[stateKey],
+						'expected:',
+						stateValue
+					);
 					if (page.state?.[stateKey] === stateValue) return;
+					console.log('[overlayHistory] popstate dismissing:', stateKey);
 					closedViaBack = true;
 					ondismiss();
 				}, 0);
@@ -78,9 +123,33 @@ export function createOverlayHistory<K extends PageStateKey>(
 			window.addEventListener('beforeunload', handleBeforeUnload);
 
 			return () => {
+				console.log(
+					'[overlayHistory] cleanup:',
+					stateKey,
+					'=',
+					stateValue,
+					'closedViaBack:',
+					closedViaBack
+				);
 				window.removeEventListener('popstate', handlePopState);
 				window.removeEventListener('beforeunload', handleBeforeUnload);
-				if (!closedViaBack) history.back();
+				if (!closedViaBack) {
+					// Only go back if our state entry is still current. A stale popstate
+					// from a previous overlay's cleanup may have already popped it — calling
+					// history.back() again would navigate past the app entirely.
+					const stillCurrent = untrack(() => page.state?.[stateKey]) === stateValue;
+					if (stillCurrent) {
+						// Defer the back so an immediate re-attach (Svelte effect re-run)
+						// can cancel it. Without this, effect re-runs cause a cleanup back()
+						// followed by a re-attach push(), doubling the back() calls and
+						// navigating past the app entirely.
+						pendingBack = setTimeout(() => {
+							pendingBack = null;
+							console.log('[overlayHistory] deferred back firing:', stateKey);
+							history.back();
+						}, 0);
+					}
+				}
 			};
 		}
 	};

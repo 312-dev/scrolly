@@ -217,16 +217,12 @@
 		requestAnimationFrame(() => commentInput?.focus());
 	}
 
-	type FeedItem = { type: 'comment'; data: Comment } | { type: 'reaction'; data: ReactionEvent };
-
-	const feedItems = $derived.by<FeedItem[]>(() => {
-		const items: FeedItem[] = [
-			...comments.map((c) => ({ type: 'comment' as const, data: c })),
-			...reactionEvents.map((r) => ({ type: 'reaction' as const, data: r }))
-		];
-		items.sort((a, b) => b.data.createdAt.localeCompare(a.data.createdAt));
-		return items;
-	});
+	function formatTitle(count: number): string {
+		if (count === 0) return 'Comments';
+		if (count === 1) return '1 comment';
+		return `${count} comments`;
+	}
+	const sheetTitle = $derived(formatTitle(totalCount));
 
 	function startHeartLongPress(commentId: string) {
 		longPressTimer = setTimeout(() => {
@@ -247,12 +243,7 @@
 </script>
 
 <div class="comments-sheet-wrapper" class:gif-open={showGifPicker}>
-	<BaseSheet
-		bind:this={sheetRef}
-		title="Comments{totalCount > 0 ? ` (${totalCount})` : ''}"
-		sheetId="comments"
-		{ondismiss}
-	>
+	<BaseSheet bind:this={sheetRef} title={sheetTitle} sheetId="comments" {ondismiss}>
 		<div class="content-area">
 			{#if showGifPicker}
 				<GifPicker
@@ -271,60 +262,67 @@
 				<div class="comments-list" role="list" aria-label="Comments" onclick={dismissHeartPopover}>
 					{#if loading}
 						<p class="empty">Loading...</p>
-					{:else if feedItems.length === 0}
+					{:else if reactionEvents.length === 0 && comments.length === 0}
 						<p class="empty">No comments yet</p>
 					{:else}
-						{#each feedItems as item (item.type === 'comment' ? item.data.id : `reaction-${item.data.emoji}-${item.data.username}-${item.data.createdAt}`)}
-							{#if item.type === 'reaction'}
-								{@const r = item.data}
-								<div class="reaction-event" role="listitem">
-									<span class="reaction-emoji">{r.emoji}</span>
-									<span class="reaction-text">{r.username} reacted</span>
-									<span class="reaction-time">{relativeTime(r.createdAt)}</span>
-								</div>
-							{:else}
-								{@const comment = item.data}
-								<CommentRow
-									{comment}
-									{currentUserId}
-									{memberUsernames}
-									isEditing={editingId === comment.id}
-									bind:editText
-									isJustPosted={comment.id === justPostedId}
-									isJustHearted={justHeartedIds.has(comment.id)}
-									heartPopoverVisible={heartPopoverId === comment.id}
-									onreply={() => startReply(comment)}
-									ontoggleheart={() => toggleHeart(comment)}
-									onstartedit={() => startEdit(comment)}
-									onsaveedit={() => handleEdit(comment.id)}
-									oncanceledit={cancelEdit}
-									ondelete={() => handleDelete(comment.id)}
-									onstartlongpress={() => startHeartLongPress(comment.id)}
-									oncancellongpress={cancelHeartLongPress}
-								/>
-								{#if comment.replies && comment.replies.length > 0}
-									<div class="replies" role="list" aria-label="Replies to {comment.username}">
-										{#each comment.replies as reply (reply.id)}
-											<CommentRow
-												comment={reply}
-												{currentUserId}
-												{memberUsernames}
-												isReply
-												isEditing={editingId === reply.id}
-												bind:editText
-												isJustHearted={justHeartedIds.has(reply.id)}
-												heartPopoverVisible={heartPopoverId === reply.id}
-												ontoggleheart={() => toggleHeart(reply)}
-												onstartedit={() => startEdit(reply)}
-												onsaveedit={() => handleEdit(reply.id)}
-												oncanceledit={cancelEdit}
-												ondelete={() => handleDelete(reply.id)}
-												onstartlongpress={() => startHeartLongPress(reply.id)}
-												oncancellongpress={cancelHeartLongPress}
-											/>
-										{/each}
+						{#if reactionEvents.length > 0}
+							<div class="reactions-section">
+								{#each reactionEvents as r (`reaction-${r.emoji}-${r.username}-${r.createdAt}`)}
+									<div class="reaction-event" role="listitem">
+										<span class="reaction-emoji">{r.emoji}</span>
+										<span class="reaction-text"
+											><span class="reaction-actor">{r.username}</span> reacted</span
+										>
+										<span class="reaction-time">{relativeTime(r.createdAt)}</span>
 									</div>
-								{/if}
+								{/each}
+							</div>
+							{#if comments.length > 0}
+								<div class="section-divider"></div>
+							{/if}
+						{/if}
+
+						{#each comments as comment (comment.id)}
+							<CommentRow
+								{comment}
+								{currentUserId}
+								{memberUsernames}
+								isEditing={editingId === comment.id}
+								bind:editText
+								isJustPosted={comment.id === justPostedId}
+								isJustHearted={justHeartedIds.has(comment.id)}
+								heartPopoverVisible={heartPopoverId === comment.id}
+								onreply={() => startReply(comment)}
+								ontoggleheart={() => toggleHeart(comment)}
+								onstartedit={() => startEdit(comment)}
+								onsaveedit={() => handleEdit(comment.id)}
+								oncanceledit={cancelEdit}
+								ondelete={() => handleDelete(comment.id)}
+								onstartlongpress={() => startHeartLongPress(comment.id)}
+								oncancellongpress={cancelHeartLongPress}
+							/>
+							{#if comment.replies && comment.replies.length > 0}
+								<div class="replies" role="list" aria-label="Replies to {comment.username}">
+									{#each comment.replies as reply (reply.id)}
+										<CommentRow
+											comment={reply}
+											{currentUserId}
+											{memberUsernames}
+											isReply
+											isEditing={editingId === reply.id}
+											bind:editText
+											isJustHearted={justHeartedIds.has(reply.id)}
+											heartPopoverVisible={heartPopoverId === reply.id}
+											ontoggleheart={() => toggleHeart(reply)}
+											onstartedit={() => startEdit(reply)}
+											onsaveedit={() => handleEdit(reply.id)}
+											oncanceledit={cancelEdit}
+											ondelete={() => handleDelete(reply.id)}
+											onstartlongpress={() => startHeartLongPress(reply.id)}
+											oncancellongpress={cancelHeartLongPress}
+										/>
+									{/each}
+								</div>
 							{/if}
 						{/each}
 					{/if}
@@ -413,6 +411,17 @@
 		padding: var(--space-2xl);
 		margin: 0;
 	}
+	.reactions-section {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-xs);
+		padding-bottom: var(--space-xs);
+	}
+	.section-divider {
+		height: 1px;
+		background: var(--bg-subtle);
+		margin: var(--space-sm) 0;
+	}
 	.reaction-event {
 		display: flex;
 		align-items: center;
@@ -420,15 +429,20 @@
 		padding: var(--space-xs) 0;
 	}
 	.reaction-emoji {
-		font-size: 0.875rem;
+		font-size: 1.125rem;
+		line-height: 1;
 	}
 	.reaction-text {
-		font-size: 0.75rem;
+		font-size: 0.8125rem;
 		color: var(--text-secondary);
+	}
+	.reaction-actor {
+		font-weight: 600;
+		color: var(--text-primary);
 	}
 	.reaction-time {
 		font-size: 0.6875rem;
-		color: var(--text-secondary);
+		color: var(--text-muted);
 		margin-left: auto;
 	}
 	.replies {
