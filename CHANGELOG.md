@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.20.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.19.3...scrolly-v1.20.0) (2026-03-05)
+
+
+### Features
+
+* rich notifications, overlay fixes, and UI polish ([#84](https://github.com/312-dev/scrolly/issues/84)) ([4ca83a3](https://github.com/312-dev/scrolly/commit/4ca83a309aadf8b5a5dc841b29e2b5c6d86efafd))
+
 ## [1.19.3](https://github.com/312-dev/scrolly/compare/scrolly-v1.19.2...scrolly-v1.19.3) (2026-03-04)
 
 
