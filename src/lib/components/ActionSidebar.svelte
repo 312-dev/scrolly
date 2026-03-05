@@ -143,7 +143,7 @@
 		aria-label="Comments"
 	>
 		<span class="icon-circle">
-			<ChatIcon size={24} weight="fill" />
+			<ChatIcon size={24} weight="regular" />
 			{#if unreadCommentCount > 0}
 				<span class="unread-badge">{unreadCommentCount > 9 ? '9+' : unreadCommentCount}</span>
 			{/if}
@@ -165,9 +165,9 @@
 		>
 			<span class="icon-circle">
 				{#if muted}
-					<SpeakerXIcon size={24} weight="fill" />
+					<SpeakerXIcon size={24} weight="regular" />
 				{:else}
-					<SpeakerHighIcon size={24} weight="fill" />
+					<SpeakerHighIcon size={24} weight="regular" />
 				{/if}
 			</span>
 		</button>
@@ -186,7 +186,7 @@
 			aria-label="Open original"
 		>
 			<span class="icon-circle">
-				<ArrowSquareOutIcon size={24} weight="fill" />
+				<ArrowSquareOutIcon size={24} weight="regular" />
 			</span>
 		</a>
 	{/if}
@@ -200,7 +200,7 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 6px;
+		gap: var(--space-sm);
 		z-index: 5;
 		transition: opacity 0.3s ease;
 	}
@@ -220,7 +220,7 @@
 		color: var(--reel-text);
 		cursor: pointer;
 		padding: 0;
-		min-width: 40px;
+		min-width: 44px;
 		justify-content: center;
 		text-decoration: none;
 	}
@@ -230,21 +230,24 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 40px;
-		height: 40px;
+		width: 44px;
+		height: 44px;
 		border-radius: var(--radius-full);
-		background: transparent;
+		background: var(--reel-icon-circle-bg);
+		backdrop-filter: blur(6px);
+		-webkit-backdrop-filter: blur(6px);
 		transition: background 0.15s ease;
 	}
 
 	.sidebar-btn:active .icon-circle {
+		background: var(--reel-icon-circle-active);
 		transform: scale(0.93);
 	}
 
 	.icon-circle :global(svg) {
 		width: 24px;
 		height: 24px;
-		filter: drop-shadow(0 1px 1px var(--reel-icon-shadow));
+		filter: drop-shadow(0 1px 2px var(--reel-icon-shadow));
 	}
 
 	.reaction-emoji {
@@ -268,7 +271,7 @@
 	}
 
 	.sidebar-btn.disabled .icon-circle {
-		background: transparent;
+		background: var(--reel-icon-circle-bg);
 	}
 
 	.sidebar-btn.disabled:active .icon-circle {
@@ -303,7 +306,7 @@
 	.sidebar-btn.muted-state .icon-circle::before {
 		content: '';
 		position: absolute;
-		inset: 2px;
+		inset: 0;
 		border-radius: var(--radius-full);
 		background: var(--reel-text);
 	}

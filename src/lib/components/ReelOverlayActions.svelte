@@ -179,7 +179,6 @@
 	.caption-wrapper {
 		max-height: 2.8em;
 		overflow: hidden;
-		border-radius: var(--radius-md);
 		background: transparent;
 		transition:
 			max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
@@ -191,6 +190,7 @@
 		max-height: 50dvh;
 		overflow-y: auto;
 		overscroll-behavior: contain;
+		border-radius: var(--radius-md);
 		background: rgba(0, 0, 0, 0.6);
 		backdrop-filter: blur(12px);
 		-webkit-backdrop-filter: blur(12px);
