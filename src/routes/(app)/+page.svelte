@@ -334,6 +334,43 @@
 		let decided = false;
 		let isHorizontal = false;
 
+		// Touch-level gesture blocking — prevents Android Chrome's back-swipe
+		// and iOS Safari's edge-swipe from stealing horizontal gestures.
+		// Must run at the touch level (not pointer) because the browser decides
+		// whether to claim the gesture during touchmove, BEFORE firing pointermove.
+		// Both listeners must be non-passive so preventDefault() is honoured.
+		let touchStartX2 = 0;
+		let touchStartY2 = 0;
+		let touchDecided = false;
+		let touchIsHorizontal = false;
+
+		function onTouchStart(e: TouchEvent) {
+			if (e.touches.length !== 1) return;
+			const t = e.touches[0];
+			touchStartX2 = t.clientX;
+			touchStartY2 = t.clientY;
+			touchDecided = false;
+			touchIsHorizontal = false;
+			// Block edge swipes immediately
+			if (t.clientX < 30) e.preventDefault();
+		}
+
+		function onTouchMove(e: TouchEvent) {
+			if (e.touches.length !== 1 || swipeAnimating) return;
+			const t = e.touches[0];
+			const dx = t.clientX - touchStartX2;
+			const dy = t.clientY - touchStartY2;
+
+			if (!touchDecided) {
+				if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+				touchDecided = true;
+				touchIsHorizontal = Math.abs(dx) > Math.abs(dy);
+			}
+
+			// Claim horizontal gestures so the browser doesn't fire pointercancel
+			if (touchIsHorizontal) e.preventDefault();
+		}
+
 		function onPointerDown(e: PointerEvent) {
 			if (swipeAnimating) return;
 			const target = e.target as HTMLElement;
@@ -349,6 +386,14 @@
 			isHorizontalSwiping = false;
 		}
 
+		function tryCapture(e: PointerEvent) {
+			try {
+				el.setPointerCapture(e.pointerId);
+			} catch {
+				// setPointerCapture not supported — swipe still works, just without capture
+			}
+		}
+
 		function onPointerMove(e: PointerEvent) {
 			if (!tracking || swipeAnimating) return;
 			const dx = e.clientX - startX;
@@ -358,6 +403,7 @@
 				if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
 				decided = true;
 				isHorizontal = Math.abs(dx) > Math.abs(dy);
+				if (isHorizontal) tryCapture(e);
 				if (!isHorizontal) return;
 				isHorizontalSwiping = true;
 				// Reset pull-to-refresh state so its CSS transition doesn't
@@ -407,12 +453,16 @@
 			}, 250);
 		}
 
+		el.addEventListener('touchstart', onTouchStart, { passive: false });
+		el.addEventListener('touchmove', onTouchMove, { passive: false });
 		el.addEventListener('pointerdown', onPointerDown);
 		el.addEventListener('pointermove', onPointerMove);
 		el.addEventListener('pointerup', onPointerUp);
 		el.addEventListener('pointercancel', onPointerUp);
 		el.addEventListener('pointerleave', onPointerUp);
 		return () => {
+			el.removeEventListener('touchstart', onTouchStart);
+			el.removeEventListener('touchmove', onTouchMove);
 			el.removeEventListener('pointerdown', onPointerDown);
 			el.removeEventListener('pointermove', onPointerMove);
 			el.removeEventListener('pointerup', onPointerUp);
@@ -569,6 +619,7 @@
 	$effect(() => {
 		const targetClipId = $clipOverlaySignal;
 		if (!targetClipId) return;
+		console.log('[Feed] clipOverlaySignal fired:', targetClipId, 'setting overlayClipId');
 		clipOverlaySignal.set(null);
 		overlayClipId = targetClipId;
 	});
@@ -589,6 +640,7 @@
 	});
 
 	function handleOverlayDismiss() {
+		console.log('[Feed] handleOverlayDismiss, was:', overlayClipId);
 		overlayClipId = null;
 		overlayOpenComments = false;
 		// Refresh feed to reflect any changes made in the overlay
@@ -690,7 +742,18 @@
 		const params = new URLSearchParams(window.location.search);
 		const deepClipId = params.get('clip');
 		const deepComments = params.get('comments') === 'true';
+		console.log('[Feed] deep-link check:', {
+			deepClipId,
+			deepComments,
+			search: window.location.search
+		});
 		if (deepClipId) {
+			console.log(
+				'[Feed] deep-link: opening overlay for clip',
+				deepClipId,
+				'comments:',
+				deepComments
+			);
 			overlayOpenComments = deepComments;
 			clipOverlaySignal.set(deepClipId);
 			// Clean URL without triggering navigation
@@ -1030,6 +1093,7 @@
 	.feed-slide {
 		height: 100%;
 		touch-action: pan-y;
+		overscroll-behavior-x: none;
 	}
 	.feed-slide.animating {
 		transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
