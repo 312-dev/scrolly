@@ -9,3 +9,4 @@ CVE-2026-27904
 
 # tar arbitrary file read/write via hardlink (npm bundled)
 CVE-2026-26960
+GHSA-qffp-2rhf-9h96
