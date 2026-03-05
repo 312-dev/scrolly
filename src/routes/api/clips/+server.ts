@@ -325,7 +325,10 @@ export const POST: RequestHandler = withAuth(async ({ request }, { user, group }
 		);
 	}
 	if (existing) {
-		return json({ error: 'This link has already been added to the feed.' }, { status: 409 });
+		return json(
+			{ error: 'This link has already been added to the feed.', addedBy: existing.addedBy },
+			{ status: 409 }
+		);
 	}
 
 	const clipId = uuid();
