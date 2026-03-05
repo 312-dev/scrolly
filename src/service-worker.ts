@@ -114,7 +114,7 @@ sw.addEventListener('notificationclick', (event) => {
 
 	const url = event.notification.data?.url || '/';
 	console.log('[SW notificationclick] data:', JSON.stringify(event.notification.data));
-	console.log('[SW notificationclick] navigating to:', url);
+	console.log('[SW notificationclick] url:', url);
 
 	event.waitUntil(
 		Promise.all([
@@ -135,17 +135,19 @@ sw.addEventListener('notificationclick', (event) => {
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					(sw.navigator as any).clearAppBadge?.()?.catch?.(() => {});
 				}),
-			// Focus or open the app — await each step so the SW stays alive
-			// until the navigation completes
+			// Focus existing client and send a message to handle navigation
+			// in-app (avoids full-page reload race conditions from client.navigate),
+			// or open a new window with the deep-link URL as fallback.
 			sw.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clients) => {
 				console.log('[SW notificationclick] found', clients.length, 'client(s)');
 				for (const client of clients) {
 					if (client.url.includes(sw.location.origin) && 'focus' in client) {
 						console.log('[SW notificationclick] focusing existing client:', client.url);
 						const focused = await client.focus();
-						console.log('[SW notificationclick] calling navigate to:', url);
-						await focused.navigate(url);
-						console.log('[SW notificationclick] navigate complete');
+						// Post a message instead of navigate — lets SvelteKit handle
+						// the deep-link client-side without a full page reload.
+						console.log('[SW notificationclick] posting NOTIFICATION_CLICK message');
+						focused.postMessage({ type: 'NOTIFICATION_CLICK', url });
 						return;
 					}
 				}
