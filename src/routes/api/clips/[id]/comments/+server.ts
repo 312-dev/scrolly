@@ -1,7 +1,9 @@
+import { basename } from 'node:path';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import {
+	clips,
 	comments,
 	commentHearts,
 	commentViews,
@@ -127,17 +129,42 @@ export const GET: RequestHandler = withClipAuth(async ({ params }, { user }) => 
 	return json({ comments: formatted, reactionEvents });
 });
 
+/** Fetch clip context string and thumbnail URL for push notification bodies. */
+async function getClipPushContext(clipId: string): Promise<{ context: string; image?: string }> {
+	const clip = await db.query.clips.findFirst({
+		where: eq(clips.id, clipId),
+		columns: { title: true, addedBy: true, thumbnailPath: true, contentType: true }
+	});
+	const image =
+		clip?.thumbnailPath && env.ORIGIN
+			? `${env.ORIGIN}/api/thumbnails/${basename(clip.thumbnailPath)}`
+			: undefined;
+	if (clip?.title) {
+		const icon = clip.contentType === 'music' ? '🎵' : '🎬';
+		return { context: `${icon} ${clip.title}`, image };
+	}
+	if (clip) {
+		const uploader = await db.query.users.findFirst({
+			where: eq(users.id, clip.addedBy),
+			columns: { username: true }
+		});
+		return { context: `on a clip by ${uploader?.username ?? 'someone'}`, image };
+	}
+	return { context: 'on a clip' };
+}
+
 /** Notify all group members about a comment or reply. Returns notified user IDs. */
 async function dispatchCommentNotification(
 	clipId: string,
 	parentId: string | null,
 	actor: { id: string; username: string; avatarPath: string | null; groupId: string },
-	preview: string
+	preview: string,
+	parentAuthorUsername?: string
 ): Promise<string[]> {
 	const type = parentId ? 'reply' : 'comment';
 	const pushTitle = parentId
-		? `${actor.username} replied to a comment`
-		: `${actor.username} commented on a clip`;
+		? `${actor.username} replied to ${parentAuthorUsername ?? 'a comment'}`
+		: `${actor.username} commented`;
 	const pushTag = `${type}-${clipId}-${actor.id}`;
 
 	const groupMembers = await db.query.users.findMany({
@@ -146,16 +173,14 @@ async function dispatchCommentNotification(
 	const targets = groupMembers.filter((m) => m.id !== actor.id);
 	if (targets.length === 0) return [];
 
+	const { context: clipContext, image } = await getClipPushContext(clipId);
+	const pushBody = `💬 "${preview}" · ${clipContext}`;
+
 	const targetIds = targets.map((u) => u.id);
 	const allPrefs = await db.query.notificationPreferences.findMany({
 		where: inArray(notificationPreferences.userId, targetIds)
 	});
 	const prefsMap = new Map(allPrefs.map((p) => [p.userId, p]));
-
-	const image =
-		actor.avatarPath && env.ORIGIN
-			? `${env.ORIGIN}/api/profile/avatar/${actor.avatarPath}`
-			: undefined;
 
 	const notifiedIds: string[] = [];
 
@@ -166,7 +191,7 @@ async function dispatchCommentNotification(
 		if (prefEnabled) {
 			sendNotification(recipient.id, {
 				title: pushTitle,
-				body: preview,
+				body: pushBody,
 				url: `/?clip=${clipId}&comments=true`,
 				tag: pushTag,
 				...(image ? { image } : {})
@@ -224,12 +249,18 @@ export const POST: RequestHandler = withClipAuth(async ({ params, request }, { u
 	if ('error' in validation) return json({ error: validation.error }, { status: 400 });
 	const { trimmed, hasText, validGifUrl } = validation;
 
+	let parentAuthorUsername: string | undefined;
 	if (body.parentId) {
 		const parent = await db.query.comments.findFirst({
 			where: and(eq(comments.id, body.parentId), eq(comments.clipId, clipId))
 		});
 		if (!parent) return json({ error: 'Parent comment not found' }, { status: 404 });
 		if (parent.parentId) return json({ error: 'Cannot reply to a reply' }, { status: 400 });
+		const parentAuthor = await db.query.users.findFirst({
+			where: eq(users.id, parent.userId),
+			columns: { username: true }
+		});
+		parentAuthorUsername = parentAuthor?.username;
 	}
 
 	const commentId = uuid();
@@ -250,7 +281,8 @@ export const POST: RequestHandler = withClipAuth(async ({ params, request }, { u
 		clipId,
 		body.parentId || null,
 		user,
-		preview
+		preview,
+		parentAuthorUsername
 	);
 
 	// Dispatch @mention notifications (exclude users already notified via comment/reply)
