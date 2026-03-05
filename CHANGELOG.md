@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.20.1](https://github.com/312-dev/scrolly/compare/scrolly-v1.20.0...scrolly-v1.20.1) (2026-03-05)
+
+
+### Bug Fixes
+
+* android push notification routing ([#86](https://github.com/312-dev/scrolly/issues/86)) ([061ddbd](https://github.com/312-dev/scrolly/commit/061ddbdecd58fe721c788bbce1a24780998705c9))
+
 ## [1.20.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.19.3...scrolly-v1.20.0) (2026-03-05)
 
 
