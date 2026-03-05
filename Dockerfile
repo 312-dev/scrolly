@@ -32,8 +32,8 @@ RUN apt-get update && \
       ca-certificates && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
-    # Patch npm's bundled tar (GHSA-qffp-2rhf-9h96: 7.5.7 → 7.5.10+)
-    cd /usr/local/lib/node_modules/npm && npm install tar@latest --no-audit --no-fund && \
+    # Update npm to latest (fixes bundled tar GHSA-qffp-2rhf-9h96)
+    npm install -g npm@latest && \
     groupadd -r scrolly && useradd -r -g scrolly -m scrolly
 
 WORKDIR /app
