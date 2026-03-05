@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { updateFavicon } from '$lib/iconSvg';
+	import { clipOverlaySignal, openCommentsSignal } from '$lib/stores/toasts';
 	import ToastStack from '$lib/components/ToastStack.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import InstallBanner from '$lib/components/InstallBanner.svelte';
@@ -24,6 +26,38 @@
 			.getPropertyValue('--accent-primary')
 			.trim();
 		if (accent) updateFavicon(accent);
+
+		// Listen for push notification clicks forwarded by the service worker.
+		// Uses postMessage instead of client.navigate() to avoid full-page reloads
+		// that race with SvelteKit hydration on Android PWA.
+		function handleSwMessage(event: MessageEvent) {
+			if (event.data?.type !== 'NOTIFICATION_CLICK') return;
+			const url = event.data.url || '/';
+			console.log('[Layout] NOTIFICATION_CLICK received, url:', url);
+
+			const parsed = new URL(url, window.location.origin);
+			const clipId = parsed.searchParams.get('clip');
+			const comments = parsed.searchParams.get('comments') === 'true';
+
+			if (clipId && window.location.pathname === '/') {
+				// Already on feed — open overlay directly via signal (same as ActivitySheet)
+				console.log('[Layout] on feed, opening overlay via signal:', clipId);
+				clipOverlaySignal.set(clipId);
+				if (comments) {
+					setTimeout(() => openCommentsSignal.set(clipId), 150);
+				}
+			} else {
+				// On a different page — use SvelteKit client-side navigation
+				console.log('[Layout] navigating to feed with deep link:', url);
+				// eslint-disable-next-line svelte/no-navigation-without-resolve -- resolve() expects route ID, not URL with query params
+				goto(url);
+			}
+		}
+
+		navigator.serviceWorker?.addEventListener('message', handleSwMessage);
+		return () => {
+			navigator.serviceWorker?.removeEventListener('message', handleSwMessage);
+		};
 	});
 </script>
 
