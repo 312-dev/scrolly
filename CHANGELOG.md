@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.20.2](https://github.com/312-dev/scrolly/compare/scrolly-v1.20.1...scrolly-v1.20.2) (2026-03-06)
+
+
+### Bug Fixes
+
+* correct notification possessives ([#88](https://github.com/312-dev/scrolly/issues/88)) ([8364130](https://github.com/312-dev/scrolly/commit/836413050ff31c28717ddf89f804df23ab00ba68))
+
 ## [1.20.1](https://github.com/312-dev/scrolly/compare/scrolly-v1.20.0...scrolly-v1.20.1) (2026-03-05)
 
 
