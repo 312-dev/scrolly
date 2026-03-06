@@ -33,6 +33,28 @@ export const GET: RequestHandler = withClipAuth(async ({ params }, { user }) => 
 	return json({ reactions: groupReactions(allReactions, userId) });
 });
 
+/** Build per-recipient push body text for a reaction notification. */
+async function buildReactionPushBody(
+	clip: { title: string | null; addedBy: string; contentType: string | null } | undefined
+): Promise<{ forOwner: string; forOthers: string }> {
+	if (clip?.title) {
+		const icon = clip.contentType === 'music' ? '🎵' : '🎬';
+		const body = `${icon} ${clip.title}`;
+		return { forOwner: body, forOthers: body };
+	}
+	if (clip) {
+		const uploader = await db.query.users.findFirst({
+			where: eq(users.id, clip.addedBy),
+			columns: { username: true }
+		});
+		return {
+			forOwner: 'on your clip',
+			forOthers: `on a clip by ${uploader?.username ?? 'someone'}`
+		};
+	}
+	return { forOwner: 'on a clip', forOthers: 'on a clip' };
+}
+
 async function dispatchReactionNotification(
 	clipId: string,
 	emoji: string,
@@ -44,26 +66,12 @@ async function dispatchReactionNotification(
 	const targets = groupMembers.filter((m) => m.id !== actor.id);
 	if (targets.length === 0) return;
 
-	// Fetch clip for title + thumbnail context
 	const clip = await db.query.clips.findFirst({
 		where: eq(clips.id, clipId),
 		columns: { title: true, addedBy: true, thumbnailPath: true, contentType: true }
 	});
 
-	let pushBody: string;
-	if (clip?.title) {
-		const icon = clip.contentType === 'music' ? '🎵' : '🎬';
-		pushBody = `${icon} ${clip.title}`;
-	} else if (clip) {
-		const uploader = await db.query.users.findFirst({
-			where: eq(users.id, clip.addedBy),
-			columns: { username: true }
-		});
-		pushBody = `on a clip by ${uploader?.username ?? 'someone'}`;
-	} else {
-		pushBody = 'on a clip';
-	}
-
+	const { forOwner, forOthers } = await buildReactionPushBody(clip);
 	const image =
 		clip?.thumbnailPath && env.ORIGIN
 			? `${env.ORIGIN}/api/thumbnails/${basename(clip.thumbnailPath)}`
@@ -80,17 +88,27 @@ async function dispatchReactionNotification(
 
 	for (const recipient of targets) {
 		const prefs = prefsMap.get(recipient.id);
-		const prefEnabled = !prefs || prefs.reactions;
-
-		if (prefEnabled) {
-			sendNotification(recipient.id, {
-				title: pushTitle,
-				body: pushBody,
-				url: `/?clip=${clipId}`,
-				tag: pushTag,
-				...(image ? { image } : {})
-			}).catch(() => {});
+		if (prefs && !prefs.reactions) {
+			await db.insert(notifications).values({
+				id: uuid(),
+				userId: recipient.id,
+				type: 'reaction',
+				clipId,
+				actorId: actor.id,
+				emoji,
+				createdAt: new Date()
+			});
+			continue;
 		}
+
+		const pushBody = recipient.id === clip?.addedBy ? forOwner : forOthers;
+		sendNotification(recipient.id, {
+			title: pushTitle,
+			body: pushBody,
+			url: `/?clip=${clipId}`,
+			tag: pushTag,
+			...(image ? { image } : {})
+		}).catch(() => {});
 
 		await db.insert(notifications).values({
 			id: uuid(),
