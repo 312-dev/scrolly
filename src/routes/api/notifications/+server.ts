@@ -28,24 +28,40 @@ export const GET: RequestHandler = withAuth(async ({ url }, { user }) => {
 	const clipMap = new Map(
 		clipRows.map((c) => [
 			c.id,
-			{ thumbnailPath: c.thumbnailPath, title: c.title, contentType: c.contentType }
+			{
+				thumbnailPath: c.thumbnailPath,
+				title: c.title,
+				contentType: c.contentType,
+				addedBy: c.addedBy
+			}
 		])
 	);
 
-	const result = rows.map((n) => ({
-		id: n.id,
-		type: n.type,
-		clipId: n.clipId,
-		emoji: n.emoji,
-		commentPreview: n.commentPreview,
-		actorUsername: actorMap.get(n.actorId)?.username || 'Unknown',
-		actorAvatar: actorMap.get(n.actorId)?.avatarPath || null,
-		clipThumbnail: clipMap.get(n.clipId)?.thumbnailPath || null,
-		clipTitle: clipMap.get(n.clipId)?.title || null,
-		clipContentType: clipMap.get(n.clipId)?.contentType || 'video',
-		read: !!n.readAt,
-		createdAt: n.createdAt.toISOString()
-	}));
+	// Look up usernames for clip owners (for "X's clip" phrasing)
+	const clipOwnerIds = [...new Set(clipRows.map((c) => c.addedBy))];
+	const clipOwnerMap = clipOwnerIds.length > 0 ? await mapUsersByIds(clipOwnerIds) : new Map();
+
+	const result = rows.map((n) => {
+		const clip = clipMap.get(n.clipId);
+		const isYourClip = clip?.addedBy === user.id;
+		const clipOwner = clip ? clipOwnerMap.get(clip.addedBy) : null;
+		return {
+			id: n.id,
+			type: n.type,
+			clipId: n.clipId,
+			emoji: n.emoji,
+			commentPreview: n.commentPreview,
+			actorUsername: actorMap.get(n.actorId)?.username || 'Unknown',
+			actorAvatar: actorMap.get(n.actorId)?.avatarPath || null,
+			clipThumbnail: clip?.thumbnailPath || null,
+			clipTitle: clip?.title || null,
+			clipContentType: clip?.contentType || 'video',
+			isYourClip,
+			clipOwnerUsername: isYourClip ? null : clipOwner?.username || null,
+			read: !!n.readAt,
+			createdAt: n.createdAt.toISOString()
+		};
+	});
 
 	return json({ notifications: result });
 });

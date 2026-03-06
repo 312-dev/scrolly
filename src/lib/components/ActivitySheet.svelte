@@ -25,6 +25,8 @@
 		actorAvatar: string | null;
 		clipThumbnail: string | null;
 		clipTitle: string | null;
+		isYourClip: boolean;
+		clipOwnerUsername: string | null;
 		read: boolean;
 		createdAt: string;
 	}
@@ -150,17 +152,16 @@
 		}, 300);
 	}
 
+	function clipLabel(n: Notification): string {
+		if (n.isYourClip) return 'your clip';
+		return n.clipOwnerUsername ? `${n.clipOwnerUsername}'s clip` : 'a clip';
+	}
+
 	function description(n: Notification): string {
-		if (n.type === 'reaction') {
-			return `reacted ${n.emoji} to your clip`;
-		}
-		if (n.type === 'mention') {
-			return 'mentioned you';
-		}
-		if (n.type === 'reply') {
-			return 'replied to a comment';
-		}
-		return 'commented on a clip';
+		if (n.type === 'reaction') return `reacted ${n.emoji} to ${clipLabel(n)}`;
+		if (n.type === 'mention') return 'mentioned you';
+		if (n.type === 'reply') return `replied to a comment on ${clipLabel(n)}`;
+		return `commented on ${clipLabel(n)}`;
 	}
 
 	async function dismissNotification(e: Event, n: Notification) {
@@ -297,7 +298,6 @@
 	.section {
 		margin-bottom: var(--space-lg);
 	}
-
 	.section-header {
 		font-family: var(--font-display);
 		font-size: 0.8125rem;
@@ -470,12 +470,10 @@
 		padding: 0;
 		transition: all 0.15s ease;
 	}
-
 	.dismiss-btn:hover {
 		background: var(--bg-surface);
 		color: var(--text-secondary);
 	}
-
 	.dismiss-btn:active {
 		transform: scale(0.9);
 	}

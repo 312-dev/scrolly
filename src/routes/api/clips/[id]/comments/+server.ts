@@ -129,8 +129,13 @@ export const GET: RequestHandler = withClipAuth(async ({ params }, { user }) => 
 	return json({ comments: formatted, reactionEvents });
 });
 
-/** Fetch clip context string and thumbnail URL for push notification bodies. */
-async function getClipPushContext(clipId: string): Promise<{ context: string; image?: string }> {
+/** Fetch clip context strings and thumbnail URL for push notification bodies. */
+async function getClipPushContext(clipId: string): Promise<{
+	ownerContext: string;
+	othersContext: string;
+	addedBy: string | null;
+	image?: string;
+}> {
 	const clip = await db.query.clips.findFirst({
 		where: eq(clips.id, clipId),
 		columns: { title: true, addedBy: true, thumbnailPath: true, contentType: true }
@@ -141,16 +146,22 @@ async function getClipPushContext(clipId: string): Promise<{ context: string; im
 			: undefined;
 	if (clip?.title) {
 		const icon = clip.contentType === 'music' ? '🎵' : '🎬';
-		return { context: `${icon} ${clip.title}`, image };
+		const context = `${icon} ${clip.title}`;
+		return { ownerContext: context, othersContext: context, addedBy: clip.addedBy, image };
 	}
 	if (clip) {
 		const uploader = await db.query.users.findFirst({
 			where: eq(users.id, clip.addedBy),
 			columns: { username: true }
 		});
-		return { context: `on a clip by ${uploader?.username ?? 'someone'}`, image };
+		return {
+			ownerContext: 'on your clip',
+			othersContext: `on a clip by ${uploader?.username ?? 'someone'}`,
+			addedBy: clip.addedBy,
+			image
+		};
 	}
-	return { context: 'on a clip' };
+	return { ownerContext: 'on a clip', othersContext: 'on a clip', addedBy: null };
 }
 
 /** Notify all group members about a comment or reply. Returns notified user IDs. */
@@ -173,8 +184,12 @@ async function dispatchCommentNotification(
 	const targets = groupMembers.filter((m) => m.id !== actor.id);
 	if (targets.length === 0) return [];
 
-	const { context: clipContext, image } = await getClipPushContext(clipId);
-	const pushBody = `💬 "${preview}" · ${clipContext}`;
+	const {
+		ownerContext,
+		othersContext,
+		addedBy: clipOwnerId,
+		image
+	} = await getClipPushContext(clipId);
 
 	const targetIds = targets.map((u) => u.id);
 	const allPrefs = await db.query.notificationPreferences.findMany({
@@ -189,9 +204,10 @@ async function dispatchCommentNotification(
 		const prefEnabled = !prefs || prefs.comments;
 
 		if (prefEnabled) {
+			const clipContext = recipient.id === clipOwnerId ? ownerContext : othersContext;
 			sendNotification(recipient.id, {
 				title: pushTitle,
-				body: pushBody,
+				body: `💬 "${preview}" · ${clipContext}`,
 				url: `/?clip=${clipId}&comments=true`,
 				tag: pushTag,
 				...(image ? { image } : {})
