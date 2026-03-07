@@ -61,6 +61,7 @@
 	let limitReached = $state(false);
 	let shareCountToday = $state(0);
 	let dailyShareLimit = $state<number | null>(null);
+	let resetsIn = $state('');
 	let pollTimer: ReturnType<typeof setInterval> | null = null;
 	let pingTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -109,6 +110,7 @@
 					limitReached = true;
 					shareCountToday = data.shareCountToday;
 					dailyShareLimit = data.dailyShareLimit;
+					resetsIn = data.resetsIn ?? '';
 					return;
 				}
 				error = data.error || 'Failed to add clip';
@@ -258,7 +260,9 @@
 			{#if dailyShareLimit !== null}
 				<ShareLimitDots used={shareCountToday} total={dailyShareLimit} />
 			{/if}
-			<p class="share-desc">You've shared all your clips for today. Try again tomorrow.</p>
+			<p class="share-desc">
+				You've shared all your clips for today.{resetsIn ? ` Resets in ${resetsIn}.` : ''}
+			</p>
 			{#if isShortcut}
 				<p class="share-desc">{closeText}</p>
 			{:else}

@@ -76,6 +76,22 @@ export function checkDailyShareLimit(
 export type ShareLimitResult = ReturnType<typeof checkDailyShareLimit>;
 
 /**
+ * Human-readable time until midnight reset in the user's timezone.
+ */
+export function formatResetTime(tz?: string | null): string {
+	const todayStart = getTodayStart(tz);
+	const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+	const ms = Math.max(0, tomorrowStart.getTime() - Date.now());
+	const totalSeconds = Math.floor(ms / 1000);
+	const hours = Math.floor(totalSeconds / 3600);
+	const minutes = Math.floor((totalSeconds % 3600) / 60);
+	const seconds = totalSeconds % 60;
+	if (hours > 0) return `${hours} hour${hours === 1 ? '' : 's'}`;
+	if (minutes > 0) return `${minutes} minute${minutes === 1 ? '' : 's'}`;
+	return `${seconds} second${seconds === 1 ? '' : 's'}`;
+}
+
+/**
  * If the daily share limit has been reached, return a 429 JSON response.
  * Otherwise return null (caller should proceed).
  * Also returns the limitCheck data for use in success responses.
@@ -89,12 +105,14 @@ export function enforceDailyShareLimit(
 	const limitCheck = checkDailyShareLimit(userId, groupId, dailyShareLimit, tz);
 	if (limitCheck.allowed) return { response: null, limitCheck };
 
+	const resetsIn = formatResetTime(tz);
 	return {
 		response: json(
 			{
-				error: `Daily share limit reached (${limitCheck.shareCountToday}/${limitCheck.dailyShareLimit}). Try again tomorrow.`,
+				error: `Daily share limit reached (${limitCheck.shareCountToday}/${limitCheck.dailyShareLimit}). Resets in ${resetsIn}.`,
 				shareCountToday: limitCheck.shareCountToday,
 				dailyShareLimit: limitCheck.dailyShareLimit,
+				resetsIn,
 				limitReached: true
 			},
 			{ status: 429 }

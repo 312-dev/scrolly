@@ -16,7 +16,7 @@ import { startDownload } from '$lib/server/clip-download';
 import { getActiveProvider } from '$lib/server/providers/registry';
 import { createLogger } from '$lib/server/logger';
 import { authenticateShortcutToken } from '$lib/server/shortcut-auth';
-import { enforceDailyShareLimit } from '$lib/server/share-limit';
+import { checkDailyShareLimit, formatResetTime } from '$lib/server/share-limit';
 
 const log = createLogger('share');
 
@@ -116,13 +116,21 @@ export const POST: RequestHandler = async ({ request, url, locals }) => {
 
 	// 6.5. Check daily share limit
 	const tz = typeof body.tz === 'string' ? body.tz : null;
-	const { response: limitResponse, limitCheck } = enforceDailyShareLimit(
-		matchedUser.id,
-		group.id,
-		group.dailyShareLimit,
-		tz
-	);
-	if (limitResponse) return limitResponse;
+	const limitCheck = checkDailyShareLimit(matchedUser.id, group.id, group.dailyShareLimit, tz);
+	if (!limitCheck.allowed) {
+		const resetsIn = formatResetTime(tz);
+		return shareResponse(
+			false,
+			`❌  Daily limit reached (${limitCheck.shareCountToday}/${limitCheck.dailyShareLimit}). Resets in ${resetsIn}.`,
+			429,
+			{
+				shareCountToday: limitCheck.shareCountToday,
+				dailyShareLimit: limitCheck.dailyShareLimit,
+				resetsIn,
+				limitReached: true
+			}
+		);
+	}
 
 	// 7. Duplicate check
 	const existing = await db.query.clips.findFirst({

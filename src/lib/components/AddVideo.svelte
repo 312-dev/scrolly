@@ -126,7 +126,9 @@
 			const data = await res.json();
 			if (!res.ok) {
 				if (res.status === 429 && data.limitReached) {
-					error = `Daily limit reached (${data.shareCountToday}/${data.dailyShareLimit}). Try again tomorrow.`;
+					const count = data.shareCountToday + '/' + data.dailyShareLimit;
+					const suffix = data.resetsIn ? ' Resets in ' + data.resetsIn + '.' : '';
+					error = 'Daily limit reached (' + count + ').' + suffix;
 				} else {
 					error = data.error || 'Failed to add video';
 				}
