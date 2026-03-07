@@ -22,6 +22,8 @@
 	let serverDuration = $state<number | null>(null);
 	let serverTitle = $state<string | null>(null);
 	let showTrimModal = $state(false);
+	let shareCountToday = $state<number | undefined>(undefined);
+	let dailyShareLimit = $state<number | null | undefined>(undefined);
 	let pollTimer: ReturnType<typeof setInterval> | null = null;
 	let pingTimer: ReturnType<typeof setInterval> | null = null;
 	let addVideoRef = $state<ReturnType<typeof AddVideo> | null>(null);
@@ -43,9 +45,17 @@
 		clearAll();
 	});
 
-	function handleSubmitted(clip: { id: string; status: string; contentType: string }) {
+	function handleSubmitted(clip: {
+		id: string;
+		status: string;
+		contentType: string;
+		shareCountToday?: number;
+		dailyShareLimit?: number | null;
+	}) {
 		clipId = clip.id;
 		clipContentType = clip.contentType;
+		shareCountToday = clip.shareCountToday;
+		dailyShareLimit = clip.dailyShareLimit;
 		// Remove the processing toast AddVideo created — UploadStatus screen takes over
 		toasts.update((t) => t.filter((item) => item.clipId !== clip.id));
 		phase = 'uploading';
@@ -204,6 +214,8 @@
 				{serverTitle}
 				{serverArtist}
 				{serverAlbumArt}
+				{shareCountToday}
+				{dailyShareLimit}
 				ondismiss={dismiss}
 				onretry={handleRetry}
 				onsaveandview={handleSaveAndView}

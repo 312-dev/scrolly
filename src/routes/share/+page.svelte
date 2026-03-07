@@ -17,6 +17,7 @@
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import ExportIcon from 'phosphor-svelte/lib/ExportIcon';
 	import ScissorsIcon from 'phosphor-svelte/lib/ScissorsIcon';
+	import ShareLimitDots from '$lib/components/ShareLimitDots.svelte';
 
 	const shareUrl = $derived(page.data.shareUrl as string);
 	const platform = $derived(platformLabel(shareUrl));
@@ -57,6 +58,9 @@
 	let serverAudioPath = $state<string | null>(null);
 	let serverDuration = $state<number | null>(null);
 	let serverTitle = $state<string | null>(null);
+	let limitReached = $state(false);
+	let shareCountToday = $state(0);
+	let dailyShareLimit = $state<number | null>(null);
 	let pollTimer: ReturnType<typeof setInterval> | null = null;
 	let pingTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -89,7 +93,10 @@
 			const res = await fetch('/api/clips', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ url: shareUrl })
+				body: JSON.stringify({
+					url: shareUrl,
+					tz: Intl.DateTimeFormat().resolvedOptions().timeZone
+				})
 			});
 			const data = await res.json();
 			if (!res.ok) {
@@ -98,11 +105,19 @@
 					success = true;
 					return;
 				}
+				if (res.status === 429 && data.limitReached) {
+					limitReached = true;
+					shareCountToday = data.shareCountToday;
+					dailyShareLimit = data.dailyShareLimit;
+					return;
+				}
 				error = data.error || 'Failed to add clip';
 				return;
 			}
 			clipId = data.clip.id;
 			contentType = data.clip.contentType ?? 'video';
+			if (data.shareCountToday !== undefined) shareCountToday = data.shareCountToday;
+			if (data.dailyShareLimit !== undefined) dailyShareLimit = data.dailyShareLimit;
 
 			if (contentType === 'music') {
 				// Start polling for music clips — wait for download + trim opportunity
@@ -235,11 +250,28 @@
 			{:else}
 				<a href={resolve('/')} class="btn-secondary">Go to feed</a>
 			{/if}
+		{:else if limitReached}
+			<div class="icon-wrap error">
+				<ProhibitIcon size={28} />
+			</div>
+			<h1 class="share-title">Daily limit reached</h1>
+			{#if dailyShareLimit !== null}
+				<ShareLimitDots used={shareCountToday} total={dailyShareLimit} />
+			{/if}
+			<p class="share-desc">You've shared all your clips for today. Try again tomorrow.</p>
+			{#if isShortcut}
+				<p class="share-desc">{closeText}</p>
+			{:else}
+				<a href={resolve('/')} class="btn-secondary">Go to feed</a>
+			{/if}
 		{:else if success}
 			<div class="icon-wrap success">
 				<CheckIcon size={28} weight="bold" />
 			</div>
 			<h1 class="share-title">Added!</h1>
+			{#if dailyShareLimit !== null}
+				<ShareLimitDots used={shareCountToday} total={dailyShareLimit} />
+			{/if}
 			{#if isShortcut}
 				<p class="share-desc">Your clip is downloading. {closeText}</p>
 			{:else}

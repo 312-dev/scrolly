@@ -22,7 +22,13 @@
 		initialUrl,
 		members = []
 	}: {
-		onsubmitted?: (clip: { id: string; status: string; contentType: string }) => void;
+		onsubmitted?: (clip: {
+			id: string;
+			status: string;
+			contentType: string;
+			shareCountToday?: number;
+			dailyShareLimit?: number | null;
+		}) => void;
 		initialUrl?: string;
 		members?: GroupMember[];
 	} = $props();
@@ -113,12 +119,17 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					url: url.trim(),
+					tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
 					...(trimmedMessage ? { message: trimmedMessage } : {})
 				})
 			});
 			const data = await res.json();
 			if (!res.ok) {
-				error = data.error || 'Failed to add video';
+				if (res.status === 429 && data.limitReached) {
+					error = `Daily limit reached (${data.shareCountToday}/${data.dailyShareLimit}). Try again tomorrow.`;
+				} else {
+					error = data.error || 'Failed to add video';
+				}
 				return;
 			}
 			url = '';
@@ -131,7 +142,11 @@
 				contentType: data.clip.contentType,
 				autoDismiss: 0
 			});
-			onsubmitted?.(data.clip);
+			onsubmitted?.({
+				...data.clip,
+				shareCountToday: data.shareCountToday,
+				dailyShareLimit: data.dailyShareLimit
+			});
 		} catch {
 			error = 'Something went wrong';
 		} finally {
@@ -304,9 +319,6 @@
 		font-size: 0.75rem;
 		font-weight: 700;
 		cursor: pointer;
-		width: auto;
-		height: auto;
-		margin: 0;
 	}
 	.suggestion-dismiss {
 		background: none;
@@ -314,9 +326,6 @@
 		padding: 4px;
 		color: var(--text-muted);
 		cursor: pointer;
-		width: auto;
-		height: auto;
-		margin: 0;
 	}
 	.suggestion-dismiss :global(svg) {
 		width: 16px;
