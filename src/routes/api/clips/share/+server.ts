@@ -16,6 +16,7 @@ import { startDownload } from '$lib/server/clip-download';
 import { getActiveProvider } from '$lib/server/providers/registry';
 import { createLogger } from '$lib/server/logger';
 import { authenticateShortcutToken } from '$lib/server/shortcut-auth';
+import { enforceDailyShareLimit } from '$lib/server/share-limit';
 
 const log = createLogger('share');
 
@@ -29,35 +30,47 @@ function shareResponse(
 	return json({ success: success ? 1 : 0, message, ...extra }, { status });
 }
 
-export const POST: RequestHandler = async ({ request, url, locals }) => {
-	// 1. Parse body
-	let body: { url?: string; phone?: string; phones?: string[] };
+type ShareBody = { url?: string; phone?: string; phones?: string[]; tz?: string };
+
+/** Parse the share request body. Returns the body or an error Response. */
+async function parseShareBody(request: Request): Promise<ShareBody | Response> {
 	try {
-		body = await request.json();
+		return await request.json();
 	} catch {
 		return shareResponse(false, '❌  Something went wrong. Try sharing again.', 400);
 	}
+}
 
+type ShareContext = {
+	matchedUser: { id: string; groupId: string | null; phone: string };
+	group: NonNullable<App.Locals['group']>;
+	platform: string;
+	videoUrl: string;
+};
+
+/** Authenticate and validate the share request. Returns context or an error Response. */
+async function validateShareRequest(
+	body: ShareBody,
+	locals: App.Locals,
+	urlParams: URLSearchParams
+): Promise<Response | ShareContext> {
 	const videoUrl = body.url;
-	// Support `phone` (string, new) or first element of `phones` (array, legacy fallback)
 	const phone = body.phone || (Array.isArray(body.phones) ? body.phones[0] : undefined);
 
 	if (!videoUrl || typeof videoUrl !== 'string') {
 		return shareResponse(false, '❌  No link found. Try sharing again from the app.', 400);
 	}
 
-	// 2. Authenticate — cookie first, then token+phone
 	const authResult =
 		locals.user && locals.group
 			? { user: locals.user, group: locals.group }
-			: await authenticateShortcutToken(url.searchParams.get('token'), phone);
+			: await authenticateShortcutToken(urlParams.get('token'), phone);
 
 	if ('error' in authResult) {
 		return shareResponse(false, `❌  ${authResult.error}`, 401);
 	}
 	const { user: matchedUser, group } = authResult;
 
-	// 3. Check download provider
 	const provider = await getActiveProvider(group.id);
 	if (!provider) {
 		return shareResponse(
@@ -67,7 +80,6 @@ export const POST: RequestHandler = async ({ request, url, locals }) => {
 		);
 	}
 
-	// 4. Validate URL
 	if (!isSupportedUrl(videoUrl)) {
 		return shareResponse(
 			false,
@@ -76,7 +88,6 @@ export const POST: RequestHandler = async ({ request, url, locals }) => {
 		);
 	}
 
-	// 5. Platform filter
 	const platform = detectPlatform(videoUrl)!;
 	const filterList = group.platformFilterList ? JSON.parse(group.platformFilterList) : null;
 	if (!isPlatformAllowed(platform, group.platformFilterMode, filterList)) {
@@ -87,9 +98,31 @@ export const POST: RequestHandler = async ({ request, url, locals }) => {
 		);
 	}
 
+	return { matchedUser, group, platform, videoUrl };
+}
+
+export const POST: RequestHandler = async ({ request, url, locals }) => {
+	const body = await parseShareBody(request);
+	if (body instanceof Response) return body;
+
+	const validated = await validateShareRequest(body, locals, url.searchParams);
+	if (validated instanceof Response) return validated;
+
+	const { matchedUser, group, platform, videoUrl } = validated;
+
 	// 6. Content type and normalize URL
 	const contentType = getContentType(platform);
 	const normalizedVideoUrl = normalizeUrl(videoUrl);
+
+	// 6.5. Check daily share limit
+	const tz = typeof body.tz === 'string' ? body.tz : null;
+	const { response: limitResponse, limitCheck } = enforceDailyShareLimit(
+		matchedUser.id,
+		group.id,
+		group.dailyShareLimit,
+		tz
+	);
+	if (limitResponse) return limitResponse;
 
 	// 7. Duplicate check
 	const existing = await db.query.clips.findFirst({
@@ -148,5 +181,13 @@ export const POST: RequestHandler = async ({ request, url, locals }) => {
 
 	// Push notification is sent after download succeeds (see video/download.ts, music/download.ts)
 
-	return shareResponse(true, '✅  Clip shared!', 201, { clipId });
+	return shareResponse(true, '✅  Clip shared!', 201, {
+		clipId,
+		...(group.dailyShareLimit !== null
+			? {
+					shareCountToday: limitCheck.shareCountToday + 1,
+					dailyShareLimit: group.dailyShareLimit
+				}
+			: {})
+	});
 };

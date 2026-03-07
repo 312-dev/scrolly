@@ -31,6 +31,7 @@ import {
 	safeInt
 } from '$lib/server/api-utils';
 import { extractMentions, notifyMentions } from '$lib/server/mentions';
+import { enforceDailyShareLimit } from '$lib/server/share-limit';
 import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('clips');
@@ -283,6 +284,37 @@ export const GET: RequestHandler = withAuth(async ({ url }, { user }) => {
 	return json({ clips: result, hasMore: offset + limit < total });
 });
 
+/** Auto-post a message as the first comment on a clip, with @mention notifications. */
+async function autoPostComment(
+	clipId: string,
+	user: { id: string; username: string; groupId: string },
+	message: string,
+	now: Date
+) {
+	const commentId = uuid();
+	await db.insert(comments).values({
+		id: commentId,
+		clipId,
+		userId: user.id,
+		parentId: null,
+		text: message,
+		gifUrl: null,
+		createdAt: now
+	});
+
+	const mentionedUsernames = extractMentions(message);
+	if (mentionedUsernames.length > 0) {
+		notifyMentions({
+			mentionedUsernames,
+			actorId: user.id,
+			actorUsername: user.username,
+			clipId,
+			groupId: user.groupId,
+			commentPreview: message.slice(0, 80)
+		}).catch((err) => log.error({ err, clipId }, 'mention notifications failed'));
+	}
+}
+
 export const POST: RequestHandler = withAuth(async ({ request }, { user, group }) => {
 	// Check that a download provider is configured
 	const provider = await getActiveProvider(user.groupId);
@@ -293,7 +325,9 @@ export const POST: RequestHandler = withAuth(async ({ request }, { user, group }
 		);
 	}
 
-	const body = await parseBody<{ url?: string; title?: string; message?: string }>(request);
+	const body = await parseBody<{ url?: string; title?: string; message?: string; tz?: string }>(
+		request
+	);
 	if (isResponse(body)) return body;
 
 	const { url: videoUrl } = body;
@@ -308,6 +342,16 @@ export const POST: RequestHandler = withAuth(async ({ request }, { user, group }
 	const platform = detectPlatform(validUrl)!;
 	const contentType = getContentType(platform);
 	const normalizedUrl = normalizeUrl(validUrl);
+
+	// Check daily share limit
+	const tz = typeof body.tz === 'string' ? body.tz : null;
+	const { response: limitResponse, limitCheck } = enforceDailyShareLimit(
+		user.id,
+		user.groupId,
+		group.dailyShareLimit,
+		tz
+	);
+	if (limitResponse) return limitResponse;
 
 	// Check if this URL already exists in the group's feed
 	const existing = await db.query.clips.findFirst({
@@ -373,30 +417,15 @@ export const POST: RequestHandler = withAuth(async ({ request }, { user, group }
 
 	// Auto-post message as the first comment on the clip
 	if (message) {
-		const commentId = uuid();
-		await db.insert(comments).values({
-			id: commentId,
-			clipId,
-			userId: user.id,
-			parentId: null,
-			text: message,
-			gifUrl: null,
-			createdAt: now
-		});
-
-		// Notify @mentioned users
-		const mentionedUsernames = extractMentions(message);
-		if (mentionedUsernames.length > 0) {
-			notifyMentions({
-				mentionedUsernames,
-				actorId: user.id,
-				actorUsername: user.username,
-				clipId,
-				groupId: user.groupId,
-				commentPreview: message.slice(0, 80)
-			}).catch((err) => log.error({ err, clipId }, 'mention notifications failed'));
-		}
+		await autoPostComment(clipId, user, message, now);
 	}
 
-	return json({ clip: { id: clipId, status: 'downloading', contentType } }, { status: 201 });
+	const clipResponse: Record<string, unknown> = {
+		clip: { id: clipId, status: 'downloading', contentType }
+	};
+	if (limitCheck.dailyShareLimit !== null) {
+		clipResponse.shareCountToday = limitCheck.shareCountToday + 1;
+		clipResponse.dailyShareLimit = limitCheck.dailyShareLimit;
+	}
+	return json(clipResponse, { status: 201 });
 });
