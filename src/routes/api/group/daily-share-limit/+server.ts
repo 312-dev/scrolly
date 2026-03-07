@@ -4,7 +4,6 @@ import { db } from '$lib/server/db';
 import { groups } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { withHost, parseBody, isResponse, badRequest } from '$lib/server/api-utils';
-import { VALID_DAILY_SHARE_LIMITS } from '$lib/server/constants';
 
 export const PATCH: RequestHandler = withHost(async ({ request }, { group }) => {
 	const body = await parseBody<{ dailyShareLimit?: number | null }>(request);
@@ -12,8 +11,10 @@ export const PATCH: RequestHandler = withHost(async ({ request }, { group }) => 
 
 	const { dailyShareLimit } = body;
 
-	if (!(VALID_DAILY_SHARE_LIMITS as readonly (number | null)[]).includes(dailyShareLimit ?? null)) {
-		return badRequest('Invalid daily share limit value');
+	if (dailyShareLimit !== null && dailyShareLimit !== undefined) {
+		if (!Number.isInteger(dailyShareLimit) || dailyShareLimit < 1) {
+			return badRequest('Daily share limit must be a positive integer or null');
+		}
 	}
 
 	await db
