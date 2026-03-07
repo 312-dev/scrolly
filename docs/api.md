@@ -65,15 +65,18 @@ Response: { "user": { ... }, "group": { ... } }
 | PATCH | `/api/clips/[id]` | Update clip title |
 | DELETE | `/api/clips/[id]` | Remove clip |
 | GET | `/api/clips/unwatched-count` | Count of unwatched clips |
+| POST | `/api/clips/dismiss` | Dismiss unwatched clips (bulk) |
+| DELETE | `/api/clips/dismiss` | Restore dismissed clips |
+| GET | `/api/clips/dismissed` | List dismissed clips for user |
 
 ### GET /api/clips
 ```
-Query params: ?filter=unwatched|watched|favorites|uploads&sort=oldest|round-robin&limit=20&offset=0
+Query params: ?filter=unwatched|watched|favorites|uploads&sort=oldest|round-robin|best&limit=20&offset=0
 Response: { "clips": [...], "hasMore": true }
 ```
-Only returns clips with `status: 'ready'`. Default sort is `oldest` (chronological). `round-robin` interleaves clips across members so no single poster dominates the feed. The `watched` filter sorts by most-recently-watched instead.
+Only returns clips with `status: 'ready'`. Default sort is `oldest` (chronological). `round-robin` interleaves clips across members so no single poster dominates the feed. `best` ranks clips by engagement (reactions + comments + views) with source view count as tiebreaker and round-robin balance. The `watched` filter sorts by most-recently-watched instead.
 
-Each clip includes: id, originalUrl, title, addedByUsername, addedByAvatar, status, durationSeconds, platform, contentType, creatorName, creatorUrl, createdAt, watched, favorited, reactions, commentCount, unreadCommentCount, viewCount, seenByOthers.
+Each clip includes: id, originalUrl, title, addedByUsername, addedByAvatar, status, durationSeconds, platform, contentType, creatorName, creatorUrl, sourceViewCount, createdAt, watched, favorited, reactions, commentCount, unreadCommentCount, viewCount, seenByOthers.
 
 ### POST /api/clips
 ```
@@ -93,7 +96,7 @@ Also accepts `"phones": ["+1234567890"]` (array) for legacy Shortcut backward co
 ### GET /api/clips/[id]
 Returns full clip detail with user context, interaction state, and metadata.
 ```
-Response: { id, originalUrl, videoPath, audioPath, thumbnailPath, title, artist, albumArt, spotifyUrl, appleMusicUrl, youtubeMusicUrl, addedBy, addedByUsername, addedByAvatar, platform, status, contentType, durationSeconds, creatorName, creatorUrl, watched, favorited, reactions, commentCount, unreadCommentCount, viewCount, seenByOthers, createdAt, canEditCaption }
+Response: { id, originalUrl, videoPath, audioPath, thumbnailPath, title, artist, albumArt, spotifyUrl, appleMusicUrl, youtubeMusicUrl, addedBy, addedByUsername, addedByAvatar, platform, status, contentType, durationSeconds, creatorName, creatorUrl, sourceViewCount, watched, favorited, reactions, commentCount, unreadCommentCount, viewCount, seenByOthers, createdAt, canEditCaption }
 ```
 
 ### PATCH /api/clips/[id]
@@ -110,6 +113,27 @@ Host can delete any clip. Non-host uploaders can only delete their own clips if 
 ```
 Response: { "count": 5 }
 ```
+
+### POST /api/clips/dismiss
+Bulk-dismiss unwatched clips. Skips already-watched and already-dismissed clips.
+```
+Request:  { "keepIds": ["clip-1", "clip-2"] }   (optional clips to exclude from dismissal)
+Response: { "dismissed": 3 }
+```
+
+### DELETE /api/clips/dismiss
+Restore previously dismissed clips.
+```
+Request:  { "clipIds": ["id1", "id2"] }   (specific clips)
+Request:  { "all": true }                  (restore all dismissed clips)
+Response: { "restored": 2 }
+```
+
+### GET /api/clips/dismissed
+```
+Response: { "clips": [...], "count": 3 }
+```
+Returns dismissed clips with thumbnail, platform, uploader info, and dismissal timestamp.
 
 ## Interactions
 
@@ -185,7 +209,7 @@ Response: { "status": "downloading" }
 ### POST /api/clips/[id]/refetch
 Host-only. Refetches metadata (title, creator info) from the source URL via yt-dlp.
 ```
-Response: { "title": "...", "creatorName": "...", "creatorUrl": "..." }
+Response: { "title": "...", "creatorName": "...", "creatorUrl": "...", "sourceViewCount": 12345 }
 ```
 
 ### POST /api/clips/[id]/trim
@@ -224,6 +248,7 @@ Host-only endpoints (unless noted). Requires `createdBy === currentUser`.
 | PATCH | `/api/group/retention` | Set retention policy |
 | PATCH | `/api/group/max-file-size` | Set max file size limit |
 | PATCH | `/api/group/platforms` | Set platform filter |
+| PATCH | `/api/group/daily-share-limit` | Set daily share limit per user |
 | GET | `/api/group/provider` | List download providers |
 | PATCH | `/api/group/provider` | Set active provider |
 | POST | `/api/group/provider/install` | Install a provider |
@@ -265,6 +290,12 @@ Response: { "maxFileSizeMb": 100 }
 ```
 Request:  { "mode": "all", "platforms": [] }   (mode: "all" | "allow" | "block")
 Response: { "platformFilterMode": "all", "platformFilterList": null }
+```
+
+### PATCH /api/group/daily-share-limit
+```
+Request:  { "dailyShareLimit": 5 }   (positive integer, or null to remove limit)
+Response: { "dailyShareLimit": 5 }
 ```
 
 ### GET /api/group/provider

@@ -18,6 +18,7 @@ SQLite database via Drizzle ORM. All IDs are UUIDs stored as text. Timestamps ar
 | download_provider | text | Nullable. Active download provider ID. |
 | platform_filter_mode | text | Default `'all'`. `'all'` / `'allow'` / `'block'`. |
 | platform_filter_list | text | Nullable. Comma-separated list of platforms for allow/block filtering. |
+| daily_share_limit | integer | Nullable. Max clips per user per calendar day. |
 | shortcut_token | text | Nullable, unique. Token for iOS Shortcut clip sharing. |
 | shortcut_url | text | Nullable. URL for iOS Shortcut integration. |
 | created_by | text | FK → users.id (host/admin) |
@@ -66,6 +67,7 @@ SQLite database via Drizzle ORM. All IDs are UUIDs stored as text. Timestamps ar
 | file_size_bytes | integer | Nullable. File size for storage tracking. |
 | creator_name | text | Nullable. Original content creator name (from yt-dlp metadata). |
 | creator_url | text | Nullable. Original content creator profile URL. |
+| source_view_count | integer | Nullable. View count from original source (yt-dlp metadata). |
 | created_at | integer | Unix timestamp |
 
 Unique index on `(group_id, original_url)` — prevents duplicate URLs within a group.
@@ -148,6 +150,16 @@ Index on `(user_id, created_at)` for efficient feed queries.
 
 Unique constraint on `(clip_id, user_id)` — tracks whether a user has seen the comments on a clip.
 
+### dismissed_clips
+
+| Column | Type | Notes |
+|--------|------|-------|
+| clip_id | text | Composite PK, FK → clips.id |
+| user_id | text | Composite PK, FK → users.id |
+| dismissed_at | integer | Unix timestamp when dismissed |
+
+Unique constraint on `(clip_id, user_id)` — tracks clips dismissed by users in catch-up modal.
+
 ### push_subscriptions
 
 | Column | Type | Notes |
@@ -198,6 +210,7 @@ comments 1──∞ comment_hearts
 clips  ∞──∞ users (watched)
 clips  ∞──∞ users (favorites)
 clips  ∞──∞ users (comment_views)
+clips  ∞──∞ users (dismissed_clips)
 users  1──∞ push_subscriptions
 users  1──1 notification_preferences
 users  1──∞ notifications (recipient)
@@ -215,3 +228,4 @@ users  1──∞ verification_codes
 - **Music clips:** The `content_type` field distinguishes video clips from music links. Music clips have additional fields for cross-platform streaming URLs resolved via Odesli.
 - **Duplicate URL prevention:** A unique index on `(group_id, original_url)` prevents the same link from being shared twice within a group.
 - **Music clip trim workflow:** Music clips enter `pending_trim` status after download. The user can trim audio via the trim UI or skip trimming. If neither occurs before `trim_deadline`, the clip auto-publishes to `ready` status via the scheduler.
+- **Dismissed clips:** The `dismissed_clips` table tracks clips dismissed by users in the catch-up modal. Users can dismiss unwatched clips in bulk, then restore them later from the Skipped Clips viewer in settings.

@@ -72,6 +72,7 @@ scrolly/
 │   │   │   │   └── verify.ts        # Twilio SMS verification codes
 │   │   │   ├── auth.ts              # Session management, invite code validation
 │   │   │   ├── push.ts              # web-push wrapper, group notifications
+│   │   │   ├── share-limit.ts       # Daily share limit enforcement utility
 │   │   │   ├── scheduler.ts         # Retention policy enforcement (periodic cleanup)
 │   │   │   └── download-lock.ts     # Prevents duplicate concurrent downloads
 │   │   ├── components/
@@ -95,6 +96,7 @@ scrolly/
 │   │   │   ├── AddVideo.svelte      # Add video form
 │   │   │   ├── AddVideoModal.svelte # Modal wrapper for AddVideo
 │   │   │   ├── AvatarCropModal.svelte # Profile picture crop UI
+│   │   │   ├── CatchUpModal.svelte  # Catch-up modal for bulk unwatched clips
 │   │   │   ├── MeGrid.svelte         # Profile clip grid (favorites/uploads)
 │   │   │   ├── MeReelView.svelte     # Profile reel overlay view
 │   │   │   ├── CommentInput.svelte  # Rich comment input with GIF and mention support
@@ -115,13 +117,16 @@ scrolly/
 │   │   │   ├── PlatformIcon.svelte  # Platform logo (TikTok, IG, etc.)
 │   │   │   ├── InlineError.svelte
 │   │   │   ├── FilterBar.svelte     # Feed filter tabs
+│   │   │   ├── ShareLimitDots.svelte # Daily share limit indicator dots
 │   │   │   ├── ShortcutGuideSheet.svelte # iOS Shortcut setup guide
 │   │   │   ├── ShortcutUpgradeBanner.svelte # Legacy shortcut upgrade prompt
 │   │   │   └── settings/
 │   │   │       ├── GroupNameEdit.svelte
 │   │   │       ├── InviteLink.svelte
 │   │   │       ├── MemberList.svelte
+│   │   │       ├── DailyShareLimitPicker.svelte # Daily per-user share limit control
 │   │   │       ├── RetentionPicker.svelte
+│   │   │       ├── SkippedClips.svelte    # Dismissed/skipped clips viewer with restore
 │   │   │       ├── ClipsManager.svelte
 │   │   │       ├── NotificationSettings.svelte # Push toggle + test button
 │   │   │       ├── ShortcutManager.svelte   # iOS Shortcut config wrapper
@@ -142,6 +147,7 @@ scrolly/
 │   │   │   ├── sheetOpen.ts        # Global any-sheet-open state (blocks scroll/nav)
 │   │   │   ├── uiHidden.ts         # Feed UI hidden state (synced from active reel)
 │   │   │   ├── homeTap.ts          # Double-tap home to scroll to top
+│   │   │   ├── catchUpModal.ts     # Catch-up modal dismissal state (12-hour cooldown)
 │   │   │   ├── shortcutNudge.ts    # Share shortcut install nudge
 │   │   │   └── shortcutUpgrade.ts  # Shortcut upgrade banner state
 │   │   ├── types.ts                 # Shared TypeScript types (Clip, etc.)
@@ -163,6 +169,8 @@ scrolly/
 │   │   ├── api/                     # REST API (see docs/api.md)
 │   │   │   ├── auth/
 │   │   │   ├── clips/
+│   │   │   │   ├── dismiss/+server.ts       # Dismiss/restore unwatched clips
+│   │   │   │   ├── dismissed/+server.ts     # List dismissed clips
 │   │   │   │   └── [id]/refetch/+server.ts  # Host-only metadata refetch
 │   │   │   │   └── [id]/trim/+server.ts      # Music clip trim
 │   │   │   │   └── [id]/waveform/+server.ts  # Waveform data
