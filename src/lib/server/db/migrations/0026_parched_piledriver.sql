@@ -1,0 +1,1 @@
+ALTER TABLE `groups` ADD `daily_share_limit` integer;

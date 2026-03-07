@@ -20,6 +20,8 @@
 	import { isPushSupported, getExistingSubscription, subscribeToPush } from '$lib/push';
 	import { homeTapSignal } from '$lib/stores/homeTap';
 	import { unwatchedCount, fetchUnwatchedCount } from '$lib/stores/notifications';
+	import { catchUpDismissalExpired, dismissCatchUp } from '$lib/stores/catchUpModal';
+	import CatchUpModal from '$lib/components/CatchUpModal.svelte';
 	import { feedUiHidden } from '$lib/stores/uiHidden';
 	import { anySheetOpen } from '$lib/stores/sheetOpen';
 	import { get } from 'svelte/store';
@@ -62,6 +64,9 @@
 			clips.length > 0 &&
 			clips.filter((c) => !c.watched).length === 1
 	);
+
+	// Defer watched marking for the first loaded clip until 40% watched or swiped past
+	let firstClipId = $state<string | null>(null);
 
 	// Clip overlay (dedicated single-clip view)
 	let overlayClipId = $state<string | null>(null);
@@ -119,6 +124,10 @@
 	let pushEnabled = $state(false);
 	let pushEnabling = $state(false);
 
+	// Catch-up modal state
+	let showCatchUp = $state(false);
+	let catchUpResolved = $state(false);
+
 	async function loadInitialClips() {
 		loading = true;
 		currentOffset = 0;
@@ -129,6 +138,7 @@
 			clips = data.clips;
 			hasMore = data.hasMore;
 			currentOffset = data.clips.length;
+			firstClipId = data.clips.length > 0 ? data.clips[0].id : null;
 		} else {
 			toast.error('Failed to load clips');
 		}
@@ -571,6 +581,15 @@
 		}
 	});
 
+	// Mark first clip as watched when user swipes past it
+	$effect(() => {
+		if (firstClipId && activeIndex > 0) {
+			const firstClip = clips.find((c) => c.id === firstClipId);
+			if (firstClip && !firstClip.watched) markWatched(firstClipId);
+			firstClipId = null;
+		}
+	});
+
 	$effect(() => {
 		function handleKeydown(e: KeyboardEvent) {
 			if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -638,6 +657,55 @@
 			}
 		}
 	});
+
+	// Catch-up modal: show when 30+ unwatched clips and not recently dismissed
+	$effect(() => {
+		if (catchUpResolved) return;
+		const count = $unwatchedCount;
+		// Wait for real data (count starts at 0 before fetch resolves)
+		if (count === 0 || loading) return;
+		if (filter === 'unwatched' && !overlayActive && count >= 30 && get(catchUpDismissalExpired)) {
+			showCatchUp = true;
+		} else {
+			catchUpResolved = true;
+		}
+	});
+
+	async function handleCatchUpChoice(choice: 'all' | 'best') {
+		showCatchUp = false;
+		catchUpResolved = true;
+		dismissCatchUp();
+
+		if (choice === 'best') {
+			loading = true;
+			currentOffset = 0;
+			const data = await fetchClips('unwatched', 30, 'best');
+			if (data) {
+				resetLastContributor();
+				clips = data.clips;
+				hasMore = false; // No pagination in best mode
+				currentOffset = data.clips.length;
+
+				// Dismiss all other unwatched clips (not in the best 30)
+				const keepIds = data.clips.map((c) => c.id);
+				fetch('/api/clips/dismiss', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ keepIds })
+				}).then(() => fetchUnwatchedCount());
+
+				addToast({
+					type: 'success',
+					message: 'Skipped clips can be found in Settings any time',
+					autoDismiss: 5000
+				});
+			} else {
+				toast.error('Failed to load clips');
+			}
+			loading = false;
+		}
+		// 'all' — normal feed already loaded, do nothing
+	}
 
 	function handleOverlayDismiss() {
 		console.log('[Feed] handleOverlayDismiss, was:', overlayClipId);
@@ -870,6 +938,7 @@
 								{gifEnabled}
 								seenByOthers={clip.seenByOthers}
 								deferWatched={isLastUnwatched && !clip.watched}
+								deferFirstClip={clip.id === firstClipId && !clip.watched}
 								onwatched={markWatched}
 								onfavorited={toggleFavorite}
 								onreaction={handleReaction}
@@ -956,6 +1025,10 @@
 		openComments={overlayOpenComments}
 		ondismiss={handleOverlayDismiss}
 	/>
+{/if}
+
+{#if showCatchUp}
+	<CatchUpModal unwatchedCount={$unwatchedCount} onchoice={handleCatchUpChoice} />
 {/if}
 
 <style>

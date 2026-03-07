@@ -7,9 +7,10 @@ import {
 	favorites,
 	commentViews,
 	reactions,
-	comments
+	comments,
+	dismissedClips
 } from '$lib/server/db/schema';
-import { eq, asc, and, inArray } from 'drizzle-orm';
+import { eq, asc, and, inArray, sql } from 'drizzle-orm';
 import {
 	isSupportedUrl,
 	detectPlatform,
@@ -31,6 +32,7 @@ import {
 	safeInt
 } from '$lib/server/api-utils';
 import { extractMentions, notifyMentions } from '$lib/server/mentions';
+import { enforceDailyShareLimit } from '$lib/server/share-limit';
 import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('clips');
@@ -65,18 +67,19 @@ function validateClipUrl(
 }
 
 const VALID_FILTERS = ['unwatched', 'watched', 'favorites', 'uploads'] as const;
-const VALID_SORTS = ['oldest', 'round-robin'] as const;
+const VALID_SORTS = ['oldest', 'round-robin', 'best'] as const;
 
 function applyFilter(
 	allClips: (typeof clips.$inferSelect)[],
 	filter: string | null,
 	watchedIds: Set<string>,
 	favIds: Set<string>,
-	userId: string
+	userId: string,
+	dismissedIds?: Set<string>
 ): (typeof clips.$inferSelect)[] {
 	switch (filter) {
 		case 'unwatched':
-			return allClips.filter((c) => !watchedIds.has(c.id));
+			return allClips.filter((c) => !watchedIds.has(c.id) && !dismissedIds?.has(c.id));
 		case 'watched':
 			return allClips.filter((c) => watchedIds.has(c.id));
 		case 'favorites':
@@ -118,12 +121,35 @@ function countUnreadComments(
 
 type ClipRow = Awaited<ReturnType<typeof db.query.clips.findMany>>[number];
 
+/** Round-robin interleave clips grouped by contributor. */
+function interleaveByMember(clipList: ClipRow[]): ClipRow[] {
+	const byMember = new Map<string, ClipRow[]>();
+	for (const clip of clipList) {
+		const list = byMember.get(clip.addedBy) || [];
+		list.push(clip);
+		byMember.set(clip.addedBy, list);
+	}
+	const queues = [...byMember.values()].map((list) => ({ items: list, idx: 0 }));
+	const interleaved: ClipRow[] = [];
+	let remaining = clipList.length;
+	while (remaining > 0) {
+		for (const q of queues) {
+			if (q.idx < q.items.length) {
+				interleaved.push(q.items[q.idx++]);
+				remaining--;
+			}
+		}
+	}
+	return interleaved;
+}
+
 function applySortOrder(
 	clipList: ClipRow[],
 	sort: string,
 	filter: string | null,
 	watchedRows: { clipId: string; watchedAt: Date }[],
-	favRows: { clipId: string; createdAt: Date }[]
+	favRows: { clipId: string; createdAt: Date }[],
+	engagementScores?: Map<string, number>
 ): ClipRow[] {
 	if (filter === 'uploads') {
 		// Uploads tab: newest first
@@ -141,30 +167,57 @@ function applySortOrder(
 			(a, b) => (watchedAtMap.get(b.id) ?? 0) - (watchedAtMap.get(a.id) ?? 0)
 		);
 	}
+	if (sort === 'best' && engagementScores) {
+		// Sort by: 1) internal engagement desc, 2) source view count desc, 3) recency desc
+		const scored = [...clipList].sort((a, b) => {
+			const scoreA = engagementScores.get(a.id) || 0;
+			const scoreB = engagementScores.get(b.id) || 0;
+			if (scoreB !== scoreA) return scoreB - scoreA;
+			const viewsA = a.sourceViewCount ?? 0;
+			const viewsB = b.sourceViewCount ?? 0;
+			if (viewsB !== viewsA) return viewsB - viewsA;
+			return b.createdAt.getTime() - a.createdAt.getTime();
+		});
+		// Round-robin interleave across contributors (each contributor's clips in score order)
+		return interleaveByMember(scored);
+	}
 	if (sort === 'round-robin') {
 		// Group clips by member, each group already in createdAt asc order
-		const byMember = new Map<string, ClipRow[]>();
-		for (const clip of clipList) {
-			const list = byMember.get(clip.addedBy) || [];
-			list.push(clip);
-			byMember.set(clip.addedBy, list);
-		}
-		// Interleave: pick oldest from each member in rotation
-		const queues = [...byMember.values()].map((list) => ({ items: list, idx: 0 }));
-		const interleaved: ClipRow[] = [];
-		let remaining = clipList.length;
-		while (remaining > 0) {
-			for (const q of queues) {
-				if (q.idx < q.items.length) {
-					interleaved.push(q.items[q.idx++]);
-					remaining--;
-				}
-			}
-		}
-		return interleaved;
+		return interleaveByMember(clipList);
 	}
 	// 'oldest': already sorted by createdAt asc from the DB query
 	return clipList;
+}
+
+/** Compute engagement scores (views + reactions + comments) for a set of clip IDs. */
+async function computeEngagementScores(clipIds: string[]): Promise<Map<string, number>> {
+	const [reactionCounts, commentCounts, viewCounts] = await Promise.all([
+		db
+			.select({ clipId: reactions.clipId, count: sql<number>`count(*)` })
+			.from(reactions)
+			.where(inArray(reactions.clipId, clipIds))
+			.groupBy(reactions.clipId),
+		db
+			.select({ clipId: comments.clipId, count: sql<number>`count(*)` })
+			.from(comments)
+			.where(inArray(comments.clipId, clipIds))
+			.groupBy(comments.clipId),
+		db
+			.select({ clipId: watched.clipId, count: sql<number>`count(*)` })
+			.from(watched)
+			.where(inArray(watched.clipId, clipIds))
+			.groupBy(watched.clipId)
+	]);
+
+	const reactionMap = new Map(reactionCounts.map((r) => [r.clipId, r.count]));
+	const commentMap = new Map(commentCounts.map((c) => [c.clipId, c.count]));
+	const viewMap = new Map(viewCounts.map((v) => [v.clipId, v.count]));
+
+	const scores = new Map<string, number>();
+	for (const id of clipIds) {
+		scores.set(id, (viewMap.get(id) || 0) + (reactionMap.get(id) || 0) + (commentMap.get(id) || 0));
+	}
+	return scores;
 }
 
 export const GET: RequestHandler = withAuth(async ({ url }, { user }) => {
@@ -174,7 +227,7 @@ export const GET: RequestHandler = withAuth(async ({ url }, { user }) => {
 	}
 	const sort = url.searchParams.get('sort') || 'oldest';
 	if (!(VALID_SORTS as readonly string[]).includes(sort)) {
-		return badRequest('Invalid sort. Must be oldest or round-robin');
+		return badRequest('Invalid sort. Must be oldest, round-robin, or best');
 	}
 	const limit = safeInt(url.searchParams.get('limit'), 20, 50);
 	const offset = safeInt(url.searchParams.get('offset'), 0);
@@ -198,10 +251,22 @@ export const GET: RequestHandler = withAuth(async ({ url }, { user }) => {
 	});
 	const favIds = new Set(favRows.map((f) => f.clipId));
 
-	// Apply filter before pagination so we only fetch related data for visible clips
-	allClips = applyFilter(allClips, filter, watchedIds, favIds, userId);
+	// Get dismissed clip IDs for this user (excluded from unwatched filter)
+	const dismissedRows = await db.query.dismissedClips.findMany({
+		where: eq(dismissedClips.userId, userId)
+	});
+	const dismissedIds = new Set(dismissedRows.map((d) => d.clipId));
 
-	allClips = applySortOrder(allClips, sort, filter, watchedRows, favRows);
+	// Apply filter before pagination so we only fetch related data for visible clips
+	allClips = applyFilter(allClips, filter, watchedIds, favIds, userId, dismissedIds);
+
+	// Compute engagement scores for 'best' sort (needs all filtered clip IDs before pagination)
+	const engagementScores =
+		sort === 'best' && allClips.length > 0
+			? await computeEngagementScores(allClips.map((c) => c.id))
+			: undefined;
+
+	allClips = applySortOrder(allClips, sort, filter, watchedRows, favRows, engagementScores);
 
 	const total = allClips.length;
 	const paginatedClips = allClips.slice(offset, offset + limit);
@@ -283,6 +348,37 @@ export const GET: RequestHandler = withAuth(async ({ url }, { user }) => {
 	return json({ clips: result, hasMore: offset + limit < total });
 });
 
+/** Auto-post a message as the first comment on a clip, with @mention notifications. */
+async function autoPostComment(
+	clipId: string,
+	user: { id: string; username: string; groupId: string },
+	message: string,
+	now: Date
+) {
+	const commentId = uuid();
+	await db.insert(comments).values({
+		id: commentId,
+		clipId,
+		userId: user.id,
+		parentId: null,
+		text: message,
+		gifUrl: null,
+		createdAt: now
+	});
+
+	const mentionedUsernames = extractMentions(message);
+	if (mentionedUsernames.length > 0) {
+		notifyMentions({
+			mentionedUsernames,
+			actorId: user.id,
+			actorUsername: user.username,
+			clipId,
+			groupId: user.groupId,
+			commentPreview: message.slice(0, 80)
+		}).catch((err) => log.error({ err, clipId }, 'mention notifications failed'));
+	}
+}
+
 export const POST: RequestHandler = withAuth(async ({ request }, { user, group }) => {
 	// Check that a download provider is configured
 	const provider = await getActiveProvider(user.groupId);
@@ -293,7 +389,9 @@ export const POST: RequestHandler = withAuth(async ({ request }, { user, group }
 		);
 	}
 
-	const body = await parseBody<{ url?: string; title?: string; message?: string }>(request);
+	const body = await parseBody<{ url?: string; title?: string; message?: string; tz?: string }>(
+		request
+	);
 	if (isResponse(body)) return body;
 
 	const { url: videoUrl } = body;
@@ -308,6 +406,16 @@ export const POST: RequestHandler = withAuth(async ({ request }, { user, group }
 	const platform = detectPlatform(validUrl)!;
 	const contentType = getContentType(platform);
 	const normalizedUrl = normalizeUrl(validUrl);
+
+	// Check daily share limit
+	const tz = typeof body.tz === 'string' ? body.tz : null;
+	const { response: limitResponse, limitCheck } = enforceDailyShareLimit(
+		user.id,
+		user.groupId,
+		group.dailyShareLimit,
+		tz
+	);
+	if (limitResponse) return limitResponse;
 
 	// Check if this URL already exists in the group's feed
 	const existing = await db.query.clips.findFirst({
@@ -373,30 +481,15 @@ export const POST: RequestHandler = withAuth(async ({ request }, { user, group }
 
 	// Auto-post message as the first comment on the clip
 	if (message) {
-		const commentId = uuid();
-		await db.insert(comments).values({
-			id: commentId,
-			clipId,
-			userId: user.id,
-			parentId: null,
-			text: message,
-			gifUrl: null,
-			createdAt: now
-		});
-
-		// Notify @mentioned users
-		const mentionedUsernames = extractMentions(message);
-		if (mentionedUsernames.length > 0) {
-			notifyMentions({
-				mentionedUsernames,
-				actorId: user.id,
-				actorUsername: user.username,
-				clipId,
-				groupId: user.groupId,
-				commentPreview: message.slice(0, 80)
-			}).catch((err) => log.error({ err, clipId }, 'mention notifications failed'));
-		}
+		await autoPostComment(clipId, user, message, now);
 	}
 
-	return json({ clip: { id: clipId, status: 'downloading', contentType } }, { status: 201 });
+	const clipResponse: Record<string, unknown> = {
+		clip: { id: clipId, status: 'downloading', contentType }
+	};
+	if (limitCheck.dailyShareLimit !== null) {
+		clipResponse.shareCountToday = limitCheck.shareCountToday + 1;
+		clipResponse.dailyShareLimit = limitCheck.dailyShareLimit;
+	}
+	return json(clipResponse, { status: 201 });
 });

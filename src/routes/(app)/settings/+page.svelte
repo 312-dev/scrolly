@@ -38,8 +38,10 @@
 	import DownloadProviderManager from '$lib/components/settings/DownloadProviderManager.svelte';
 	import PlatformFilter from '$lib/components/settings/PlatformFilter.svelte';
 	import ShortcutManager from '$lib/components/settings/ShortcutManager.svelte';
+	import DailyShareLimitPicker from '$lib/components/settings/DailyShareLimitPicker.svelte';
 	import GettingStartedChecklist from '$lib/components/settings/GettingStartedChecklist.svelte';
 	import UsernameEdit from '$lib/components/settings/UsernameEdit.svelte';
+	import SkippedClips from '$lib/components/settings/SkippedClips.svelte';
 	import AvatarCropModal from '$lib/components/AvatarCropModal.svelte';
 	import Toggle from '$lib/components/settings/Toggle.svelte';
 	import SettingRow from '$lib/components/settings/SettingRow.svelte';
@@ -341,6 +343,8 @@
 				</div>
 			</div>
 
+			<SkippedClips />
+
 			<div class="settings-section">
 				<h3 class="section-title">Appearance</h3>
 				<div class="card">
@@ -409,6 +413,12 @@
 						currentMode={group.platformFilterMode}
 						currentPlatforms={parsedPlatformFilterList}
 					/>
+				</div>
+			</div>
+			<div class="settings-section">
+				<h3 class="section-title">Daily Share Limit</h3>
+				<div class="card">
+					<DailyShareLimitPicker currentLimit={group.dailyShareLimit} />
 				</div>
 			</div>
 			<div class="settings-section" id="section-share-from-apps">

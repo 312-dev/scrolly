@@ -163,6 +163,7 @@ export class YtDlpProvider implements DownloadProvider {
 		let duration: number | null = null;
 		let creatorName: string | null = null;
 		let creatorUrl: string | null = null;
+		let sourceViewCount: number | null = null;
 
 		if (infoFile) {
 			try {
@@ -174,6 +175,7 @@ export class YtDlpProvider implements DownloadProvider {
 				const rawName = info.uploader || info.channel || info.uploader_id || null;
 				creatorName = rawName ? String(rawName).replace(/^@/, '') : null;
 				creatorUrl = info.uploader_url || info.channel_url || null;
+				sourceViewCount = typeof info.view_count === 'number' ? Math.round(info.view_count) : null;
 			} catch {
 				// Info file parsing is best-effort
 			}
@@ -185,7 +187,8 @@ export class YtDlpProvider implements DownloadProvider {
 			title,
 			duration,
 			creatorName,
-			creatorUrl
+			creatorUrl,
+			sourceViewCount
 		};
 	}
 
@@ -219,7 +222,12 @@ export class YtDlpProvider implements DownloadProvider {
 		url: string,
 		outputDir: string,
 		clipId: string
-	): Promise<{ title: string | null; creatorName: string | null; creatorUrl: string | null }> {
+	): Promise<{
+		title: string | null;
+		creatorName: string | null;
+		creatorUrl: string | null;
+		sourceViewCount: number | null;
+	}> {
 		const binary = this.getBinaryCommand();
 		const outputTemplate = `${outputDir}/${clipId}_meta.%(ext)s`;
 		const args = [
@@ -257,6 +265,8 @@ export class YtDlpProvider implements DownloadProvider {
 		const rawName = info.uploader || info.channel || info.uploader_id || null;
 		const creatorName = rawName ? String(rawName).replace(/^@/, '') : null;
 		const creatorUrl = info.uploader_url || info.channel_url || null;
+		const sourceViewCount =
+			typeof info.view_count === 'number' ? Math.round(info.view_count) : null;
 
 		// Clean up the temp info.json
 		try {
@@ -266,7 +276,7 @@ export class YtDlpProvider implements DownloadProvider {
 			// best-effort cleanup
 		}
 
-		return { title, creatorName, creatorUrl };
+		return { title, creatorName, creatorUrl, sourceViewCount };
 	}
 
 	private runAudioDownload(

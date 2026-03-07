@@ -11,6 +11,7 @@ export const groups = sqliteTable('groups', {
 	downloadProvider: text('download_provider'),
 	platformFilterMode: text('platform_filter_mode').notNull().default('all'),
 	platformFilterList: text('platform_filter_list'),
+	dailyShareLimit: integer('daily_share_limit'),
 	shortcutToken: text('shortcut_token').unique(),
 	shortcutUrl: text('shortcut_url'),
 	createdBy: text('created_by'),
@@ -62,6 +63,7 @@ export const clips = sqliteTable(
 		fileSizeBytes: integer('file_size_bytes'),
 		creatorName: text('creator_name'),
 		creatorUrl: text('creator_url'),
+		sourceViewCount: integer('source_view_count'),
 		trimDeadline: integer('trim_deadline', { mode: 'timestamp' }),
 		createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
 	},
@@ -196,6 +198,20 @@ export const commentViews = sqliteTable(
 		viewedAt: integer('viewed_at', { mode: 'timestamp' }).notNull()
 	},
 	(table) => [uniqueIndex('comment_views_unique').on(table.clipId, table.userId)]
+);
+
+export const dismissedClips = sqliteTable(
+	'dismissed_clips',
+	{
+		clipId: text('clip_id')
+			.notNull()
+			.references(() => clips.id),
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id),
+		dismissedAt: integer('dismissed_at', { mode: 'timestamp' }).notNull()
+	},
+	(table) => [uniqueIndex('dismissed_clips_unique').on(table.clipId, table.userId)]
 );
 
 export const notificationPreferences = sqliteTable('notification_preferences', {

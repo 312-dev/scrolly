@@ -4,6 +4,7 @@
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import LightbulbIcon from 'phosphor-svelte/lib/LightbulbIcon';
 	import ScissorsIcon from 'phosphor-svelte/lib/ScissorsIcon';
+	import ShareLimitDots from './ShareLimitDots.svelte';
 
 	const {
 		phase,
@@ -16,13 +17,17 @@
 		onsaveandview,
 		ondismissnudge,
 		ontrim,
-		onskiptrim
+		onskiptrim,
+		shareCountToday,
+		dailyShareLimit
 	}: {
 		phase: 'uploading' | 'done' | 'failed' | 'trim_prompt';
 		clipContentType: string;
 		serverTitle: string | null;
 		serverArtist: string | null;
 		serverAlbumArt: string | null;
+		shareCountToday?: number;
+		dailyShareLimit?: number | null;
 		ondismiss: () => void;
 		onretry: () => void;
 		onsaveandview: () => void;
@@ -111,6 +116,11 @@
 			>
 			<button class="skip-btn" onclick={onskiptrim}> Skip — publish full song </button>
 		{:else if phase === 'done'}
+			{#if dailyShareLimit !== undefined && dailyShareLimit !== null && shareCountToday !== undefined}
+				<div class="limit-dots-wrap">
+					<ShareLimitDots used={shareCountToday} total={dailyShareLimit} />
+				</div>
+			{/if}
 			<button class="primary-btn" onclick={onsaveandview}>View in feed</button>
 
 			{#if $showShortcutNudge}
@@ -320,6 +330,13 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
+	}
+
+	.limit-dots-wrap {
+		margin-top: var(--space-md);
+	}
+	.limit-dots-wrap :global(.count-text) {
+		color: rgba(255, 255, 255, 0.5);
 	}
 
 	.primary-btn {

@@ -38,6 +38,8 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 		if (metadata.title) updates.title = metadata.title;
 		if (metadata.creatorName) updates.creatorName = metadata.creatorName;
 		if (metadata.creatorUrl) updates.creatorUrl = metadata.creatorUrl;
+		if (metadata.sourceViewCount !== null && metadata.sourceViewCount !== undefined)
+			updates.sourceViewCount = metadata.sourceViewCount;
 
 		if (Object.keys(updates).length > 0) {
 			await db.update(clips).set(updates).where(eq(clips.id, clip.id));
@@ -46,7 +48,8 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 		return json({
 			title: metadata.title ?? clip.title,
 			creatorName: metadata.creatorName ?? clip.creatorName,
-			creatorUrl: metadata.creatorUrl ?? clip.creatorUrl
+			creatorUrl: metadata.creatorUrl ?? clip.creatorUrl,
+			sourceViewCount: metadata.sourceViewCount ?? clip.sourceViewCount
 		});
 	} catch (err) {
 		log.error({ err, clipId: clip.id }, 'metadata refetch failed');

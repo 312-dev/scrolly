@@ -22,7 +22,13 @@
 		initialUrl,
 		members = []
 	}: {
-		onsubmitted?: (clip: { id: string; status: string; contentType: string }) => void;
+		onsubmitted?: (clip: {
+			id: string;
+			status: string;
+			contentType: string;
+			shareCountToday?: number;
+			dailyShareLimit?: number | null;
+		}) => void;
 		initialUrl?: string;
 		members?: GroupMember[];
 	} = $props();
@@ -86,12 +92,9 @@
 	});
 
 	function acceptClipboard() {
-		if (clipboardSuggestion) {
-			url = clipboardSuggestion.url;
-			clipboardSuggestion = null;
-		}
+		if (clipboardSuggestion) url = clipboardSuggestion.url;
+		clipboardSuggestion = null;
 	}
-
 	function dismissClipboard() {
 		clipboardSuggestion = null;
 	}
@@ -113,12 +116,18 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					url: url.trim(),
+					tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
 					...(trimmedMessage ? { message: trimmedMessage } : {})
 				})
 			});
 			const data = await res.json();
 			if (!res.ok) {
-				error = data.error || 'Failed to add video';
+				if (res.status === 429 && data.limitReached) {
+					const resets = data.resetsIn ? ` Resets in ${data.resetsIn}.` : '';
+					error = `Daily limit reached (${data.shareCountToday}/${data.dailyShareLimit}).${resets}`;
+				} else {
+					error = data.error || 'Failed to add video';
+				}
 				return;
 			}
 			url = '';
@@ -131,7 +140,11 @@
 				contentType: data.clip.contentType,
 				autoDismiss: 0
 			});
-			onsubmitted?.(data.clip);
+			onsubmitted?.({
+				...data.clip,
+				shareCountToday: data.shareCountToday,
+				dailyShareLimit: data.dailyShareLimit
+			});
 		} catch {
 			error = 'Something went wrong';
 		} finally {
@@ -304,9 +317,6 @@
 		font-size: 0.75rem;
 		font-weight: 700;
 		cursor: pointer;
-		width: auto;
-		height: auto;
-		margin: 0;
 	}
 	.suggestion-dismiss {
 		background: none;
@@ -314,9 +324,6 @@
 		padding: 4px;
 		color: var(--text-muted);
 		cursor: pointer;
-		width: auto;
-		height: auto;
-		margin: 0;
 	}
 	.suggestion-dismiss :global(svg) {
 		width: 16px;
@@ -392,16 +399,13 @@
 		outline: none;
 		min-width: 0;
 	}
-
 	.field-input-wrap input::placeholder {
 		color: var(--text-muted);
 	}
-
 	.field-row :global(.mention-input-wrap) {
 		flex: 1;
 		min-width: 0;
 	}
-
 	.field-row :global(.mention-input-wrap .input-container) {
 		border: none;
 		background: transparent;
@@ -411,7 +415,6 @@
 		padding: var(--space-xs) 0;
 		font-size: 0.9375rem;
 	}
-
 	.submit-btn {
 		flex-shrink: 0;
 		width: 36px;
@@ -429,7 +432,6 @@
 			transform 0.1s ease,
 			opacity 0.15s ease;
 	}
-
 	.submit-btn :global(svg) {
 		width: 18px;
 		height: 18px;
@@ -467,8 +469,6 @@
 		padding: var(--space-2xl) var(--space-lg);
 	}
 	.no-provider-state :global(.no-provider-icon) {
-		width: 40px;
-		height: 40px;
 		color: var(--text-muted);
 		opacity: 0.4;
 		margin-bottom: var(--space-md);

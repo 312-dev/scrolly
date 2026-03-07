@@ -3,7 +3,7 @@ import { fetchUnwatchedCount } from '$lib/stores/notifications';
 import { clearPushNotifications } from '$lib/push';
 
 export type FeedFilter = 'all' | 'unwatched' | 'watched' | 'favorites' | 'uploads';
-export type FeedSort = 'oldest' | 'round-robin';
+export type FeedSort = 'oldest' | 'round-robin' | 'best';
 
 export function buildClipParams(
 	filter: FeedFilter,
