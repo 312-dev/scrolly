@@ -168,11 +168,14 @@ function applySortOrder(
 		);
 	}
 	if (sort === 'best' && engagementScores) {
-		// Sort by engagement score desc, then recency desc as tiebreaker
+		// Sort by: 1) internal engagement desc, 2) source view count desc, 3) recency desc
 		const scored = [...clipList].sort((a, b) => {
 			const scoreA = engagementScores.get(a.id) || 0;
 			const scoreB = engagementScores.get(b.id) || 0;
 			if (scoreB !== scoreA) return scoreB - scoreA;
+			const viewsA = a.sourceViewCount ?? 0;
+			const viewsB = b.sourceViewCount ?? 0;
+			if (viewsB !== viewsA) return viewsB - viewsA;
 			return b.createdAt.getTime() - a.createdAt.getTime();
 		});
 		// Round-robin interleave across contributors (each contributor's clips in score order)
