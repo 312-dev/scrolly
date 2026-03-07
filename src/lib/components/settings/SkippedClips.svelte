@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
-	import { basename } from '$lib/utils';
+	import { basename, relativeTime } from '$lib/utils';
 	import { fetchUnwatchedCount } from '$lib/stores/notifications';
+	import { confirm } from '$lib/stores/confirm';
 	import FastForwardIcon from 'phosphor-svelte/lib/FastForwardIcon';
 	import ArrowCounterClockwiseIcon from 'phosphor-svelte/lib/ArrowCounterClockwiseIcon';
 
@@ -18,10 +19,16 @@
 		dismissedAt: string;
 	}
 
+	const PAGE_SIZE = 5;
+
 	let clips = $state<DismissedClip[]>([]);
 	let loading = $state(true);
+	let currentPage = $state(1);
 	let restoring = new SvelteSet<string>();
 	let restoringAll = $state(false);
+
+	let totalPages = $derived(Math.max(1, Math.ceil(clips.length / PAGE_SIZE)));
+	let visibleClips = $derived(clips.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE));
 
 	async function loadDismissed() {
 		loading = true;
@@ -46,6 +53,8 @@
 			});
 			if (res.ok) {
 				clips = clips.filter((c) => c.id !== clipId);
+				const newTotalPages = Math.max(1, Math.ceil(clips.length / PAGE_SIZE));
+				if (currentPage > newTotalPages) currentPage = newTotalPages;
 				fetchUnwatchedCount();
 			}
 		} finally {
@@ -54,6 +63,15 @@
 	}
 
 	async function restoreAll() {
+		if (clips.length > 30) {
+			const confirmed = await confirm({
+				title: 'Restore all clips?',
+				message: `This will restore ${clips.length} skipped clips back to your feed.`,
+				confirmLabel: 'Restore all',
+				cancelLabel: 'Cancel'
+			});
+			if (!confirmed) return;
+		}
 		restoringAll = true;
 		try {
 			const res = await fetch('/api/clips/dismiss', {
@@ -89,7 +107,7 @@
 				</button>
 			</div>
 			<div class="skipped-list">
-				{#each clips as clip (clip.id)}
+				{#each visibleClips as clip (clip.id)}
 					<div class="skipped-row">
 						<div class="skipped-thumb">
 							{#if clip.thumbnailPath}
@@ -104,7 +122,9 @@
 						</div>
 						<div class="skipped-info">
 							<span class="skipped-title">{clip.title || 'Untitled'}</span>
-							<span class="skipped-meta">@{clip.addedByUsername}</span>
+							<span class="skipped-meta"
+								>@{clip.addedByUsername} · {relativeTime(clip.createdAt)}</span
+							>
 						</div>
 						<button
 							class="restore-btn"
@@ -116,6 +136,19 @@
 					</div>
 				{/each}
 			</div>
+			{#if totalPages > 1}
+				<div class="pagination">
+					{#each Array.from({ length: totalPages }, (_, i) => i + 1) as page (page)}
+						<button
+							class="page-btn"
+							class:active={page === currentPage}
+							onclick={() => (currentPage = page)}
+						>
+							{page}
+						</button>
+					{/each}
+				</div>
+			{/if}
 		</div>
 	</div>
 {/if}
@@ -183,8 +216,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-sm);
-		max-height: 320px;
-		overflow-y: auto;
 	}
 
 	.skipped-row {
@@ -259,5 +290,37 @@
 	.restore-btn:disabled {
 		opacity: 0.5;
 		cursor: default;
+	}
+
+	.pagination {
+		display: flex;
+		justify-content: center;
+		gap: var(--space-xs);
+		margin-top: var(--space-md);
+	}
+
+	.page-btn {
+		width: 32px;
+		height: 32px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: var(--bg-surface);
+		border: none;
+		border-radius: var(--radius-full);
+		color: var(--text-secondary);
+		font-size: 0.8125rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: all 0.2s ease;
+	}
+
+	.page-btn.active {
+		background: var(--accent-primary);
+		color: var(--bg-primary);
+	}
+
+	.page-btn:active:not(.active) {
+		transform: scale(0.93);
 	}
 </style>

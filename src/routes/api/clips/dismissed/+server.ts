@@ -24,17 +24,23 @@ export const GET: RequestHandler = withAuth(async (_event, { user }) => {
 
 	const dismissedAtMap = new Map(dismissed.map((d) => [d.clipId, d.dismissedAt]));
 
-	const result = clipRows.map((c) => ({
-		id: c.id,
-		title: c.title,
-		thumbnailPath: c.thumbnailPath,
-		platform: c.platform,
-		contentType: c.contentType,
-		addedByUsername: usersMap.get(c.addedBy)?.username || 'Unknown',
-		addedByAvatar: usersMap.get(c.addedBy)?.avatarPath || null,
-		createdAt: c.createdAt,
-		dismissedAt: dismissedAtMap.get(c.id)
-	}));
+	const result = clipRows
+		.map((c) => ({
+			id: c.id,
+			title: c.title,
+			thumbnailPath: c.thumbnailPath,
+			platform: c.platform,
+			contentType: c.contentType,
+			addedByUsername: usersMap.get(c.addedBy)?.username || 'Unknown',
+			addedByAvatar: usersMap.get(c.addedBy)?.avatarPath || null,
+			createdAt: c.createdAt,
+			dismissedAt: dismissedAtMap.get(c.id)
+		}))
+		.sort((a, b) => {
+			const aTime = a.createdAt instanceof Date ? a.createdAt.getTime() : Number(a.createdAt);
+			const bTime = b.createdAt instanceof Date ? b.createdAt.getTime() : Number(b.createdAt);
+			return bTime - aTime;
+		});
 
 	return json({ clips: result, count: result.length });
 });
