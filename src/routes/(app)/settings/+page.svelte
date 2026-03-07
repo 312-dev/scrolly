@@ -41,6 +41,7 @@
 	import DailyShareLimitPicker from '$lib/components/settings/DailyShareLimitPicker.svelte';
 	import GettingStartedChecklist from '$lib/components/settings/GettingStartedChecklist.svelte';
 	import UsernameEdit from '$lib/components/settings/UsernameEdit.svelte';
+	import SkippedClips from '$lib/components/settings/SkippedClips.svelte';
 	import AvatarCropModal from '$lib/components/AvatarCropModal.svelte';
 	import Toggle from '$lib/components/settings/Toggle.svelte';
 	import SettingRow from '$lib/components/settings/SettingRow.svelte';
@@ -341,6 +342,8 @@
 					/>
 				</div>
 			</div>
+
+			<SkippedClips />
 
 			<div class="settings-section">
 				<h3 class="section-title">Appearance</h3>
