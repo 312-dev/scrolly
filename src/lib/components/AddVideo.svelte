@@ -92,12 +92,9 @@
 	});
 
 	function acceptClipboard() {
-		if (clipboardSuggestion) {
-			url = clipboardSuggestion.url;
-			clipboardSuggestion = null;
-		}
+		if (clipboardSuggestion) url = clipboardSuggestion.url;
+		clipboardSuggestion = null;
 	}
-
 	function dismissClipboard() {
 		clipboardSuggestion = null;
 	}
@@ -126,9 +123,8 @@
 			const data = await res.json();
 			if (!res.ok) {
 				if (res.status === 429 && data.limitReached) {
-					const count = data.shareCountToday + '/' + data.dailyShareLimit;
-					const suffix = data.resetsIn ? ' Resets in ' + data.resetsIn + '.' : '';
-					error = 'Daily limit reached (' + count + ').' + suffix;
+					const resets = data.resetsIn ? ` Resets in ${data.resetsIn}.` : '';
+					error = `Daily limit reached (${data.shareCountToday}/${data.dailyShareLimit}).${resets}`;
 				} else {
 					error = data.error || 'Failed to add video';
 				}
@@ -403,16 +399,13 @@
 		outline: none;
 		min-width: 0;
 	}
-
 	.field-input-wrap input::placeholder {
 		color: var(--text-muted);
 	}
-
 	.field-row :global(.mention-input-wrap) {
 		flex: 1;
 		min-width: 0;
 	}
-
 	.field-row :global(.mention-input-wrap .input-container) {
 		border: none;
 		background: transparent;
@@ -422,7 +415,6 @@
 		padding: var(--space-xs) 0;
 		font-size: 0.9375rem;
 	}
-
 	.submit-btn {
 		flex-shrink: 0;
 		width: 36px;
@@ -440,7 +432,6 @@
 			transform 0.1s ease,
 			opacity 0.15s ease;
 	}
-
 	.submit-btn :global(svg) {
 		width: 18px;
 		height: 18px;
@@ -478,8 +469,6 @@
 		padding: var(--space-2xl) var(--space-lg);
 	}
 	.no-provider-state :global(.no-provider-icon) {
-		width: 40px;
-		height: 40px;
 		color: var(--text-muted);
 		opacity: 0.4;
 		margin-bottom: var(--space-md);
