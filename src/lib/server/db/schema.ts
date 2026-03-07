@@ -11,6 +11,7 @@ export const groups = sqliteTable('groups', {
 	downloadProvider: text('download_provider'),
 	platformFilterMode: text('platform_filter_mode').notNull().default('all'),
 	platformFilterList: text('platform_filter_list'),
+	dailyShareLimit: integer('daily_share_limit'),
 	shortcutToken: text('shortcut_token').unique(),
 	shortcutUrl: text('shortcut_url'),
 	createdBy: text('created_by'),

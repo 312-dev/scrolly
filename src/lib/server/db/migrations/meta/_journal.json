@@ -183,6 +183,13 @@
       "when": 1772574741882,
       "tag": "0025_bouncy_elektra",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1772859900205,
+      "tag": "0026_parched_piledriver",
+      "breakpoints": true
     }
   ]
 }
