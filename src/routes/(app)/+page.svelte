@@ -65,6 +65,9 @@
 			clips.filter((c) => !c.watched).length === 1
 	);
 
+	// Defer watched marking for the first loaded clip until 40% watched or swiped past
+	let firstClipId = $state<string | null>(null);
+
 	// Clip overlay (dedicated single-clip view)
 	let overlayClipId = $state<string | null>(null);
 	let overlayOpenComments = $state(false);
@@ -135,6 +138,7 @@
 			clips = data.clips;
 			hasMore = data.hasMore;
 			currentOffset = data.clips.length;
+			firstClipId = data.clips.length > 0 ? data.clips[0].id : null;
 		} else {
 			toast.error('Failed to load clips');
 		}
@@ -577,6 +581,15 @@
 		}
 	});
 
+	// Mark first clip as watched when user swipes past it
+	$effect(() => {
+		if (firstClipId && activeIndex > 0) {
+			const firstClip = clips.find((c) => c.id === firstClipId);
+			if (firstClip && !firstClip.watched) markWatched(firstClipId);
+			firstClipId = null;
+		}
+	});
+
 	$effect(() => {
 		function handleKeydown(e: KeyboardEvent) {
 			if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -925,6 +938,7 @@
 								{gifEnabled}
 								seenByOthers={clip.seenByOthers}
 								deferWatched={isLastUnwatched && !clip.watched}
+								deferFirstClip={clip.id === firstClipId && !clip.watched}
 								onwatched={markWatched}
 								onfavorited={toggleFavorite}
 								onreaction={handleReaction}

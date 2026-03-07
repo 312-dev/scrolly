@@ -58,6 +58,7 @@
 		seenByOthers = false,
 		hideViewBadge = false,
 		deferWatched = false,
+		deferFirstClip = false,
 		onwatched,
 		onfavorited,
 		onreaction,
@@ -75,6 +76,7 @@
 		seenByOthers?: boolean;
 		hideViewBadge?: boolean;
 		deferWatched?: boolean;
+		deferFirstClip?: boolean;
 		onwatched: (id: string) => void;
 		onfavorited: (id: string) => void;
 		onreaction: (clipId: string, emoji: string) => Promise<void>;
@@ -202,7 +204,7 @@
 		if (postEngagementTimer) clearTimeout(postEngagementTimer);
 		if (pillTimer) clearTimeout(pillTimer);
 		scrubSeekedCleanup?.();
-		if (!deferWatched || hasMarkedWatched) {
+		if ((!deferWatched && !deferFirstClip) || hasMarkedWatched) {
 			sendWatchPercent(clip.id, maxPercent);
 		}
 	});
@@ -247,7 +249,7 @@
 		if (active) feedUiHidden.set(uiHidden);
 	});
 	$effect(() => {
-		if (!active || clip.watched || hasMarkedWatched || deferWatched) return;
+		if (!active || clip.watched || hasMarkedWatched || deferWatched || deferFirstClip) return;
 		const timer = setTimeout(() => {
 			hasMarkedWatched = true;
 			onwatched(clip.id);
@@ -258,6 +260,14 @@
 	$effect(() => {
 		if (!deferWatched || !active || clip.watched || hasMarkedWatched) return;
 		if ((duration > 0 && currentTime / duration >= 0.5) || currentTime >= 10) {
+			hasMarkedWatched = true;
+			onwatched(clip.id);
+		}
+	});
+	// First clip deferral: only mark watched at 40% progress
+	$effect(() => {
+		if (!deferFirstClip || !active || clip.watched || hasMarkedWatched) return;
+		if (duration > 0 && currentTime / duration >= 0.4) {
 			hasMarkedWatched = true;
 			onwatched(clip.id);
 		}
