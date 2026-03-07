@@ -1,10 +1,32 @@
 <script lang="ts">
 	const { used, total }: { used: number; total: number } = $props();
+
+	const DOT_SIZE = 8;
+	const DOT_GAP = 6;
+
+	let containerEl: HTMLDivElement | undefined = $state();
+	let dotsVisible = $state(false);
+
+	$effect(() => {
+		if (!containerEl) return;
+
+		const check = () => {
+			const width = containerEl!.clientWidth;
+			const needed = total * DOT_SIZE + (total - 1) * DOT_GAP;
+			dotsVisible = needed <= width;
+		};
+
+		check();
+
+		const ro = new ResizeObserver(check);
+		ro.observe(containerEl);
+		return () => ro.disconnect();
+	});
 </script>
 
-<div class="share-limit-dots">
+<div class="share-limit-dots" bind:this={containerEl}>
 	<span class="count-text">{used}/{total} shared today</span>
-	{#if total <= 15}
+	{#if dotsVisible}
 		<div class="dot-row">
 			{#each Array(total) as _, i (i)}
 				<span
@@ -13,10 +35,6 @@
 					style={i < used ? `animation-delay: ${i * 60}ms` : ''}
 				></span>
 			{/each}
-		</div>
-	{:else}
-		<div class="progress-bar">
-			<div class="progress-fill" style="width: {(used / total) * 100}%"></div>
 		</div>
 	{/if}
 </div>
@@ -38,7 +56,6 @@
 		align-items: center;
 		justify-content: center;
 		gap: 6px;
-		flex-wrap: wrap;
 	}
 	.dot {
 		width: 8px;
@@ -52,20 +69,6 @@
 		background: var(--accent-primary);
 		opacity: 1;
 		animation: dot-pop 0.3s cubic-bezier(0.32, 0.72, 0, 1) both;
-	}
-	.progress-bar {
-		width: 100%;
-		max-width: 200px;
-		height: 4px;
-		background: var(--bg-surface);
-		border-radius: 2px;
-		overflow: hidden;
-	}
-	.progress-fill {
-		height: 100%;
-		background: var(--accent-primary);
-		border-radius: 2px;
-		transition: width 0.3s ease;
 	}
 	@keyframes dot-pop {
 		from {
