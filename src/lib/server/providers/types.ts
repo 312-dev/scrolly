@@ -5,6 +5,7 @@ export interface VideoDownloadResult {
 	duration: number | null;
 	creatorName: string | null;
 	creatorUrl: string | null;
+	sourceViewCount: number | null;
 }
 
 export interface AudioDownloadResult {

@@ -1,0 +1,1 @@
+ALTER TABLE `clips` ADD `source_view_count` integer;

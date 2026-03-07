@@ -63,6 +63,7 @@ export const clips = sqliteTable(
 		fileSizeBytes: integer('file_size_bytes'),
 		creatorName: text('creator_name'),
 		creatorUrl: text('creator_url'),
+		sourceViewCount: integer('source_view_count'),
 		trimDeadline: integer('trim_deadline', { mode: 'timestamp' }),
 		createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
 	},
