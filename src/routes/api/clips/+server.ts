@@ -7,7 +7,8 @@ import {
 	favorites,
 	commentViews,
 	reactions,
-	comments
+	comments,
+	dismissedClips
 } from '$lib/server/db/schema';
 import { eq, asc, and, inArray } from 'drizzle-orm';
 import {
@@ -73,11 +74,12 @@ function applyFilter(
 	filter: string | null,
 	watchedIds: Set<string>,
 	favIds: Set<string>,
-	userId: string
+	userId: string,
+	dismissedIds?: Set<string>
 ): (typeof clips.$inferSelect)[] {
 	switch (filter) {
 		case 'unwatched':
-			return allClips.filter((c) => !watchedIds.has(c.id));
+			return allClips.filter((c) => !watchedIds.has(c.id) && !dismissedIds?.has(c.id));
 		case 'watched':
 			return allClips.filter((c) => watchedIds.has(c.id));
 		case 'favorites':
@@ -199,8 +201,14 @@ export const GET: RequestHandler = withAuth(async ({ url }, { user }) => {
 	});
 	const favIds = new Set(favRows.map((f) => f.clipId));
 
+	// Get dismissed clip IDs for this user (excluded from unwatched filter)
+	const dismissedRows = await db.query.dismissedClips.findMany({
+		where: eq(dismissedClips.userId, userId)
+	});
+	const dismissedIds = new Set(dismissedRows.map((d) => d.clipId));
+
 	// Apply filter before pagination so we only fetch related data for visible clips
-	allClips = applyFilter(allClips, filter, watchedIds, favIds, userId);
+	allClips = applyFilter(allClips, filter, watchedIds, favIds, userId, dismissedIds);
 
 	allClips = applySortOrder(allClips, sort, filter, watchedRows, favRows);
 
