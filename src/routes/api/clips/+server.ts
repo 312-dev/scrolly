@@ -10,7 +10,7 @@ import {
 	comments,
 	dismissedClips
 } from '$lib/server/db/schema';
-import { eq, asc, and, inArray } from 'drizzle-orm';
+import { eq, asc, and, inArray, sql } from 'drizzle-orm';
 import {
 	isSupportedUrl,
 	detectPlatform,
@@ -67,7 +67,7 @@ function validateClipUrl(
 }
 
 const VALID_FILTERS = ['unwatched', 'watched', 'favorites', 'uploads'] as const;
-const VALID_SORTS = ['oldest', 'round-robin'] as const;
+const VALID_SORTS = ['oldest', 'round-robin', 'best'] as const;
 
 function applyFilter(
 	allClips: (typeof clips.$inferSelect)[],
@@ -121,12 +121,35 @@ function countUnreadComments(
 
 type ClipRow = Awaited<ReturnType<typeof db.query.clips.findMany>>[number];
 
+/** Round-robin interleave clips grouped by contributor. */
+function interleaveByMember(clipList: ClipRow[]): ClipRow[] {
+	const byMember = new Map<string, ClipRow[]>();
+	for (const clip of clipList) {
+		const list = byMember.get(clip.addedBy) || [];
+		list.push(clip);
+		byMember.set(clip.addedBy, list);
+	}
+	const queues = [...byMember.values()].map((list) => ({ items: list, idx: 0 }));
+	const interleaved: ClipRow[] = [];
+	let remaining = clipList.length;
+	while (remaining > 0) {
+		for (const q of queues) {
+			if (q.idx < q.items.length) {
+				interleaved.push(q.items[q.idx++]);
+				remaining--;
+			}
+		}
+	}
+	return interleaved;
+}
+
 function applySortOrder(
 	clipList: ClipRow[],
 	sort: string,
 	filter: string | null,
 	watchedRows: { clipId: string; watchedAt: Date }[],
-	favRows: { clipId: string; createdAt: Date }[]
+	favRows: { clipId: string; createdAt: Date }[],
+	engagementScores?: Map<string, number>
 ): ClipRow[] {
 	if (filter === 'uploads') {
 		// Uploads tab: newest first
@@ -144,30 +167,54 @@ function applySortOrder(
 			(a, b) => (watchedAtMap.get(b.id) ?? 0) - (watchedAtMap.get(a.id) ?? 0)
 		);
 	}
+	if (sort === 'best' && engagementScores) {
+		// Sort by engagement score desc, then recency desc as tiebreaker
+		const scored = [...clipList].sort((a, b) => {
+			const scoreA = engagementScores.get(a.id) || 0;
+			const scoreB = engagementScores.get(b.id) || 0;
+			if (scoreB !== scoreA) return scoreB - scoreA;
+			return b.createdAt.getTime() - a.createdAt.getTime();
+		});
+		// Round-robin interleave across contributors (each contributor's clips in score order)
+		return interleaveByMember(scored);
+	}
 	if (sort === 'round-robin') {
 		// Group clips by member, each group already in createdAt asc order
-		const byMember = new Map<string, ClipRow[]>();
-		for (const clip of clipList) {
-			const list = byMember.get(clip.addedBy) || [];
-			list.push(clip);
-			byMember.set(clip.addedBy, list);
-		}
-		// Interleave: pick oldest from each member in rotation
-		const queues = [...byMember.values()].map((list) => ({ items: list, idx: 0 }));
-		const interleaved: ClipRow[] = [];
-		let remaining = clipList.length;
-		while (remaining > 0) {
-			for (const q of queues) {
-				if (q.idx < q.items.length) {
-					interleaved.push(q.items[q.idx++]);
-					remaining--;
-				}
-			}
-		}
-		return interleaved;
+		return interleaveByMember(clipList);
 	}
 	// 'oldest': already sorted by createdAt asc from the DB query
 	return clipList;
+}
+
+/** Compute engagement scores (views + reactions + comments) for a set of clip IDs. */
+async function computeEngagementScores(clipIds: string[]): Promise<Map<string, number>> {
+	const [reactionCounts, commentCounts, viewCounts] = await Promise.all([
+		db
+			.select({ clipId: reactions.clipId, count: sql<number>`count(*)` })
+			.from(reactions)
+			.where(inArray(reactions.clipId, clipIds))
+			.groupBy(reactions.clipId),
+		db
+			.select({ clipId: comments.clipId, count: sql<number>`count(*)` })
+			.from(comments)
+			.where(inArray(comments.clipId, clipIds))
+			.groupBy(comments.clipId),
+		db
+			.select({ clipId: watched.clipId, count: sql<number>`count(*)` })
+			.from(watched)
+			.where(inArray(watched.clipId, clipIds))
+			.groupBy(watched.clipId)
+	]);
+
+	const reactionMap = new Map(reactionCounts.map((r) => [r.clipId, r.count]));
+	const commentMap = new Map(commentCounts.map((c) => [c.clipId, c.count]));
+	const viewMap = new Map(viewCounts.map((v) => [v.clipId, v.count]));
+
+	const scores = new Map<string, number>();
+	for (const id of clipIds) {
+		scores.set(id, (viewMap.get(id) || 0) + (reactionMap.get(id) || 0) + (commentMap.get(id) || 0));
+	}
+	return scores;
 }
 
 export const GET: RequestHandler = withAuth(async ({ url }, { user }) => {
@@ -177,7 +224,7 @@ export const GET: RequestHandler = withAuth(async ({ url }, { user }) => {
 	}
 	const sort = url.searchParams.get('sort') || 'oldest';
 	if (!(VALID_SORTS as readonly string[]).includes(sort)) {
-		return badRequest('Invalid sort. Must be oldest or round-robin');
+		return badRequest('Invalid sort. Must be oldest, round-robin, or best');
 	}
 	const limit = safeInt(url.searchParams.get('limit'), 20, 50);
 	const offset = safeInt(url.searchParams.get('offset'), 0);
@@ -210,7 +257,13 @@ export const GET: RequestHandler = withAuth(async ({ url }, { user }) => {
 	// Apply filter before pagination so we only fetch related data for visible clips
 	allClips = applyFilter(allClips, filter, watchedIds, favIds, userId, dismissedIds);
 
-	allClips = applySortOrder(allClips, sort, filter, watchedRows, favRows);
+	// Compute engagement scores for 'best' sort (needs all filtered clip IDs before pagination)
+	const engagementScores =
+		sort === 'best' && allClips.length > 0
+			? await computeEngagementScores(allClips.map((c) => c.id))
+			: undefined;
+
+	allClips = applySortOrder(allClips, sort, filter, watchedRows, favRows, engagementScores);
 
 	const total = allClips.length;
 	const paginatedClips = allClips.slice(offset, offset + limit);
