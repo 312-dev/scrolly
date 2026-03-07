@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.21.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.20.2...scrolly-v1.21.0) (2026-03-07)
+
+
+### Features
+
+* daily share limits, catch-up modal, source view counts ([#91](https://github.com/312-dev/scrolly/issues/91)) ([ef4091b](https://github.com/312-dev/scrolly/commit/ef4091b4b5d5720cf178e89c111a6dc4b570f5d7))
+
+
+### Miscellaneous
+
+* **deps:** bump dompurify from 3.3.1 to 3.3.2 ([#90](https://github.com/312-dev/scrolly/issues/90)) ([71c64a7](https://github.com/312-dev/scrolly/commit/71c64a7f948cec40ac439818640d2f622c4d4c5a))
+
 ## [1.20.2](https://github.com/312-dev/scrolly/compare/scrolly-v1.20.1...scrolly-v1.20.2) (2026-03-06)
 
 
