@@ -123,6 +123,42 @@ jobs:
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
 
+  snyk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [changes]
+    if: |
+      needs.changes.outputs.security_relevant == 'true' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    permissions:
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Snyk test
+        uses: snyk/actions/node@9adf32b1121593767fc3c057af55b55db032dc04 # v1.0.0
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --sarif-file-output=snyk-results.sarif
+
+      - name: Upload Snyk SARIF
+        if: always() && hashFiles('snyk-results.sarif') != ''
+        uses: github/codeql-action/upload-sarif@60168efe1c415ce0f5521ea06d5c2062adbeed1b # v3.28.17
+        with:
+          sarif_file: snyk-results.sarif
+          category: snyk
+
   build-image:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -263,7 +299,7 @@ jobs:
   security-status:
     runs-on: ubuntu-latest
     if: always()
-    needs: [codeql, secret-scan, dependency-scan, container-scan, semgrep, dast]
+    needs: [codeql, secret-scan, dependency-scan, snyk, container-scan, semgrep, dast]
     steps:
       - name: Check security status
         run: |
@@ -271,6 +307,7 @@ jobs:
             [codeql]="${{ needs.codeql.result }}"
             [secret-scan]="${{ needs.secret-scan.result }}"
             [dependency-scan]="${{ needs.dependency-scan.result }}"
+            [snyk]="${{ needs.snyk.result }}"
             [container-scan]="${{ needs.container-scan.result }}"
             [semgrep]="${{ needs.semgrep.result }}"
             [dast]="${{ needs.dast.result }}"
