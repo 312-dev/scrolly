@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.22.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.21.0...scrolly-v1.22.0) (2026-03-09)
+
+
+### Features
+
+* join page flow with onboard guard ([#95](https://github.com/312-dev/scrolly/issues/95)) ([8aeef55](https://github.com/312-dev/scrolly/commit/8aeef550cc4d5a2c220902ba4fe0e4db0253edf1))
+
+
+### Documentation
+
+* update data model, API, and architecture for v1.21.0 ([#93](https://github.com/312-dev/scrolly/issues/93)) ([69e67e3](https://github.com/312-dev/scrolly/commit/69e67e3c36c4214685ac77e7a5af9fd3b97bb719))
+
 ## [1.21.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.20.2...scrolly-v1.21.0) (2026-03-07)
 
 
