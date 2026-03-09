@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { showShortcutNudge, dismissShortcutNudge } from '$lib/stores/shortcutNudge';
+	import { queueSheetOpen } from '$lib/stores/queueSheet';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import LightbulbIcon from 'phosphor-svelte/lib/LightbulbIcon';
@@ -129,6 +130,15 @@
 				<p class="queued-time">Your clip will share in ~{queuedSharesIn}</p>
 			{/if}
 			<button class="primary-btn" onclick={ondismiss}>Done</button>
+			<button
+				class="manage-queue-btn"
+				onclick={() => {
+					ondismiss();
+					queueSheetOpen.set(true);
+				}}
+			>
+				Manage queue
+			</button>
 		{:else if phase === 'done'}
 			{#if dailyShareLimit !== undefined && dailyShareLimit !== null && shareCountToday !== undefined}
 				<div class="limit-dots-wrap">
@@ -179,7 +189,6 @@
 		width: 20px;
 		height: 20px;
 	}
-
 	/* Upload screen */
 	.upload-screen {
 		flex: 1;
@@ -290,6 +299,22 @@
 		color: rgba(255, 255, 255, 0.5);
 		margin: var(--space-sm) 0 0;
 		text-align: center;
+	}
+	.manage-queue-btn {
+		margin-top: var(--space-md);
+		background: none;
+		border: none;
+		color: rgba(255, 255, 255, 0.45);
+		font-size: 0.8125rem;
+		font-weight: 500;
+		cursor: pointer;
+		text-decoration: underline;
+		text-underline-offset: 2px;
+		text-decoration-color: rgba(255, 255, 255, 0.2);
+		padding: var(--space-sm);
+	}
+	.manage-queue-btn:active {
+		opacity: 0.7;
 	}
 	.trim-icon-wrap {
 		width: 80px;
@@ -446,7 +471,6 @@
 		width: 12px;
 		height: 12px;
 	}
-
 	@keyframes fade-in {
 		from {
 			opacity: 0;

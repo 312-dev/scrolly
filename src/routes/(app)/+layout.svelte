@@ -4,13 +4,16 @@
 	import { onMount } from 'svelte';
 	import { addVideoModalOpen } from '$lib/stores/addVideoModal';
 	import { activitySheetOpen } from '$lib/stores/activitySheet';
+	import { queueSheetOpen } from '$lib/stores/queueSheet';
 	import { homeTapSignal } from '$lib/stores/homeTap';
 	import { unreadCount, startPolling, stopPolling } from '$lib/stores/notifications';
+	import { queueCount } from '$lib/stores/queue';
 	import { globalMuted } from '$lib/stores/mute';
 	import { initAudioContext } from '$lib/audio/normalizer';
 	import { feedUiHidden } from '$lib/stores/uiHidden';
 	import { fetchGroupMembers } from '$lib/stores/members';
 	import ActivitySheet from '$lib/components/ActivitySheet.svelte';
+	import QueueSheet from '$lib/components/QueueSheet.svelte';
 	import AddVideoModal from '$lib/components/AddVideoModal.svelte';
 	import BellIcon from 'phosphor-svelte/lib/BellIcon';
 	import HouseIcon from 'phosphor-svelte/lib/HouseIcon';
@@ -151,6 +154,9 @@
 		<button class="tab add-tab" onclick={() => addVideoModalOpen.set(true)}>
 			<div class="add-icon">
 				<PlusIcon size={18} weight="bold" />
+				{#if $queueCount > 0}
+					<span class="queue-badge">{$queueCount}</span>
+				{/if}
 			</div>
 			<span>Add</span>
 		</button>
@@ -171,6 +177,10 @@
 
 {#if $addVideoModalOpen}
 	<AddVideoModal ondismiss={() => addVideoModalOpen.set(false)} />
+{/if}
+
+{#if $queueSheetOpen}
+	<QueueSheet ondismiss={() => queueSheetOpen.set(false)} />
 {/if}
 
 <style>
@@ -355,6 +365,7 @@
 	}
 
 	.add-icon {
+		position: relative;
 		transition: transform 100ms ease;
 		width: 36px;
 		height: 24px;
@@ -369,5 +380,23 @@
 	.add-icon :global(svg) {
 		width: 18px;
 		height: 18px;
+	}
+	.queue-badge {
+		position: absolute;
+		top: -6px;
+		right: -8px;
+		min-width: 16px;
+		height: 16px;
+		padding: 0 4px;
+		background: var(--accent-primary);
+		color: var(--bg-primary);
+		font-size: 0.625rem;
+		font-weight: 700;
+		border-radius: var(--radius-full);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		line-height: 1;
+		animation: badge-pop 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
 	}
 </style>
