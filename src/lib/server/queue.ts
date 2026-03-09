@@ -21,7 +21,7 @@ export function checkBurstAvailable(
 ): { available: boolean; burstUsed: number; nextSlotAt: Date | null } {
 	const windowMs = burst * cooldownMinutes * 60 * 1000;
 	const windowStart = new Date(Date.now() - windowMs);
-	const windowStartUnix = Math.floor(windowStart.getTime());
+	const windowStartUnix = Math.floor(windowStart.getTime() / 1000);
 
 	// Count clips this user created in the rolling window that went instant
 	// (i.e. clips NOT in the clip_queue table)
@@ -399,7 +399,7 @@ export function getQueueCount(userId: string, groupId: string): number {
  * Get queue entries that are due to be published.
  */
 export function getDueQueueEntries() {
-	const nowMs = Date.now();
+	const nowSec = Math.floor(Date.now() / 1000);
 	return db
 		.select({
 			id: clipQueue.id,
@@ -409,6 +409,6 @@ export function getDueQueueEntries() {
 			scheduledAt: clipQueue.scheduledAt
 		})
 		.from(clipQueue)
-		.where(sql`${clipQueue.scheduledAt} <= ${nowMs}`)
+		.where(sql`${clipQueue.scheduledAt} <= ${nowSec}`)
 		.all();
 }
