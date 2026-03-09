@@ -25,10 +25,13 @@ async function handleJoin(body: Record<string, string>) {
 	if (!group) return json({ error: 'Invalid invite code' }, { status: 404 });
 
 	const userId = uuid();
+	// Use a unique placeholder phone so the unique constraint isn't violated
+	// by multiple pre-onboarding users. Onboarding replaces this with the real phone.
+	const placeholderPhone = `pending:${userId}`;
 	await db.insert(users).values({
 		id: userId,
 		username: '',
-		phone: '',
+		phone: placeholderPhone,
 		groupId: group.id,
 		createdAt: new Date()
 	});
