@@ -4,7 +4,10 @@
 	import AddVideo from './AddVideo.svelte';
 	import BaseSheet from './BaseSheet.svelte';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
+	import QueueIcon from 'phosphor-svelte/lib/QueueIcon';
 	import { groupMembers } from '$lib/stores/members';
+	import { queueCount } from '$lib/stores/queue';
+	import { queueSheetOpen } from '$lib/stores/queueSheet';
 
 	const { ondismiss, initialUrl }: { ondismiss: () => void; initialUrl?: string } = $props();
 
@@ -24,6 +27,11 @@
 		// Background the share — the processing toast AddVideo created
 		// handles progress tracking. Dismiss the modal immediately.
 		sheetRef?.dismiss();
+	}
+
+	function openQueue() {
+		sheetRef?.dismiss();
+		queueSheetOpen.set(true);
 	}
 </script>
 
@@ -45,6 +53,12 @@
 				{initialUrl}
 				members={$groupMembers}
 			/>
+			{#if $queueCount > 0}
+				<button class="manage-queue-btn" onclick={openQueue}>
+					<QueueIcon size={16} />
+					<span>Manage queue ({$queueCount})</span>
+				</button>
+			{/if}
 		</div>
 	</BaseSheet>
 </div>
@@ -95,5 +109,22 @@
 		padding-bottom: max(var(--space-lg), env(safe-area-inset-bottom));
 		overflow-y: auto;
 		-webkit-overflow-scrolling: touch;
+	}
+	.manage-queue-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-xs);
+		width: 100%;
+		padding: var(--space-sm) 0;
+		background: none;
+		border: none;
+		color: var(--text-muted);
+		font-size: 0.8125rem;
+		font-weight: 500;
+		cursor: pointer;
+	}
+	.manage-queue-btn:active {
+		opacity: 0.7;
 	}
 </style>

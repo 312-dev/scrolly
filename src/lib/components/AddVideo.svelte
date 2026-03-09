@@ -142,7 +142,7 @@
 			const label = data.clip.contentType === 'music' ? 'song' : 'video';
 			addToast({
 				type: 'processing',
-				message: data.queued ? `Queued ${label}...` : `Adding ${label} to feed...`,
+				message: data.queued ? `Queuing ${label}...` : `Adding ${label} to feed...`,
 				clipId: data.clip.id,
 				contentType: data.clip.contentType,
 				autoDismiss: 0

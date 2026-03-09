@@ -158,7 +158,7 @@
 					<span class="queue-badge">{$queueCount}</span>
 				{/if}
 			</div>
-			<span>Add</span>
+			<span>{$queueCount > 0 ? 'Queue' : 'Add'}</span>
 		</button>
 		<a href="/me" class="tab" class:active={isMe}>
 			<UserCircleIcon size={24} weight={isMe ? 'fill' : 'regular'} />
