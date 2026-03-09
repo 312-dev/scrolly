@@ -28,6 +28,10 @@
 			contentType: string;
 			shareCountToday?: number;
 			dailyShareLimit?: number | null;
+			queued?: boolean;
+			scheduledAt?: string;
+			sharesIn?: string;
+			queuePosition?: number;
 		}) => void;
 		initialUrl?: string;
 		members?: GroupMember[];
@@ -125,6 +129,8 @@
 				if (res.status === 429 && data.limitReached) {
 					const resets = data.resetsIn ? ` Resets in ${data.resetsIn}.` : '';
 					error = `Daily limit reached (${data.shareCountToday}/${data.dailyShareLimit}).${resets}`;
+				} else if (res.status === 429 && data.queueFull) {
+					error = data.error || 'Your queue is full.';
 				} else {
 					error = data.error || 'Failed to add video';
 				}
@@ -133,9 +139,10 @@
 			url = '';
 			message = '';
 			messageInput?.clear();
+			const label = data.clip.contentType === 'music' ? 'song' : 'video';
 			addToast({
 				type: 'processing',
-				message: `Adding ${data.clip.contentType === 'music' ? 'song' : 'video'} to feed...`,
+				message: data.queued ? `Queued ${label}...` : `Adding ${label} to feed...`,
 				clipId: data.clip.id,
 				contentType: data.clip.contentType,
 				autoDismiss: 0
@@ -143,7 +150,11 @@
 			onsubmitted?.({
 				...data.clip,
 				shareCountToday: data.shareCountToday,
-				dailyShareLimit: data.dailyShareLimit
+				dailyShareLimit: data.dailyShareLimit,
+				queued: data.queued,
+				scheduledAt: data.scheduledAt,
+				sharesIn: data.sharesIn,
+				queuePosition: data.queuePosition
 			});
 		} catch {
 			error = 'Something went wrong';

@@ -13,7 +13,7 @@
 
 	const { ondismiss, initialUrl }: { ondismiss: () => void; initialUrl?: string } = $props();
 
-	let phase = $state<'form' | 'uploading' | 'trim_prompt' | 'done' | 'failed'>('form');
+	let phase = $state<'form' | 'uploading' | 'trim_prompt' | 'done' | 'queued' | 'failed'>('form');
 	let clipId = $state('');
 	let clipContentType = $state('');
 	let serverArtist = $state<string | null>(null);
@@ -24,6 +24,7 @@
 	let showTrimModal = $state(false);
 	let shareCountToday = $state<number | undefined>(undefined);
 	let dailyShareLimit = $state<number | null | undefined>(undefined);
+	let queuedSharesIn = $state<string | undefined>(undefined);
 	let pollTimer: ReturnType<typeof setInterval> | null = null;
 	let pingTimer: ReturnType<typeof setInterval> | null = null;
 	let addVideoRef = $state<ReturnType<typeof AddVideo> | null>(null);
@@ -51,11 +52,14 @@
 		contentType: string;
 		shareCountToday?: number;
 		dailyShareLimit?: number | null;
+		queued?: boolean;
+		sharesIn?: string;
 	}) {
 		clipId = clip.id;
 		clipContentType = clip.contentType;
 		shareCountToday = clip.shareCountToday;
 		dailyShareLimit = clip.dailyShareLimit;
+		queuedSharesIn = clip.sharesIn;
 		// Remove the processing toast AddVideo created — UploadStatus screen takes over
 		toasts.update((t) => t.filter((item) => item.clipId !== clip.id));
 		phase = 'uploading';
@@ -97,6 +101,9 @@
 			stopPolling();
 			phase = 'trim_prompt';
 			startPinging();
+		} else if (data.status === 'queued') {
+			stopPolling();
+			phase = 'queued';
 		} else if (data.status === 'ready') {
 			stopPolling();
 			phase = 'done';
@@ -134,7 +141,7 @@
 
 	function dismiss() {
 		stopPinging();
-		// If still uploading or waiting for trim, push a background toast
+		// If still downloading or waiting for trim, push a background toast
 		if (phase === 'uploading' || phase === 'trim_prompt') {
 			addToast({
 				type: 'processing',
@@ -216,6 +223,7 @@
 				{serverAlbumArt}
 				{shareCountToday}
 				{dailyShareLimit}
+				{queuedSharesIn}
 				ondismiss={dismiss}
 				onretry={handleRetry}
 				onsaveandview={handleSaveAndView}
