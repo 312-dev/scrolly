@@ -274,15 +274,15 @@
 	}
 
 	.limit-input-wrap input {
-		width: 100px;
-		padding: var(--space-xs) var(--space-sm);
+		width: 110px;
+		padding: var(--space-xs) 52px var(--space-xs) var(--space-sm);
 		background: var(--bg-primary);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-sm);
 		font-size: 0.875rem;
 		font-weight: 500;
 		color: var(--text-primary);
-		text-align: center;
+		text-align: left;
 	}
 
 	.limit-input-wrap input::placeholder {
