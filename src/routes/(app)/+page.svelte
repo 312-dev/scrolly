@@ -574,6 +574,15 @@
 			loadMore();
 	});
 
+	// Sync sort order when it changes in settings (e.g. navigating back from settings page)
+	$effect(() => {
+		const serverSort = page.data.user?.feedSortOrder as FeedSort | undefined;
+		if (serverSort && serverSort !== sort) {
+			sort = serverSort;
+			loadInitialClips();
+		}
+	});
+
 	// Mark deferred last clip as watched when user swipes to end slide
 	$effect(() => {
 		if (filter === 'unwatched' && !hasMore && activeIndex === clips.length && clips.length > 0) {

@@ -159,7 +159,7 @@
 
 	function description(n: Notification): string {
 		if (n.type === 'reaction') return `reacted ${n.emoji} to ${clipLabel(n)}`;
-		if (n.type === 'mention') return 'mentioned you';
+		if (n.type === 'mention') return `mentioned you on ${clipLabel(n)}`;
 		if (n.type === 'reply') return `replied to a comment on ${clipLabel(n)}`;
 		return `commented on ${clipLabel(n)}`;
 	}
@@ -290,7 +290,7 @@
 		overflow-y: auto;
 		overscroll-behavior-y: contain;
 		-webkit-overflow-scrolling: touch;
-		padding: var(--space-md) var(--space-sm) var(--space-lg);
+		padding: var(--space-md) 0 var(--space-lg);
 		max-width: 520px;
 		margin: 0 auto;
 		width: 100%;
@@ -304,7 +304,7 @@
 		font-weight: 700;
 		color: var(--text-secondary);
 		margin: 0;
-		padding: var(--space-sm) 0 var(--space-sm);
+		padding: var(--space-sm) var(--space-lg) var(--space-sm);
 		letter-spacing: 0.01em;
 	}
 
@@ -357,7 +357,7 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-md);
-		padding: var(--space-md) var(--space-sm);
+		padding: var(--space-md) var(--space-lg);
 		text-decoration: none;
 		color: inherit;
 		border-radius: var(--radius-sm);
