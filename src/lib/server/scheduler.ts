@@ -11,6 +11,8 @@ import { sendNotification } from '$lib/server/push';
 import { runBackup } from '$lib/server/backup';
 import { publishMusicClip } from '$lib/server/music/publish';
 import { deleteWaveform } from '$lib/server/audio/waveform';
+import { getDueQueueEntries, publishQueuedClip } from '$lib/server/queue';
+import { notifyNewClipsBatch } from '$lib/server/push';
 import { createLogger } from '$lib/server/logger';
 import { v4 as uuid } from 'uuid';
 
@@ -21,6 +23,7 @@ let lastReminderDate: string | null = null;
 
 const CHECK_INTERVAL = 60 * 60 * 1000; // 1 hour
 const TRIM_CHECK_INTERVAL = 10 * 1000; // 10 seconds
+const QUEUE_CHECK_INTERVAL = 30 * 1000; // 30 seconds
 const REMINDER_HOUR = 9; // 9 AM server time
 const BACKUP_HOUR = 2; // 2 AM server time
 const REMINDER_BODIES = [
@@ -35,9 +38,11 @@ export function startScheduler(): void {
 	checkAndSendReminders();
 	checkAndRunBackup();
 	checkAndAutoPublish();
+	checkAndPublishQueued();
 	setInterval(checkAndSendReminders, CHECK_INTERVAL);
 	setInterval(checkAndRunBackup, CHECK_INTERVAL);
 	setInterval(checkAndAutoPublish, TRIM_CHECK_INTERVAL);
+	setInterval(checkAndPublishQueued, QUEUE_CHECK_INTERVAL);
 	log.info('scheduler started');
 }
 
@@ -152,6 +157,45 @@ async function sendDailyReminders(): Promise<void> {
 
 	if (sent > 0) {
 		log.info({ sent }, `sent daily reminders to ${sent} user(s)`);
+	}
+}
+
+async function checkAndPublishQueued(): Promise<void> {
+	try {
+		const dueEntries = getDueQueueEntries();
+		if (dueEntries.length === 0) return;
+
+		// Group entries by (groupId, scheduledAt) so burst-grouped clips batch into one notification
+		const batches = new Map<string, typeof dueEntries>();
+		for (const entry of dueEntries) {
+			const key = `${entry.groupId}:${entry.scheduledAt.getTime()}`;
+			const batch = batches.get(key) ?? [];
+			batch.push(entry);
+			batches.set(key, batch);
+		}
+
+		for (const batch of batches.values()) {
+			const skipNotify = batch.length > 1;
+			const publishedClipIds: string[] = [];
+
+			for (const entry of batch) {
+				try {
+					const clipId = await publishQueuedClip(entry.id, skipNotify);
+					if (clipId) publishedClipIds.push(clipId);
+				} catch (err) {
+					log.error({ err, clipId: entry.clipId }, 'queue publish failed');
+				}
+			}
+
+			// Send a single batched notification for the group
+			if (skipNotify && publishedClipIds.length > 0) {
+				await notifyNewClipsBatch(publishedClipIds).catch((err) =>
+					log.error({ err }, 'batch notification failed for queued clips')
+				);
+			}
+		}
+	} catch (err) {
+		log.error({ err }, 'queue check failed');
 	}
 }
 
