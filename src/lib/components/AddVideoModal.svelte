@@ -42,6 +42,12 @@
 	<BaseSheet bind:this={sheetRef} sheetId="addVideo" {ondismiss}>
 		{#snippet header()}
 			<div class="add-header">
+				{#if $queueCount > 0}
+					<button class="header-queue-btn" onclick={openQueue} aria-label="View queue">
+						<QueueIcon size={18} />
+						<span class="header-queue-badge">{$queueCount}</span>
+					</button>
+				{/if}
 				<span class="add-title">{isQueueMode ? 'Queue something' : 'Add to feed'}</span>
 				<button class="close-btn" onclick={() => sheetRef?.dismiss()} aria-label="Close">
 					<XIcon size={18} />
@@ -56,12 +62,6 @@
 				{initialUrl}
 				members={$groupMembers}
 			/>
-			{#if $queueCount > 0}
-				<button class="manage-queue-btn" onclick={openQueue}>
-					<QueueIcon size={16} />
-					<span>Manage queue ({$queueCount})</span>
-				</button>
-			{/if}
 		</div>
 	</BaseSheet>
 </div>
@@ -113,21 +113,39 @@
 		overflow-y: auto;
 		-webkit-overflow-scrolling: touch;
 	}
-	.manage-queue-btn {
+	.header-queue-btn {
+		position: absolute;
+		left: var(--space-lg);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		gap: var(--space-xs);
-		width: 100%;
-		padding: var(--space-sm) 0;
-		background: none;
+		width: 32px;
+		height: 32px;
+		border-radius: var(--radius-full);
+		background: var(--bg-surface);
 		border: none;
-		color: var(--text-muted);
-		font-size: 0.8125rem;
-		font-weight: 500;
+		color: var(--text-secondary);
 		cursor: pointer;
+		transition: background 0.2s ease;
 	}
-	.manage-queue-btn:active {
-		opacity: 0.7;
+	.header-queue-btn:active {
+		background: var(--bg-subtle);
+	}
+	.header-queue-badge {
+		position: absolute;
+		top: -4px;
+		right: -4px;
+		min-width: 16px;
+		height: 16px;
+		padding: 0 4px;
+		background: var(--accent-primary);
+		color: var(--bg-primary);
+		font-size: 0.5625rem;
+		font-weight: 700;
+		border-radius: var(--radius-full);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		line-height: 1;
 	}
 </style>

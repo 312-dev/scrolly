@@ -6,9 +6,9 @@
 	import { fetchQueueCount } from '$lib/stores/queue';
 	import { basename } from '$lib/utils';
 	import ClockIcon from 'phosphor-svelte/lib/ClockIcon';
-	import ArrowUpIcon from 'phosphor-svelte/lib/ArrowUpIcon';
 	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
 	import QueueIcon from 'phosphor-svelte/lib/QueueIcon';
+	import DotsSixVerticalIcon from 'phosphor-svelte/lib/DotsSixVerticalIcon';
 
 	const { ondismiss }: { ondismiss: () => void } = $props();
 
@@ -29,6 +29,14 @@
 	let items = $state<QueueItem[]>([]);
 	let loading = $state(true);
 
+	// Drag state
+	let dragIndex = $state<number | null>(null);
+	let dragOverIndex = $state<number | null>(null);
+	let dragOffsetY = $state(0);
+	let dragStartY = 0;
+	let dragItemHeight = 0;
+	let listEl = $state<HTMLUListElement | null>(null);
+
 	$effect(() => {
 		loadQueue();
 	});
@@ -47,11 +55,62 @@
 		loading = false;
 	}
 
-	async function moveToTop(entryId: string) {
-		const res = await fetch(`/api/queue/${entryId}/move-to-top`, { method: 'POST' });
+	function handleDragStart(e: TouchEvent, index: number) {
+		e.stopPropagation();
+		const touch = e.touches[0];
+		dragStartY = touch.clientY;
+		dragIndex = index;
+		dragOverIndex = index;
+		dragOffsetY = 0;
+
+		// Measure item height for snap calculations
+		const li = (e.currentTarget as HTMLElement).closest('.queue-item') as HTMLElement;
+		if (li) dragItemHeight = li.offsetHeight;
+	}
+
+	function handleDragMove(e: TouchEvent) {
+		if (dragIndex === null) return;
+		e.preventDefault();
+		const touch = e.touches[0];
+		dragOffsetY = touch.clientY - dragStartY;
+
+		// Calculate which index we're hovering over
+		const steps = Math.round(dragOffsetY / dragItemHeight);
+		const newOver = Math.max(0, Math.min(items.length - 1, dragIndex + steps));
+		dragOverIndex = newOver;
+	}
+
+	function handleDragEnd() {
+		if (dragIndex === null || dragOverIndex === null) {
+			resetDrag();
+			return;
+		}
+		if (dragIndex !== dragOverIndex) {
+			// Reorder locally with animation
+			const reordered = [...items];
+			const [moved] = reordered.splice(dragIndex, 1);
+			reordered.splice(dragOverIndex, 0, moved);
+			items = reordered;
+			persistReorder(reordered);
+		}
+		resetDrag();
+	}
+
+	function resetDrag() {
+		dragIndex = null;
+		dragOverIndex = null;
+		dragOffsetY = 0;
+	}
+
+	async function persistReorder(reordered: QueueItem[]) {
+		const orderedIds = reordered.map((i) => i.id);
+		const res = await fetch('/api/queue/reorder', {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ orderedIds })
+		});
 		if (res.ok) {
 			await loadQueue();
-			fetchQueueCount();
 		}
 	}
 
@@ -65,13 +124,13 @@
 	}
 
 	async function clearAll() {
-		const confirmed = await confirm({
+		const ok = await confirm({
 			title: 'Clear queue?',
 			message: 'All queued clips will be removed. This cannot be undone.',
 			confirmLabel: 'Clear all',
 			destructive: true
 		});
-		if (!confirmed) return;
+		if (!ok) return;
 		const res = await fetch('/api/queue', { method: 'DELETE' });
 		if (res.ok) {
 			items = [];
@@ -88,19 +147,40 @@
 			return item.originalUrl;
 		}
 	}
+
+	function getItemTransform(index: number): string {
+		if (dragIndex === null || dragOverIndex === null) return '';
+		if (index === dragIndex) return `translateY(${dragOffsetY}px) scale(1.02)`;
+		// Shift items between old and new position
+		if (dragIndex < dragOverIndex && index > dragIndex && index <= dragOverIndex) {
+			return `translateY(-${dragItemHeight}px)`;
+		}
+		if (dragIndex > dragOverIndex && index < dragIndex && index >= dragOverIndex) {
+			return `translateY(${dragItemHeight}px)`;
+		}
+		return '';
+	}
 </script>
 
 <BaseSheet sheetId="queue" {ondismiss}>
 	{#snippet header()}
 		<div class="queue-header">
-			<span class="queue-title">Your Queue</span>
+			<div class="queue-header-left">
+				<QueueIcon size={18} weight="bold" />
+				<span class="queue-title">Your Queue</span>
+			</div>
 			{#if items.length > 0}
 				<button class="clear-btn" onclick={clearAll}>Clear all</button>
 			{/if}
 		</div>
 	{/snippet}
 
-	<div class="queue-body">
+	<div
+		class="queue-body"
+		ontouchmove={handleDragMove}
+		ontouchend={handleDragEnd}
+		ontouchcancel={handleDragEnd}
+	>
 		{#if loading}
 			<div class="queue-empty">
 				<span class="loading-text">Loading...</span>
@@ -112,9 +192,21 @@
 				<span class="empty-sub">Clips that exceed your burst will appear here</span>
 			</div>
 		{:else}
-			<ul class="queue-list">
-				{#each items as item (item.id)}
-					<li class="queue-item">
+			<ul class="queue-list" bind:this={listEl}>
+				{#each items as item, i (item.id)}
+					<li
+						class="queue-item"
+						class:dragging={dragIndex === i}
+						style:transform={getItemTransform(i)}
+						style:z-index={dragIndex === i ? 10 : 1}
+					>
+						<button
+							class="drag-handle"
+							ontouchstart={(e) => handleDragStart(e, i)}
+							aria-label="Reorder"
+						>
+							<DotsSixVerticalIcon size={20} />
+						</button>
 						<div class="item-thumb">
 							{#if item.thumbnailPath}
 								<img src="/api/thumbnails/{basename(item.thumbnailPath)}" alt="" />
@@ -135,24 +227,13 @@
 								{/if}
 							</span>
 						</div>
-						<div class="item-actions">
-							{#if item.position > 0}
-								<button
-									class="action-btn"
-									onclick={() => moveToTop(item.id)}
-									aria-label="Move to top"
-								>
-									<ArrowUpIcon size={16} />
-								</button>
-							{/if}
-							<button
-								class="action-btn danger"
-								onclick={() => cancelItem(item.id)}
-								aria-label="Remove"
-							>
-								<TrashIcon size={16} />
-							</button>
-						</div>
+						<button
+							class="action-btn danger"
+							onclick={() => cancelItem(item.id)}
+							aria-label="Remove"
+						>
+							<TrashIcon size={16} />
+						</button>
 					</li>
 				{/each}
 			</ul>
@@ -167,6 +248,16 @@
 		justify-content: space-between;
 		padding: var(--space-md) var(--space-lg);
 		border-bottom: 1px solid var(--border);
+	}
+	.queue-header-left {
+		display: flex;
+		align-items: center;
+		gap: var(--space-sm);
+		color: var(--text-primary);
+	}
+	.queue-header-left :global(svg) {
+		width: 18px;
+		height: 18px;
 	}
 	.queue-title {
 		font-family: var(--font-display);
@@ -227,12 +318,46 @@
 	.queue-item {
 		display: flex;
 		align-items: center;
-		gap: var(--space-md);
-		padding: var(--space-md) var(--space-lg);
+		gap: var(--space-sm);
+		padding: var(--space-md) var(--space-md) var(--space-md) 0;
 		border-bottom: 1px solid var(--border);
+		transition:
+			transform 200ms ease,
+			box-shadow 200ms ease,
+			background 200ms ease;
+		background: var(--bg-elevated);
+		position: relative;
 	}
 	.queue-item:last-child {
 		border-bottom: none;
+	}
+	.queue-item.dragging {
+		z-index: 10;
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+		background: var(--bg-surface);
+		transition:
+			box-shadow 200ms ease,
+			background 200ms ease;
+	}
+	.drag-handle {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 36px;
+		flex-shrink: 0;
+		color: var(--text-muted);
+		background: none;
+		border: none;
+		cursor: grab;
+		padding: var(--space-md) var(--space-xs);
+		touch-action: none;
+	}
+	.drag-handle:active {
+		cursor: grabbing;
+	}
+	.drag-handle :global(svg) {
+		width: 20px;
+		height: 20px;
 	}
 	.item-thumb {
 		width: 44px;
@@ -280,12 +405,6 @@
 	.failed-label {
 		color: var(--error);
 	}
-	.item-actions {
-		display: flex;
-		align-items: center;
-		gap: var(--space-xs);
-		flex-shrink: 0;
-	}
 	.action-btn {
 		width: 32px;
 		height: 32px;
@@ -297,6 +416,7 @@
 		border: none;
 		color: var(--text-secondary);
 		cursor: pointer;
+		flex-shrink: 0;
 		transition: background 0.15s ease;
 	}
 	.action-btn:active {
