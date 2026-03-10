@@ -58,6 +58,8 @@
 	let serverAudioPath = $state<string | null>(null);
 	let serverDuration = $state<number | null>(null);
 	let serverTitle = $state<string | null>(null);
+	let queued = $state(false);
+	let sharesIn = $state('');
 	let limitReached = $state(false);
 	let shareCountToday = $state(0);
 	let dailyShareLimit = $state<number | null>(null);
@@ -121,7 +123,10 @@
 			if (data.shareCountToday !== undefined) shareCountToday = data.shareCountToday;
 			if (data.dailyShareLimit !== undefined) dailyShareLimit = data.dailyShareLimit;
 
-			if (contentType === 'music') {
+			if (data.queued) {
+				queued = true;
+				sharesIn = data.sharesIn ?? '';
+			} else if (contentType === 'music') {
 				// Start polling for music clips — wait for download + trim opportunity
 				polling = true;
 				startPolling();
@@ -267,6 +272,20 @@
 				<p class="share-desc">{closeText}</p>
 			{:else}
 				<a href={resolve('/')} class="btn-secondary">Go to feed</a>
+			{/if}
+		{:else if queued}
+			<div class="icon-wrap success">
+				<CheckIcon size={28} weight="bold" />
+			</div>
+			<h1 class="share-title">Queued!</h1>
+			<p class="share-desc">
+				Your clip will share{sharesIn ? ` in ~${sharesIn}` : ' soon'}.
+			</p>
+			{#if isShortcut}
+				<p class="share-desc">{closeText}</p>
+			{:else}
+				<p class="share-desc">You can close this anytime.</p>
+				<button class="btn-primary" onclick={openFeed}>Open Scrolly</button>
 			{/if}
 		{:else if success}
 			<div class="icon-wrap success">
