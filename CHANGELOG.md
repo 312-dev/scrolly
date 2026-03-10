@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.23.1](https://github.com/312-dev/scrolly/compare/scrolly-v1.23.0...scrolly-v1.23.1) (2026-03-10)
+
+
+### Documentation
+
+* update api, data-model, and architecture for queue feature ([#104](https://github.com/312-dev/scrolly/issues/104)) ([d5e2741](https://github.com/312-dev/scrolly/commit/d5e2741901fd0b2ed40854b029456a7bc9aa84f5))
+
 ## [1.23.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.22.0...scrolly-v1.23.0) (2026-03-10)
 
 
