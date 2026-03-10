@@ -8,7 +8,8 @@ import {
 	commentViews,
 	reactions,
 	comments,
-	dismissedClips
+	dismissedClips,
+	clipQueue
 } from '$lib/server/db/schema';
 import { eq, asc, and, inArray, sql } from 'drizzle-orm';
 import {
@@ -406,18 +407,18 @@ function buildClipResponse(
 	const resp: Record<string, unknown> = {
 		clip: { id: clipId, status: 'downloading', contentType }
 	};
-	if (qr.queued) {
+	if (qr.queued)
 		Object.assign(resp, {
 			queued: true,
 			scheduledAt: qr.scheduledAt.toISOString(),
 			queuePosition: qr.position,
 			sharesIn: formatRelativeTime(Math.max(0, qr.scheduledAt.getTime() - Date.now()))
 		});
-	}
-	if (pacing.mode === 'daily_cap') {
-		resp.shareCountToday = pacing.limitCheck.shareCountToday + 1;
-		resp.dailyShareLimit = pacing.limitCheck.dailyShareLimit;
-	}
+	if (pacing.mode === 'daily_cap')
+		Object.assign(resp, {
+			shareCountToday: pacing.limitCheck.shareCountToday + 1,
+			dailyShareLimit: pacing.limitCheck.dailyShareLimit
+		});
 	return resp;
 }
 
@@ -434,10 +435,21 @@ async function handleExistingClip(
 			{ status: 201 }
 		);
 	}
-	return json(
-		{ error: 'This link has already been added to the feed.', addedBy: existing.addedBy },
-		{ status: 409 }
-	);
+	const qe = db
+		.select({ scheduledAt: clipQueue.scheduledAt })
+		.from(clipQueue)
+		.where(eq(clipQueue.clipId, existing.id))
+		.get();
+	const resp: Record<string, unknown> = {
+		error: 'This link has already been added to the feed.',
+		addedBy: existing.addedBy
+	};
+	if (qe)
+		Object.assign(resp, {
+			inQueue: true,
+			sharesIn: formatRelativeTime(Math.max(0, qe.scheduledAt.getTime() - Date.now()))
+		});
+	return json(resp, { status: 409 });
 }
 
 export const POST: RequestHandler = withAuth(async ({ request }, { user, group }) => {
