@@ -204,6 +204,13 @@
       "when": 1772863679793,
       "tag": "0028_curly_darkhawk",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1773098368569,
+      "tag": "0029_chunky_sentry",
+      "breakpoints": true
     }
   ]
 }
