@@ -164,19 +164,53 @@ async function getClipPushContext(clipId: string): Promise<{
 	return { ownerContext: 'on a clip', othersContext: 'on a clip', addedBy: null };
 }
 
+function sendCommentPush(
+	recipientId: string,
+	title: string,
+	preview: string,
+	clipContext: string,
+	clipId: string,
+	tag: string,
+	icon?: string,
+	image?: string
+) {
+	sendNotification(recipientId, {
+		title,
+		body: `💬 "${preview}" · ${clipContext}`,
+		url: `/?clip=${clipId}&comments=true`,
+		tag,
+		...(icon ? { icon } : {}),
+		...(image ? { image } : {})
+	}).catch(() => {});
+}
+
+function buildCommentPushTitle(
+	parentId: string | null,
+	actorUsername: string,
+	recipientId: string,
+	parentAuthorId?: string,
+	parentAuthorUsername?: string
+): string {
+	if (!parentId) return `${actorUsername} commented`;
+	if (recipientId === parentAuthorId) return `${actorUsername} replied to you`;
+	return `${actorUsername} replied to ${parentAuthorUsername ?? 'a comment'}`;
+}
+
 /** Notify all group members about a comment or reply. Returns notified user IDs. */
 async function dispatchCommentNotification(
 	clipId: string,
 	parentId: string | null,
 	actor: { id: string; username: string; avatarPath: string | null; groupId: string },
 	preview: string,
+	parentAuthorId?: string,
 	parentAuthorUsername?: string
 ): Promise<string[]> {
 	const type = parentId ? 'reply' : 'comment';
-	const pushTitle = parentId
-		? `${actor.username} replied to ${parentAuthorUsername ?? 'a comment'}`
-		: `${actor.username} commented`;
 	const pushTag = `${type}-${clipId}-${actor.id}`;
+	const icon =
+		actor.avatarPath && env.ORIGIN
+			? `${env.ORIGIN}/api/profile/avatar/${actor.avatarPath}`
+			: undefined;
 
 	const groupMembers = await db.query.users.findMany({
 		where: and(eq(users.groupId, actor.groupId), isNull(users.removedAt))
@@ -197,21 +231,20 @@ async function dispatchCommentNotification(
 	});
 	const prefsMap = new Map(allPrefs.map((p) => [p.userId, p]));
 
-	const notifiedIds: string[] = [];
+	const now = new Date();
 
 	for (const recipient of targets) {
 		const prefs = prefsMap.get(recipient.id);
-		const prefEnabled = !prefs || prefs.comments;
-
-		if (prefEnabled) {
+		if (!prefs || prefs.comments) {
+			const pushTitle = buildCommentPushTitle(
+				parentId,
+				actor.username,
+				recipient.id,
+				parentAuthorId,
+				parentAuthorUsername
+			);
 			const clipContext = recipient.id === clipOwnerId ? ownerContext : othersContext;
-			sendNotification(recipient.id, {
-				title: pushTitle,
-				body: `💬 "${preview}" · ${clipContext}`,
-				url: `/?clip=${clipId}&comments=true`,
-				tag: pushTag,
-				...(image ? { image } : {})
-			}).catch(() => {});
+			sendCommentPush(recipient.id, pushTitle, preview, clipContext, clipId, pushTag, icon, image);
 		}
 
 		await db.insert(notifications).values({
@@ -221,13 +254,11 @@ async function dispatchCommentNotification(
 			clipId,
 			actorId: actor.id,
 			commentPreview: preview,
-			createdAt: new Date()
+			createdAt: now
 		});
-
-		notifiedIds.push(recipient.id);
 	}
 
-	return notifiedIds;
+	return targets.map((t) => t.id);
 }
 
 function isValidGiphyUrl(url: string): boolean {
@@ -265,6 +296,7 @@ export const POST: RequestHandler = withClipAuth(async ({ params, request }, { u
 	if ('error' in validation) return json({ error: validation.error }, { status: 400 });
 	const { trimmed, hasText, validGifUrl } = validation;
 
+	let parentAuthorId: string | undefined;
 	let parentAuthorUsername: string | undefined;
 	if (body.parentId) {
 		const parent = await db.query.comments.findFirst({
@@ -272,6 +304,7 @@ export const POST: RequestHandler = withClipAuth(async ({ params, request }, { u
 		});
 		if (!parent) return json({ error: 'Parent comment not found' }, { status: 404 });
 		if (parent.parentId) return json({ error: 'Cannot reply to a reply' }, { status: 400 });
+		parentAuthorId = parent.userId;
 		const parentAuthor = await db.query.users.findFirst({
 			where: eq(users.id, parent.userId),
 			columns: { username: true }
@@ -298,6 +331,7 @@ export const POST: RequestHandler = withClipAuth(async ({ params, request }, { u
 		body.parentId || null,
 		user,
 		preview,
+		parentAuthorId,
 		parentAuthorUsername
 	);
 

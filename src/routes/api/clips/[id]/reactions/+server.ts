@@ -85,6 +85,10 @@ async function dispatchReactionNotification(
 
 	const pushTitle = `${actor.username} reacted ${emoji}`;
 	const pushTag = `reaction-${clipId}-${actor.id}`;
+	const icon =
+		actor.avatarPath && env.ORIGIN
+			? `${env.ORIGIN}/api/profile/avatar/${actor.avatarPath}`
+			: undefined;
 
 	for (const recipient of targets) {
 		const prefs = prefsMap.get(recipient.id);
@@ -107,6 +111,7 @@ async function dispatchReactionNotification(
 			body: pushBody,
 			url: `/?clip=${clipId}`,
 			tag: pushTag,
+			...(icon ? { icon } : {}),
 			...(image ? { image } : {})
 		}).catch(() => {});
 

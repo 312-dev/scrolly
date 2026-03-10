@@ -23,6 +23,22 @@ export function extractMentions(text: string): string[] {
 	return [...mentions];
 }
 
+/** Build clip context string for push notification body. */
+async function buildClipContext(
+	clip: { title: string | null; addedBy: string; contentType: string } | undefined
+): Promise<string> {
+	if (!clip) return 'on a clip';
+	if (clip.title) {
+		const icon = clip.contentType === 'music' ? '🎵' : '🎬';
+		return `${icon} ${clip.title}`;
+	}
+	const uploader = await db.query.users.findFirst({
+		where: eq(users.id, clip.addedBy),
+		columns: { username: true }
+	});
+	return `on a clip by ${uploader?.username ?? 'someone'}`;
+}
+
 /**
  * Send mention notifications to all mentioned users.
  * Checks preferences, skips self-mentions and excluded users, sends push + in-app.
@@ -42,31 +58,21 @@ export async function notifyMentions(opts: {
 	const excludeSet = new Set(opts.excludeUserIds ?? []);
 	excludeSet.add(opts.actorId); // never notify self
 
-	// Fetch clip for title + thumbnail context
 	const clip = await db.query.clips.findFirst({
 		where: eq(clips.id, opts.clipId),
 		columns: { title: true, addedBy: true, thumbnailPath: true, contentType: true }
 	});
 
-	let clipContext: string;
-	if (clip?.title) {
-		const icon = clip.contentType === 'music' ? '🎵' : '🎬';
-		clipContext = `${icon} ${clip.title}`;
-	} else if (clip) {
-		const uploader = await db.query.users.findFirst({
-			where: eq(users.id, clip.addedBy),
-			columns: { username: true }
-		});
-		clipContext = `on a clip by ${uploader?.username ?? 'someone'}`;
-	} else {
-		clipContext = 'on a clip';
-	}
-
-	const pushBody = `💬 "${opts.commentPreview}" · ${clipContext}`;
+	const clipContext = await buildClipContext(clip ?? undefined);
+	const pushBody = `@ "${opts.commentPreview}" · ${clipContext}`;
 
 	const image =
 		clip?.thumbnailPath && env.ORIGIN
 			? `${env.ORIGIN}/api/thumbnails/${basename(clip.thumbnailPath)}`
+			: undefined;
+	const icon =
+		opts.actorAvatarPath && env.ORIGIN
+			? `${env.ORIGIN}/api/profile/avatar/${opts.actorAvatarPath}`
 			: undefined;
 
 	// Look up all active members in the group
@@ -93,6 +99,7 @@ export async function notifyMentions(opts: {
 				body: pushBody,
 				url: `/?clip=${opts.clipId}&comments=true`,
 				tag: `mention-${opts.clipId}-${opts.actorId}`,
+				...(icon ? { icon } : {}),
 				...(image ? { image } : {})
 			}).catch((err) => log.error({ err }, 'mention push notification failed'));
 		}

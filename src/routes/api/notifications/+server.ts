@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { notifications } from '$lib/server/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and, ne } from 'drizzle-orm';
 import { withAuth, safeInt, mapUsersByIds } from '$lib/server/api-utils';
 
 export const GET: RequestHandler = withAuth(async ({ url }, { user }) => {
@@ -10,7 +10,7 @@ export const GET: RequestHandler = withAuth(async ({ url }, { user }) => {
 	const offset = safeInt(url.searchParams.get('offset'), 0);
 
 	const rows = await db.query.notifications.findMany({
-		where: eq(notifications.userId, user.id),
+		where: and(eq(notifications.userId, user.id), ne(notifications.actorId, user.id)),
 		orderBy: [desc(notifications.createdAt)],
 		limit,
 		offset
