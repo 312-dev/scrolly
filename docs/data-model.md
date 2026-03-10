@@ -19,6 +19,9 @@ SQLite database via Drizzle ORM. All IDs are UUIDs stored as text. Timestamps ar
 | platform_filter_mode | text | Default `'all'`. `'all'` / `'allow'` / `'block'`. |
 | platform_filter_list | text | Nullable. Comma-separated list of platforms for allow/block filtering. |
 | daily_share_limit | integer | Nullable. Max clips per user per calendar day. |
+| share_pacing_mode | text | Default `'off'`. `'off'` / `'daily_cap'` / `'queue'`. |
+| share_burst | integer | Default 2. Clips per scheduled time slot in queue mode (1–10). |
+| share_cooldown_minutes | integer | Default 120. Minutes between clip groups in queue mode. |
 | shortcut_token | text | Nullable, unique. Token for iOS Shortcut clip sharing. |
 | shortcut_url | text | Nullable. URL for iOS Shortcut integration. |
 | created_by | text | FK → users.id (host/admin) |
@@ -55,7 +58,7 @@ SQLite database via Drizzle ORM. All IDs are UUIDs stored as text. Timestamps ar
 | title | text | User-provided caption, source metadata, or AI-generated. |
 | duration_seconds | integer | Nullable |
 | platform | text | `'tiktok'` / `'instagram'` / `'youtube'` / etc. |
-| status | text | `'downloading'` / `'pending_trim'` / `'ready'` / `'failed'` / `'deleted'` |
+| status | text | `'downloading'` / `'pending_trim'` / `'queued'` / `'ready'` / `'failed'` / `'deleted'` |
 | content_type | text | `'video'` / `'music'`. Default `'video'`. |
 | audio_path | text | Nullable. Path to audio file (music clips). |
 | artist | text | Nullable. Artist name (music clips). |
@@ -160,6 +163,20 @@ Unique constraint on `(clip_id, user_id)` — tracks whether a user has seen the
 
 Unique constraint on `(clip_id, user_id)` — tracks clips dismissed by users in catch-up modal.
 
+### clip_queue
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | text | PK, UUID |
+| clip_id | text | FK → clips.id |
+| user_id | text | FK → users.id |
+| group_id | text | FK → groups.id |
+| position | integer | Order in queue (0-based) |
+| scheduled_at | integer | Unix timestamp when clip will be published |
+| created_at | integer | Unix timestamp |
+
+Index on `(user_id, group_id)` for efficient queue lookups.
+
 ### push_subscriptions
 
 | Column | Type | Notes |
@@ -211,6 +228,9 @@ clips  ∞──∞ users (watched)
 clips  ∞──∞ users (favorites)
 clips  ∞──∞ users (comment_views)
 clips  ∞──∞ users (dismissed_clips)
+groups 1──∞ clip_queue
+users  1──∞ clip_queue
+clips  1──∞ clip_queue
 users  1──∞ push_subscriptions
 users  1──1 notification_preferences
 users  1──∞ notifications (recipient)

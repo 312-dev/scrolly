@@ -72,7 +72,8 @@ scrolly/
 │   │   │   │   └── verify.ts        # Twilio SMS verification codes
 │   │   │   ├── auth.ts              # Session management, invite code validation
 │   │   │   ├── push.ts              # web-push wrapper, group notifications
-│   │   │   ├── share-limit.ts       # Daily share limit enforcement utility
+│   │   │   ├── share-limit.ts       # Share pacing modes and daily limit enforcement
+│   │   │   ├── queue.ts             # Clip queue management (enqueue, publish, reorder)
 │   │   │   ├── scheduler.ts         # Retention policy enforcement (periodic cleanup)
 │   │   │   └── download-lock.ts     # Prevents duplicate concurrent downloads
 │   │   ├── components/
@@ -96,6 +97,7 @@ scrolly/
 │   │   │   ├── AddVideo.svelte      # Add video form
 │   │   │   ├── AddVideoModal.svelte # Modal wrapper for AddVideo
 │   │   │   ├── AvatarCropModal.svelte # Profile picture crop UI
+│   │   │   ├── QueueSheet.svelte    # Bottom sheet for viewing/reordering queued clips
 │   │   │   ├── CatchUpModal.svelte  # Catch-up modal for bulk unwatched clips
 │   │   │   ├── MeGrid.svelte         # Profile clip grid (favorites/uploads)
 │   │   │   ├── MeReelView.svelte     # Profile reel overlay view
@@ -125,6 +127,7 @@ scrolly/
 │   │   │       ├── InviteLink.svelte
 │   │   │       ├── MemberList.svelte
 │   │   │       ├── DailyShareLimitPicker.svelte # Daily per-user share limit control
+│   │   │       ├── SharePacingPicker.svelte   # Share pacing mode, burst, and cooldown config
 │   │   │       ├── RetentionPicker.svelte
 │   │   │       ├── SkippedClips.svelte    # Dismissed/skipped clips viewer with restore
 │   │   │       ├── ClipsManager.svelte
@@ -148,6 +151,8 @@ scrolly/
 │   │   │   ├── uiHidden.ts         # Feed UI hidden state (synced from active reel)
 │   │   │   ├── homeTap.ts          # Double-tap home to scroll to top
 │   │   │   ├── catchUpModal.ts     # Catch-up modal dismissal state (12-hour cooldown)
+│   │   │   ├── queue.ts            # Queue count store and fetch function
+│   │   │   ├── queueSheet.ts       # Queue sheet visibility state
 │   │   │   ├── shortcutNudge.ts    # Share shortcut install nudge
 │   │   │   └── shortcutUpgrade.ts  # Shortcut upgrade banner state
 │   │   ├── types.ts                 # Shared TypeScript types (Clip, etc.)
@@ -182,7 +187,13 @@ scrolly/
 │   │   │   │   └── [id]/waveform/+server.ts  # Waveform data
 │   │   │   │   └── [id]/publish/+server.ts   # Publish after trim
 │   │   │   ├── gifs/
+│   │   │   ├── queue/
+│   │   │   │   ├── +server.ts             # GET list / DELETE clear queue
+│   │   │   │   ├── count/+server.ts       # GET queue count
+│   │   │   │   ├── reorder/+server.ts     # PATCH reorder entries
+│   │   │   │   └── [id]/+server.ts        # DELETE cancel entry
 │   │   │   ├── group/
+│   │   │   │   ├── share-pacing/+server.ts  # PATCH configure share pacing
 │   │   │   ├── notifications/
 │   │   │   │   └── [id]/+server.ts          # Delete single notification
 │   │   │   ├── profile/

@@ -237,6 +237,54 @@ Extends the trim deadline for a music clip in `pending_trim` status. The client 
 Response: { "ok": true }
 ```
 
+## Queue Management
+
+Manage queued clips when share pacing is enabled.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/queue` | List queued clips for user |
+| DELETE | `/api/queue` | Clear entire queue |
+| GET | `/api/queue/count` | Queued clip count |
+| DELETE | `/api/queue/[id]` | Cancel a queued clip |
+| POST | `/api/queue/[id]/move-to-top` | Move entry to top of queue |
+| PATCH | `/api/queue/reorder` | Reorder queue entries |
+
+### GET /api/queue
+```
+Response: { "queue": [{ "id", "clipId", "position", "scheduledAt", "sharesIn", "createdAt", "title", "originalUrl", "platform", "contentType", "status", "thumbnailPath" }] }
+```
+
+### DELETE /api/queue
+Clears the entire queue for the user's group and deletes associated clips.
+```
+Response: { "cleared": 3 }
+```
+
+### GET /api/queue/count
+```
+Response: { "count": 5 }
+```
+
+### DELETE /api/queue/[id]
+Cancels a single queued clip. Only the uploader can cancel.
+```
+Response: { "ok": true }
+```
+
+### POST /api/queue/[id]/move-to-top
+Moves a queue entry to position 0 (next to publish).
+```
+Response: { "ok": true }
+```
+
+### PATCH /api/queue/reorder
+Reorders all queue entries and recalculates scheduled publish times.
+```
+Request:  { "orderedIds": ["entry-id-1", "entry-id-2", "entry-id-3"] }
+Response: { "ok": true }
+```
+
 ## Group Management
 
 Host-only endpoints (unless noted). Requires `createdBy === currentUser`.
@@ -249,6 +297,7 @@ Host-only endpoints (unless noted). Requires `createdBy === currentUser`.
 | PATCH | `/api/group/max-file-size` | Set max file size limit |
 | PATCH | `/api/group/platforms` | Set platform filter |
 | PATCH | `/api/group/daily-share-limit` | Set daily share limit per user |
+| PATCH | `/api/group/share-pacing` | Configure share pacing mode |
 | GET | `/api/group/provider` | List download providers |
 | PATCH | `/api/group/provider` | Set active provider |
 | POST | `/api/group/provider/install` | Install a provider |
@@ -297,6 +346,17 @@ Response: { "platformFilterMode": "all", "platformFilterList": null }
 Request:  { "dailyShareLimit": 5 }   (positive integer, or null to remove limit)
 Response: { "dailyShareLimit": 5 }
 ```
+
+### PATCH /api/group/share-pacing
+Host-only. Configures queue-based share pacing. When switching away from `queue` mode, all queued clips are flushed to `ready`.
+```
+Request:  { "sharePacingMode": "queue", "shareBurst": 2, "shareCooldownMinutes": 120, "dailyShareLimit": null }
+Response: { "sharePacingMode": "queue", "shareBurst": 2, "shareCooldownMinutes": 120, "dailyShareLimit": null }
+```
+- `sharePacingMode`: `"off"` | `"daily_cap"` | `"queue"`
+- `shareBurst`: 1–10 (clips per scheduled time slot)
+- `shareCooldownMinutes`: 30 | 60 | 120 | 240 | 360
+- `dailyShareLimit`: positive integer or null
 
 ### GET /api/group/provider
 ```
