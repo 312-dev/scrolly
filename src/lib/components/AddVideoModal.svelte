@@ -5,9 +5,12 @@
 	import BaseSheet from './BaseSheet.svelte';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import QueueIcon from 'phosphor-svelte/lib/QueueIcon';
+	import { page } from '$app/state';
 	import { groupMembers } from '$lib/stores/members';
 	import { queueCount } from '$lib/stores/queue';
 	import { queueSheetOpen } from '$lib/stores/queueSheet';
+
+	const isQueueMode = $derived(page.data.group?.sharePacingMode === 'queue');
 
 	const { ondismiss, initialUrl }: { ondismiss: () => void; initialUrl?: string } = $props();
 
@@ -39,7 +42,7 @@
 	<BaseSheet bind:this={sheetRef} sheetId="addVideo" {ondismiss}>
 		{#snippet header()}
 			<div class="add-header">
-				<span class="add-title">Add to feed</span>
+				<span class="add-title">{isQueueMode ? 'Queue something' : 'Add to feed'}</span>
 				<button class="close-btn" onclick={() => sheetRef?.dismiss()} aria-label="Close">
 					<XIcon size={18} />
 				</button>

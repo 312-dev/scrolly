@@ -383,13 +383,13 @@
 	}
 	.queue-badge {
 		position: absolute;
-		top: -6px;
-		right: -8px;
-		min-width: 16px;
-		height: 16px;
+		top: -7px;
+		right: -9px;
+		min-width: 17px;
+		height: 17px;
 		padding: 0 4px;
-		background: var(--accent-primary);
-		color: var(--bg-primary);
+		background: var(--constant-white);
+		color: var(--constant-black, #000);
 		font-size: 0.625rem;
 		font-weight: 700;
 		border-radius: var(--radius-full);
@@ -397,6 +397,10 @@
 		align-items: center;
 		justify-content: center;
 		line-height: 1;
+		border: 2px solid var(--bg-primary);
 		animation: badge-pop 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+	}
+	.overlay-mode .queue-badge {
+		border-color: var(--reel-bg-elevated);
 	}
 </style>
