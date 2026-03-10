@@ -1,7 +1,7 @@
 import { db } from '$lib/server/db';
 import { clips, clipQueue, groups } from '$lib/server/db/schema';
 import { eq, and, sql, desc, lte, gte } from 'drizzle-orm';
-import { notifyNewClip, notifyNewClipsBatch } from '$lib/server/push';
+import { notifyNewClip } from '$lib/server/push';
 import { createLogger } from '$lib/server/logger';
 import { v4 as uuid } from 'uuid';
 
@@ -137,12 +137,10 @@ export function enqueueClip(
 }
 
 /**
- * Publish a queued clip: set status to ready, update createdAt, notify group.
+ * Publish a queued clip: set status to ready, update createdAt.
+ * No push notification — queued clips appear silently in the feed.
  */
-export async function publishQueuedClip(
-	queueEntryId: string,
-	skipNotification = false
-): Promise<string | false> {
+export function publishQueuedClip(queueEntryId: string): boolean {
 	const [entry] = db.select().from(clipQueue).where(eq(clipQueue.id, queueEntryId)).all();
 
 	if (!entry) return false;
@@ -164,14 +162,7 @@ export async function publishQueuedClip(
 	db.delete(clipQueue).where(eq(clipQueue.id, queueEntryId)).run();
 
 	log.info({ clipId: entry.clipId, queueEntryId }, 'queued clip published');
-
-	if (!skipNotification) {
-		await notifyNewClip(entry.clipId).catch((err) =>
-			log.error({ err, clipId: entry.clipId }, 'push notification failed for queued clip')
-		);
-	}
-
-	return entry.clipId;
+	return true;
 }
 
 /**
@@ -378,7 +369,7 @@ export function clearQueue(userId: string, groupId: string): number {
  * Flush all queued clips for a group (publish immediately).
  * Used when switching away from queue pacing mode.
  */
-export async function flushQueue(groupId: string): Promise<number> {
+export function flushQueue(groupId: string): number {
 	const entries = db
 		.select({
 			id: clipQueue.id,
@@ -396,22 +387,15 @@ export async function flushQueue(groupId: string): Promise<number> {
 	}
 
 	const now = new Date();
-	const clipIds: string[] = [];
 
 	for (const entry of entries) {
 		db.update(clips)
 			.set({ status: 'ready', createdAt: now })
 			.where(eq(clips.id, entry.clipId))
 			.run();
-		clipIds.push(entry.clipId);
 	}
 
 	db.delete(clipQueue).where(eq(clipQueue.groupId, groupId)).run();
-
-	// Single batched notification for all flushed clips
-	await notifyNewClipsBatch(clipIds).catch((err) =>
-		log.error({ err, groupId }, 'batch notification failed during flush')
-	);
 
 	log.info({ groupId, published: entries.length }, 'queue flushed');
 	return entries.length;

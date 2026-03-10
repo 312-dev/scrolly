@@ -12,7 +12,6 @@ import { runBackup } from '$lib/server/backup';
 import { publishMusicClip } from '$lib/server/music/publish';
 import { deleteWaveform } from '$lib/server/audio/waveform';
 import { getDueQueueEntries, publishQueuedClip } from '$lib/server/queue';
-import { notifyNewClipsBatch } from '$lib/server/push';
 import { createLogger } from '$lib/server/logger';
 import { v4 as uuid } from 'uuid';
 
@@ -160,38 +159,14 @@ async function sendDailyReminders(): Promise<void> {
 	}
 }
 
-async function checkAndPublishQueued(): Promise<void> {
+function checkAndPublishQueued(): void {
 	try {
 		const dueEntries = getDueQueueEntries();
-		if (dueEntries.length === 0) return;
-
-		// Group entries by (groupId, scheduledAt) so burst-grouped clips batch into one notification
-		const batches = new Map<string, typeof dueEntries>();
 		for (const entry of dueEntries) {
-			const key = `${entry.groupId}:${entry.scheduledAt.getTime()}`;
-			const batch = batches.get(key) ?? [];
-			batch.push(entry);
-			batches.set(key, batch);
-		}
-
-		for (const batch of batches.values()) {
-			const skipNotify = batch.length > 1;
-			const publishedClipIds: string[] = [];
-
-			for (const entry of batch) {
-				try {
-					const clipId = await publishQueuedClip(entry.id, skipNotify);
-					if (clipId) publishedClipIds.push(clipId);
-				} catch (err) {
-					log.error({ err, clipId: entry.clipId }, 'queue publish failed');
-				}
-			}
-
-			// Send a single batched notification for the group
-			if (skipNotify && publishedClipIds.length > 0) {
-				await notifyNewClipsBatch(publishedClipIds).catch((err) =>
-					log.error({ err }, 'batch notification failed for queued clips')
-				);
+			try {
+				publishQueuedClip(entry.id);
+			} catch (err) {
+				log.error({ err, clipId: entry.clipId }, 'queue publish failed');
 			}
 		}
 	} catch (err) {
