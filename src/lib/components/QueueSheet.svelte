@@ -8,6 +8,7 @@
 	import ClockIcon from 'phosphor-svelte/lib/ClockIcon';
 	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
 	import QueueIcon from 'phosphor-svelte/lib/QueueIcon';
+	import QuestionIcon from 'phosphor-svelte/lib/QuestionIcon';
 	import DotsSixVerticalIcon from 'phosphor-svelte/lib/DotsSixVerticalIcon';
 
 	const { ondismiss }: { ondismiss: () => void } = $props();
@@ -139,6 +140,19 @@
 		}
 	}
 
+	function showHelp() {
+		confirm({
+			title: 'How the queue works',
+			message:
+				'Your first few clips go straight to the feed. ' +
+				'After that, extras land here and get shared on a timer — ' +
+				'so your group gets a steady stream instead of everything at once.\n\n' +
+				'Drag to reorder, or tap the trash icon to remove.',
+			confirmLabel: 'Got it',
+			cancelLabel: 'Close'
+		});
+	}
+
 	function displayTitle(item: QueueItem): string {
 		if (item.title) return item.title;
 		try {
@@ -168,6 +182,9 @@
 			<div class="queue-header-left">
 				<QueueIcon size={18} weight="bold" />
 				<span class="queue-title">Your Queue</span>
+				<button class="help-btn" onclick={showHelp} aria-label="How the queue works">
+					<QuestionIcon size={16} />
+				</button>
 			</div>
 			{#if items.length > 0}
 				<button class="clear-btn" onclick={clearAll}>Clear all</button>
@@ -262,6 +279,22 @@
 		font-size: 0.9375rem;
 		font-weight: 500;
 		color: var(--text-primary);
+	}
+	.help-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 22px;
+		height: 22px;
+		border-radius: var(--radius-full);
+		background: var(--bg-surface);
+		border: none;
+		color: var(--text-muted);
+		cursor: pointer;
+		padding: 0;
+	}
+	.help-btn:active {
+		opacity: 0.7;
 	}
 	.clear-btn {
 		background: none;
