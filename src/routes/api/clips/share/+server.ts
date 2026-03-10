@@ -108,10 +108,11 @@ function tryEnqueueShare(
 	clipId: string,
 	userId: string,
 	groupId: string,
-	cooldownMinutes: number
+	cooldownMinutes: number,
+	burst: number
 ): { queued: false } | { queued: true; sharesIn: string } | Response {
 	if (pacing.mode !== 'queue' || !pacing.queued) return { queued: false };
-	const entry = enqueueClip(clipId, userId, groupId, cooldownMinutes);
+	const entry = enqueueClip(clipId, userId, groupId, cooldownMinutes, burst);
 	if (!entry) {
 		return shareResponse(false, '❌  Your queue is full (max 10 items).', 429, { queueFull: true });
 	}
@@ -201,7 +202,8 @@ export const POST: RequestHandler = async ({ request, url, locals }) => {
 		clipId,
 		matchedUser.id,
 		group.id,
-		group.shareCooldownMinutes
+		group.shareCooldownMinutes,
+		group.shareBurst
 	);
 	if (queueInfo instanceof Response) return queueInfo;
 

@@ -387,10 +387,11 @@ function tryEnqueue(
 	clipId: string,
 	userId: string,
 	groupId: string,
-	cooldownMinutes: number
+	cooldownMinutes: number,
+	burst: number
 ): QueueResult | Response {
 	if (pacing.mode !== 'queue' || !pacing.queued) return { queued: false };
-	const entry = enqueueClip(clipId, userId, groupId, cooldownMinutes);
+	const entry = enqueueClip(clipId, userId, groupId, cooldownMinutes, burst);
 	if (!entry)
 		return json({ error: 'Your queue is full (max 10).', queueFull: true }, { status: 429 });
 	return { queued: true, scheduledAt: entry.scheduledAt, position: entry.position };
@@ -406,10 +407,12 @@ function buildClipResponse(
 		clip: { id: clipId, status: 'downloading', contentType }
 	};
 	if (qr.queued) {
-		resp.queued = true;
-		resp.scheduledAt = qr.scheduledAt.toISOString();
-		resp.queuePosition = qr.position;
-		resp.sharesIn = formatRelativeTime(Math.max(0, qr.scheduledAt.getTime() - Date.now()));
+		Object.assign(resp, {
+			queued: true,
+			scheduledAt: qr.scheduledAt.toISOString(),
+			queuePosition: qr.position,
+			sharesIn: formatRelativeTime(Math.max(0, qr.scheduledAt.getTime() - Date.now()))
+		});
 	}
 	if (pacing.mode === 'daily_cap') {
 		resp.shareCountToday = pacing.limitCheck.shareCountToday + 1;
@@ -495,7 +498,14 @@ export const POST: RequestHandler = withAuth(async ({ request }, { user, group }
 		return json({ error: 'Failed to create clip' }, { status: 500 });
 	}
 
-	const queueResult = tryEnqueue(pacing, clipId, user.id, user.groupId, group.shareCooldownMinutes);
+	const queueResult = tryEnqueue(
+		pacing,
+		clipId,
+		user.id,
+		user.groupId,
+		group.shareCooldownMinutes,
+		group.shareBurst
+	);
 	if (queueResult instanceof Response) return queueResult;
 
 	await startDownload(clipId, validUrl, contentType, 'new clip');
