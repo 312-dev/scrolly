@@ -157,6 +157,21 @@
 		}
 	});
 
+	function stopPollingToast(id: string) {
+		const interval = pollIntervals.get(id);
+		if (interval) clearInterval(interval);
+		pollIntervals.delete(id);
+	}
+
+	function finishToast(id: string, updates: Partial<Toast>, autoDismissMs?: number) {
+		stopPollingToast(id);
+		replaceToast(id, updates);
+		if (autoDismissMs) {
+			const timeout = setTimeout(() => removeToast(id), autoDismissMs);
+			dismissTimeouts.set(id, timeout);
+		}
+	}
+
 	async function pollClipStatus(toast: Toast) {
 		if (!toast.clipId) return;
 		try {
@@ -164,30 +179,21 @@
 			if (!res.ok) return;
 			const data = await res.json();
 
-			if (data.status === 'ready') {
-				const interval = pollIntervals.get(toast.id);
-				if (interval) clearInterval(interval);
-				pollIntervals.delete(toast.id);
-
-				const contentLabel = toast.contentType === 'music' ? 'song' : 'video';
-				replaceToast(toast.id, {
-					type: 'success',
-					message: data.title ? `"${data.title}" is ready` : `Your ${contentLabel} is ready`
-				});
-
-				const timeout = setTimeout(() => removeToast(toast.id), 6000);
-				dismissTimeouts.set(toast.id, timeout);
-
+			if (data.status === 'pending_trim' && toast.contentType === 'music') {
+				replaceToast(toast.id, { message: 'Song ready — publishing shortly...' });
+			} else if (data.status === 'ready') {
+				const label = toast.contentType === 'music' ? 'song' : 'video';
+				const message = data.title ? `"${data.title}" is ready` : `Your ${label} is ready`;
+				finishToast(toast.id, { type: 'success', message }, 6000);
 				clipReadySignal.set(toast.clipId);
+			} else if (data.status === 'queued') {
+				finishToast(
+					toast.id,
+					{ type: 'info', message: 'Clip queued — it will share on schedule' },
+					5000
+				);
 			} else if (data.status === 'failed') {
-				const interval = pollIntervals.get(toast.id);
-				if (interval) clearInterval(interval);
-				pollIntervals.delete(toast.id);
-
-				replaceToast(toast.id, {
-					type: 'error',
-					message: 'Download failed'
-				});
+				finishToast(toast.id, { type: 'error', message: 'Download failed' });
 			}
 		} catch {
 			// Network error — keep polling

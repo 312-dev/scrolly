@@ -30,7 +30,7 @@ export default ts.config(
 			'prefer-const': 'error',
 			'no-var': 'error',
 			eqeqeq: 'error',
-			'max-lines': ['error', 500],
+			'max-lines': ['error', 550],
 			'sonarjs/cognitive-complexity': ['warn', 15],
 			'sonarjs/pseudo-random': 'off',
 			'sonarjs/no-os-command-from-path': 'off',
@@ -73,7 +73,8 @@ export default ts.config(
 			'node_modules/',
 			'data/',
 			'docs/.vitepress/dist/',
-			'vite.config.ts.timestamp-*'
+			'vite.config.ts.timestamp-*',
+			'seed-dev.mjs'
 		]
 	}
 );

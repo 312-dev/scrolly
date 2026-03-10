@@ -8,7 +8,8 @@ import {
 	commentViews,
 	reactions,
 	comments,
-	dismissedClips
+	dismissedClips,
+	clipQueue
 } from '$lib/server/db/schema';
 import { eq, asc, and, inArray, sql } from 'drizzle-orm';
 import {
@@ -32,7 +33,8 @@ import {
 	safeInt
 } from '$lib/server/api-utils';
 import { extractMentions, notifyMentions } from '$lib/server/mentions';
-import { enforceDailyShareLimit } from '$lib/server/share-limit';
+import { checkSharePacing, formatRelativeTime } from '$lib/server/share-limit';
+import { enqueueClip } from '$lib/server/queue';
 import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('clips');
@@ -379,15 +381,83 @@ async function autoPostComment(
 	}
 }
 
-export const POST: RequestHandler = withAuth(async ({ request }, { user, group }) => {
-	// Check that a download provider is configured
-	const provider = await getActiveProvider(user.groupId);
-	if (!provider) {
+type QueueResult = { queued: false } | { queued: true; scheduledAt: Date; position: number };
+
+function tryEnqueue(
+	pacing: import('$lib/server/share-limit').SharePacingResult,
+	clipId: string,
+	userId: string,
+	groupId: string,
+	cooldownMinutes: number,
+	burst: number
+): QueueResult | Response {
+	if (pacing.mode !== 'queue' || !pacing.queued) return { queued: false };
+	const entry = enqueueClip(clipId, userId, groupId, cooldownMinutes, burst);
+	if (!entry)
+		return json({ error: 'Your queue is full (max 10).', queueFull: true }, { status: 429 });
+	return { queued: true, scheduledAt: entry.scheduledAt, position: entry.position };
+}
+
+function buildClipResponse(
+	clipId: string,
+	contentType: string,
+	pacing: import('$lib/server/share-limit').SharePacingResult,
+	qr: QueueResult
+): Record<string, unknown> {
+	const resp: Record<string, unknown> = {
+		clip: { id: clipId, status: 'downloading', contentType }
+	};
+	if (qr.queued)
+		Object.assign(resp, {
+			queued: true,
+			scheduledAt: qr.scheduledAt.toISOString(),
+			queuePosition: qr.position,
+			sharesIn: formatRelativeTime(Math.max(0, qr.scheduledAt.getTime() - Date.now()))
+		});
+	if (pacing.mode === 'daily_cap')
+		Object.assign(resp, {
+			shareCountToday: pacing.limitCheck.shareCountToday + 1,
+			dailyShareLimit: pacing.limitCheck.dailyShareLimit
+		});
+	return resp;
+}
+
+async function handleExistingClip(
+	existing: typeof clips.$inferSelect,
+	validUrl: string,
+	title: string | null
+): Promise<Response> {
+	if (existing.status === 'failed') {
+		if (title) await db.update(clips).set({ title }).where(eq(clips.id, existing.id));
+		await startDownload(existing.id, validUrl, existing.contentType, 're-add retry');
 		return json(
-			{ error: 'No download provider configured. Ask your group host to set one up in Settings.' },
-			{ status: 400 }
+			{ clip: { id: existing.id, status: 'downloading', contentType: existing.contentType } },
+			{ status: 201 }
 		);
 	}
+	const qe = db
+		.select({ scheduledAt: clipQueue.scheduledAt })
+		.from(clipQueue)
+		.where(eq(clipQueue.clipId, existing.id))
+		.get();
+	const resp: Record<string, unknown> = {
+		error: 'This link has already been added to the feed.',
+		addedBy: existing.addedBy
+	};
+	if (qe)
+		Object.assign(resp, {
+			inQueue: true,
+			sharesIn: formatRelativeTime(Math.max(0, qe.scheduledAt.getTime() - Date.now()))
+		});
+	return json(resp, { status: 409 });
+}
+
+export const POST: RequestHandler = withAuth(async ({ request }, { user, group }) => {
+	const provider = await getActiveProvider(user.groupId);
+	if (!provider)
+		return badRequest(
+			'No download provider configured. Ask your group host to set one up in Settings.'
+		);
 
 	const body = await parseBody<{ url?: string; title?: string; message?: string; tz?: string }>(
 		request
@@ -398,51 +468,24 @@ export const POST: RequestHandler = withAuth(async ({ request }, { user, group }
 	const title = typeof body.title === 'string' ? body.title.trim().slice(0, 500) || null : null;
 	const message =
 		typeof body.message === 'string' ? body.message.trim().slice(0, 500) || null : null;
-
 	const urlError = validateClipUrl(videoUrl, group);
 	if (urlError) return urlError;
 	const validUrl = videoUrl!;
-
 	const platform = detectPlatform(validUrl)!;
 	const contentType = getContentType(platform);
 	const normalizedUrl = normalizeUrl(validUrl);
 
-	// Check daily share limit
 	const tz = typeof body.tz === 'string' ? body.tz : null;
-	const { response: limitResponse, limitCheck } = enforceDailyShareLimit(
-		user.id,
-		user.groupId,
-		group.dailyShareLimit,
-		tz
-	);
-	if (limitResponse) return limitResponse;
+	const pacing = checkSharePacing(user.id, user.groupId, group, tz);
+	if (pacing.mode === 'daily_cap' && pacing.response) return pacing.response;
 
-	// Check if this URL already exists in the group's feed
 	const existing = await db.query.clips.findFirst({
 		where: and(eq(clips.groupId, user.groupId), eq(clips.originalUrl, normalizedUrl))
 	});
-	if (existing && existing.status === 'failed') {
-		// Previous attempt failed — retry the download instead of rejecting
-		if (title) {
-			await db.update(clips).set({ title }).where(eq(clips.id, existing.id));
-		}
-		await startDownload(existing.id, validUrl, existing.contentType, 're-add retry');
-		return json(
-			{ clip: { id: existing.id, status: 'downloading', contentType: existing.contentType } },
-			{ status: 201 }
-		);
-	}
-	if (existing) {
-		return json(
-			{ error: 'This link has already been added to the feed.', addedBy: existing.addedBy },
-			{ status: 409 }
-		);
-	}
+	if (existing) return handleExistingClip(existing, validUrl, title);
 
 	const clipId = uuid();
 	const now = new Date();
-
-	// Insert clip + auto-watched in a transaction so both succeed or fail together
 	try {
 		db.transaction((tx) => {
 			tx.insert(clips)
@@ -458,15 +501,8 @@ export const POST: RequestHandler = withAuth(async ({ request }, { user, group }
 					createdAt: now
 				})
 				.run();
-
-			// Auto-mark as watched by the uploader so it never appears in their "New" tab
 			tx.insert(watched)
-				.values({
-					clipId,
-					userId: user.id,
-					watchPercent: 100,
-					watchedAt: now
-				})
+				.values({ clipId, userId: user.id, watchPercent: 100, watchedAt: now })
 				.run();
 		});
 	} catch (err) {
@@ -474,22 +510,17 @@ export const POST: RequestHandler = withAuth(async ({ request }, { user, group }
 		return json({ error: 'Failed to create clip' }, { status: 500 });
 	}
 
-	// Route to appropriate download pipeline
+	const queueResult = tryEnqueue(
+		pacing,
+		clipId,
+		user.id,
+		user.groupId,
+		group.shareCooldownMinutes,
+		group.shareBurst
+	);
+	if (queueResult instanceof Response) return queueResult;
+
 	await startDownload(clipId, validUrl, contentType, 'new clip');
-
-	// Push notification is sent after download succeeds (see video/download.ts, music/download.ts)
-
-	// Auto-post message as the first comment on the clip
-	if (message) {
-		await autoPostComment(clipId, user, message, now);
-	}
-
-	const clipResponse: Record<string, unknown> = {
-		clip: { id: clipId, status: 'downloading', contentType }
-	};
-	if (limitCheck.dailyShareLimit !== null) {
-		clipResponse.shareCountToday = limitCheck.shareCountToday + 1;
-		clipResponse.dailyShareLimit = limitCheck.dailyShareLimit;
-	}
-	return json(clipResponse, { status: 201 });
+	if (message) await autoPostComment(clipId, user, message, now);
+	return json(buildClipResponse(clipId, contentType, pacing, queueResult), { status: 201 });
 });

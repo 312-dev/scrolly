@@ -17,6 +17,7 @@ const log = createLogger('push');
 type NotificationPayload = {
 	title: string;
 	body: string;
+	icon?: string;
 	url?: string;
 	tag?: string;
 	image?: string;
@@ -35,6 +36,11 @@ async function getUnwatchedCount(userId: string, groupId: string): Promise<numbe
 			)
 		);
 	return result.count;
+}
+
+/** Build a full avatar URL for push notification icon, or undefined if no avatar. */
+function avatarIconUrl(avatarPath: string | null | undefined): string | undefined {
+	return avatarPath && env.ORIGIN ? `${env.ORIGIN}/api/profile/avatar/${avatarPath}` : undefined;
 }
 
 let initialized = false;
@@ -125,12 +131,32 @@ export async function notifyNewClip(clipId: string): Promise<void> {
 		clip.thumbnailPath && env.ORIGIN
 			? `${env.ORIGIN}/api/thumbnails/${basename(clip.thumbnailPath)}`
 			: undefined;
+	const icon = avatarIconUrl(uploader.avatarPath);
+
+	// Fallback body when no title: use platform name (e.g. "New TikTok")
+	const platformLabels: Record<string, string> = {
+		tiktok: 'TikTok',
+		instagram: 'Instagram',
+		youtube: 'YouTube',
+		facebook: 'Facebook',
+		twitter: 'Twitter',
+		reddit: 'Reddit',
+		snapchat: 'Snapchat',
+		vimeo: 'Vimeo',
+		twitch: 'Twitch',
+		soundcloud: 'SoundCloud',
+		spotify: 'Spotify'
+	};
+	const fallbackBody = clip.platform
+		? `New ${platformLabels[clip.platform] ?? clip.platform} ${label}`
+		: `New ${label}`;
 
 	const payload: NotificationPayload = {
 		title: `${uploader.username} added a ${label}`,
-		body: clip.title || 'Tap to watch',
+		body: clip.title || fallbackBody,
 		url: `/?clip=${clipId}`,
 		tag: `new-clip-${clipId}`,
+		...(icon ? { icon } : {}),
 		...(image ? { image } : {})
 	};
 

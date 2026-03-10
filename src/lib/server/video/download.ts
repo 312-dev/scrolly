@@ -10,6 +10,7 @@ import {
 	totalFileSize
 } from '$lib/server/download-utils';
 import { notifyNewClip } from '$lib/server/push';
+import { setClipReady } from '$lib/server/queue';
 import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('video');
@@ -108,29 +109,22 @@ async function downloadVideoInner(clipId: string, url: string): Promise<void> {
 		// Keep existing title (caption from SMS) if present, otherwise use provider-extracted title
 		const title = clip.title || result.title || null;
 
+		// Set ready (or 'queued' if clip is in the share queue)
 		t0 = performance.now();
-		await db
-			.update(clips)
-			.set({
-				status: 'ready',
-				videoPath: result.videoPath,
-				thumbnailPath: result.thumbnailPath,
-				title,
-				durationSeconds: result.duration,
-				fileSizeBytes: fileSizeBytes || null,
-				creatorName: result.creatorName,
-				creatorUrl: result.creatorUrl,
-				sourceViewCount: result.sourceViewCount
-			})
-			.where(eq(clips.id, clipId));
-		log.info({ clipId, durationMs: Math.round(performance.now() - t0) }, 'clip marked ready');
-
-		// Notify group now that the clip is actually ready
-		t0 = performance.now();
-		await notifyNewClip(clipId).catch((err) =>
-			log.error({ err, clipId }, 'push notification failed')
+		const finalStatus = await setClipReady(clipId, {
+			videoPath: result.videoPath,
+			thumbnailPath: result.thumbnailPath,
+			title,
+			durationSeconds: result.duration,
+			fileSizeBytes: fileSizeBytes || null,
+			creatorName: result.creatorName,
+			creatorUrl: result.creatorUrl,
+			sourceViewCount: result.sourceViewCount
+		});
+		log.info(
+			{ clipId, finalStatus, durationMs: Math.round(performance.now() - t0) },
+			'clip finalized'
 		);
-		log.info({ clipId, durationMs: Math.round(performance.now() - t0) }, 'notifications sent');
 	} catch (err) {
 		await handleDownloadError(clipId, err, maxFileSizeBytes);
 	}

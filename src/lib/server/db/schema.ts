@@ -12,6 +12,9 @@ export const groups = sqliteTable('groups', {
 	platformFilterMode: text('platform_filter_mode').notNull().default('all'),
 	platformFilterList: text('platform_filter_list'),
 	dailyShareLimit: integer('daily_share_limit'),
+	sharePacingMode: text('share_pacing_mode').notNull().default('off'),
+	shareBurst: integer('share_burst').notNull().default(2),
+	shareCooldownMinutes: integer('share_cooldown_minutes').notNull().default(120),
 	shortcutToken: text('shortcut_token').unique(),
 	shortcutUrl: text('shortcut_url'),
 	createdBy: text('created_by'),
@@ -212,6 +215,26 @@ export const dismissedClips = sqliteTable(
 		dismissedAt: integer('dismissed_at', { mode: 'timestamp' }).notNull()
 	},
 	(table) => [uniqueIndex('dismissed_clips_unique').on(table.clipId, table.userId)]
+);
+
+export const clipQueue = sqliteTable(
+	'clip_queue',
+	{
+		id: text('id').primaryKey(),
+		clipId: text('clip_id')
+			.notNull()
+			.references(() => clips.id),
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id),
+		groupId: text('group_id')
+			.notNull()
+			.references(() => groups.id),
+		position: integer('position').notNull(),
+		scheduledAt: integer('scheduled_at', { mode: 'timestamp' }).notNull(),
+		createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
+	},
+	(table) => [index('clip_queue_user_group').on(table.userId, table.groupId)]
 );
 
 export const notificationPreferences = sqliteTable('notification_preferences', {

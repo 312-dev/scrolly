@@ -16,7 +16,8 @@ import { startDownload } from '$lib/server/clip-download';
 import { getActiveProvider } from '$lib/server/providers/registry';
 import { createLogger } from '$lib/server/logger';
 import { authenticateShortcutToken } from '$lib/server/shortcut-auth';
-import { checkDailyShareLimit, formatResetTime } from '$lib/server/share-limit';
+import { checkSharePacing, formatRelativeTime } from '$lib/server/share-limit';
+import { enqueueClip } from '$lib/server/queue';
 
 const log = createLogger('share');
 
@@ -101,6 +102,26 @@ async function validateShareRequest(
 	return { matchedUser, group, platform, videoUrl };
 }
 
+/** Try to enqueue a clip. Returns queue info or an error response if queue is full. */
+function tryEnqueueShare(
+	pacing: import('$lib/server/share-limit').SharePacingResult,
+	clipId: string,
+	userId: string,
+	groupId: string,
+	cooldownMinutes: number,
+	burst: number
+): { queued: false } | { queued: true; sharesIn: string } | Response {
+	if (pacing.mode !== 'queue' || !pacing.queued) return { queued: false };
+	const entry = enqueueClip(clipId, userId, groupId, cooldownMinutes, burst);
+	if (!entry) {
+		return shareResponse(false, '❌  Your queue is full (max 10 items).', 429, { queueFull: true });
+	}
+	return {
+		queued: true,
+		sharesIn: formatRelativeTime(Math.max(0, entry.scheduledAt.getTime() - Date.now()))
+	};
+}
+
 export const POST: RequestHandler = async ({ request, url, locals }) => {
 	const body = await parseShareBody(request);
 	if (body instanceof Response) return body;
@@ -114,21 +135,15 @@ export const POST: RequestHandler = async ({ request, url, locals }) => {
 	const contentType = getContentType(platform);
 	const normalizedVideoUrl = normalizeUrl(videoUrl);
 
-	// 6.5. Check daily share limit
+	// 6.5. Check share pacing (off / daily_cap / queue)
 	const tz = typeof body.tz === 'string' ? body.tz : null;
-	const limitCheck = checkDailyShareLimit(matchedUser.id, group.id, group.dailyShareLimit, tz);
-	if (!limitCheck.allowed) {
-		const resetsIn = formatResetTime(tz);
+	const pacing = checkSharePacing(matchedUser.id, group.id, group, tz);
+	if (pacing.mode === 'daily_cap' && pacing.response) {
 		return shareResponse(
 			false,
-			`❌  Daily limit reached (${limitCheck.shareCountToday}/${limitCheck.dailyShareLimit}). Resets in ${resetsIn}.`,
+			`❌  Daily limit reached (${pacing.limitCheck.shareCountToday}/${pacing.limitCheck.dailyShareLimit}). Resets soon.`,
 			429,
-			{
-				shareCountToday: limitCheck.shareCountToday,
-				dailyShareLimit: limitCheck.dailyShareLimit,
-				resetsIn,
-				limitReached: true
-			}
+			{ limitReached: true }
 		);
 	}
 
@@ -181,20 +196,34 @@ export const POST: RequestHandler = async ({ request, url, locals }) => {
 		return shareResponse(false, 'Something went wrong. Try sharing again.', 500);
 	}
 
-	// 10. Async download (skip trim for shortcut shares — no UI available)
+	// Enqueue if burst exhausted in queue mode
+	const queueInfo = tryEnqueueShare(
+		pacing,
+		clipId,
+		matchedUser.id,
+		group.id,
+		group.shareCooldownMinutes,
+		group.shareBurst
+	);
+	if (queueInfo instanceof Response) return queueInfo;
+
+	// Async download (skip trim for shortcut shares — no UI available)
 	await startDownload(clipId, videoUrl, contentType, 'new clip', { skipTrim: true });
 
 	// Record legacy share timestamp for upgrade banner
 	db.update(users).set({ lastLegacyShareAt: now }).where(eq(users.id, matchedUser.id)).run();
 
-	// Push notification is sent after download succeeds (see video/download.ts, music/download.ts)
+	const message = queueInfo.queued
+		? `✅  Clip queued! Shares in ~${queueInfo.sharesIn}.`
+		: '✅  Clip shared!';
 
-	return shareResponse(true, '✅  Clip shared!', 201, {
+	return shareResponse(true, message, 201, {
 		clipId,
-		...(group.dailyShareLimit !== null
+		...(queueInfo.queued ? { queued: true, sharesIn: queueInfo.sharesIn } : {}),
+		...(pacing.mode === 'daily_cap'
 			? {
-					shareCountToday: limitCheck.shareCountToday + 1,
-					dailyShareLimit: group.dailyShareLimit
+					shareCountToday: pacing.limitCheck.shareCountToday + 1,
+					dailyShareLimit: pacing.limitCheck.dailyShareLimit
 				}
 			: {})
 	});

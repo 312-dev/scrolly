@@ -160,8 +160,14 @@ scrolly/
 │   ├── routes/
 │   │   ├── +layout.svelte          # App shell, nav, theme
 │   │   ├── +page.svelte            # Landing / redirect
-│   │   ├── join/+page.svelte       # Invite code entry
-│   │   ├── onboard/+page.svelte    # Username + phone verification
+│   │   ├── join/
+│   │   │   ├── +page.svelte        # Invite code entry
+│   │   │   └── [code]/
+│   │   │       ├── +page.server.ts  # Join form action (creates user, sets session)
+│   │   │       └── +page.svelte     # Join confirmation UI (shows group name)
+│   │   ├── onboard/
+│   │   │   ├── +page.server.ts      # Guard: redirects if no session or already onboarded
+│   │   │   └── +page.svelte         # Username + phone verification
 │   │   ├── offline/+page.svelte    # Offline fallback page
 │   │   ├── share/
 │   │   │   ├── +page.svelte        # Share target handler (receives shared URLs)

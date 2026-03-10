@@ -4,13 +4,16 @@
 	import { onMount } from 'svelte';
 	import { addVideoModalOpen } from '$lib/stores/addVideoModal';
 	import { activitySheetOpen } from '$lib/stores/activitySheet';
+	import { queueSheetOpen } from '$lib/stores/queueSheet';
 	import { homeTapSignal } from '$lib/stores/homeTap';
 	import { unreadCount, startPolling, stopPolling } from '$lib/stores/notifications';
+	import { queueCount } from '$lib/stores/queue';
 	import { globalMuted } from '$lib/stores/mute';
 	import { initAudioContext } from '$lib/audio/normalizer';
 	import { feedUiHidden } from '$lib/stores/uiHidden';
 	import { fetchGroupMembers } from '$lib/stores/members';
 	import ActivitySheet from '$lib/components/ActivitySheet.svelte';
+	import QueueSheet from '$lib/components/QueueSheet.svelte';
 	import AddVideoModal from '$lib/components/AddVideoModal.svelte';
 	import BellIcon from 'phosphor-svelte/lib/BellIcon';
 	import HouseIcon from 'phosphor-svelte/lib/HouseIcon';
@@ -103,6 +106,17 @@
 		void isFeed;
 		syncThemeColor();
 	});
+
+	// Open queue sheet when navigated to with ?queue=true
+	$effect(() => {
+		if (page.url.searchParams.get('queue') === 'true') {
+			queueSheetOpen.set(true);
+			// Clean up the query param without a navigation
+			const url = new URL(page.url);
+			url.searchParams.delete('queue');
+			history.replaceState(history.state, '', url.pathname + url.search);
+		}
+	});
 </script>
 
 <!-- eslint-disable svelte/no-navigation-without-resolve -- static routes, resolve() unnecessary -->
@@ -151,8 +165,11 @@
 		<button class="tab add-tab" onclick={() => addVideoModalOpen.set(true)}>
 			<div class="add-icon">
 				<PlusIcon size={18} weight="bold" />
+				{#if $queueCount > 0}
+					<span class="queue-badge">{$queueCount}</span>
+				{/if}
 			</div>
-			<span>Add</span>
+			<span>{$queueCount > 0 ? 'Queue' : 'Add'}</span>
 		</button>
 		<a href="/me" class="tab" class:active={isMe}>
 			<UserCircleIcon size={24} weight={isMe ? 'fill' : 'regular'} />
@@ -171,6 +188,10 @@
 
 {#if $addVideoModalOpen}
 	<AddVideoModal ondismiss={() => addVideoModalOpen.set(false)} />
+{/if}
+
+{#if $queueSheetOpen}
+	<QueueSheet ondismiss={() => queueSheetOpen.set(false)} />
 {/if}
 
 <style>
@@ -355,6 +376,7 @@
 	}
 
 	.add-icon {
+		position: relative;
 		transition: transform 100ms ease;
 		width: 36px;
 		height: 24px;
@@ -369,5 +391,27 @@
 	.add-icon :global(svg) {
 		width: 18px;
 		height: 18px;
+	}
+	.queue-badge {
+		position: absolute;
+		top: -7px;
+		right: -9px;
+		min-width: 17px;
+		height: 17px;
+		padding: 0 4px;
+		background: var(--constant-white);
+		color: var(--constant-black, #000);
+		font-size: 0.625rem;
+		font-weight: 700;
+		border-radius: var(--radius-full);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		line-height: 1;
+		border: 2px solid var(--bg-primary);
+		animation: badge-pop 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+	}
+	.overlay-mode .queue-badge {
+		border-color: var(--reel-bg-elevated);
 	}
 </style>

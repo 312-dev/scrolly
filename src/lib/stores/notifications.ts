@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { fetchQueueCount } from '$lib/stores/queue';
 
 export const unreadCount = writable<number>(0);
 export const unwatchedCount = writable<number>(0);
@@ -44,10 +45,12 @@ function updateAppBadge(count: number): void {
 export function startPolling(intervalMs = 30000): void {
 	fetchUnreadCount();
 	fetchUnwatchedCount();
+	fetchQueueCount();
 	if (pollInterval) clearInterval(pollInterval);
 	pollInterval = setInterval(() => {
 		fetchUnreadCount();
 		fetchUnwatchedCount();
+		fetchQueueCount();
 	}, intervalMs);
 }
 

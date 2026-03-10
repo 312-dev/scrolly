@@ -13,65 +13,42 @@
 	const PAGE_SIZE = 30;
 
 	let loading = $state(true);
-	let loadingMore = $state(false);
 	let clips = $state<ClipSummary[]>([]);
 	let totalSizeMb = $state(0);
 	let totalClips = $state(0);
-	let hasMore = $state(false);
 	let sortBy = $state<'largest' | 'newest'>('largest');
 	let selected = new SvelteSet<string>();
-	let sentinel = $state<HTMLDivElement | null>(null);
+	let currentPage = $state(1);
 	let prevSort = $state<'largest' | 'newest'>('largest');
+
+	let totalPages = $derived(Math.max(1, Math.ceil(totalClips / PAGE_SIZE)));
 
 	const monthGroups = $derived(() => groupClipsByMonth(clips));
 
-	async function loadInitial(showLoading = true) {
+	async function loadPage(page: number, showLoading = true) {
 		if (showLoading) loading = true;
 		selected.clear();
-		const data = await fetchClipsList(sortBy, PAGE_SIZE, 0);
+		const offset = (page - 1) * PAGE_SIZE;
+		const data = await fetchClipsList(sortBy, PAGE_SIZE, offset);
 		if (data) {
 			clips = data.clips;
 			totalSizeMb = data.totalSizeMb;
 			totalClips = data.totalClips;
-			hasMore = data.hasMore;
+			currentPage = page;
 		}
 		loading = false;
 	}
 
-	async function loadMore() {
-		if (loadingMore || !hasMore) return;
-		loadingMore = true;
-		const data = await fetchClipsList(sortBy, PAGE_SIZE, clips.length);
-		if (data) {
-			clips = [...clips, ...data.clips];
-			hasMore = data.hasMore;
-		}
-		loadingMore = false;
-	}
-
 	$effect(() => {
-		untrack(() => loadInitial());
+		untrack(() => loadPage(1));
 	});
 
 	// Re-fetch when sort changes (skip initial run)
 	$effect(() => {
 		if (sortBy !== prevSort) {
 			prevSort = sortBy;
-			loadInitial(false);
+			loadPage(1, false);
 		}
-	});
-
-	// IntersectionObserver for infinite scroll
-	$effect(() => {
-		if (!sentinel) return;
-		const observer = new IntersectionObserver(
-			(entries) => {
-				if (entries[0]?.isIntersecting) loadMore();
-			},
-			{ rootMargin: '200px' }
-		);
-		observer.observe(sentinel);
-		return () => observer.disconnect();
 	});
 
 	function toggleSelect(id: string) {
@@ -100,15 +77,18 @@
 
 		const ok = await deleteClips(ids);
 		if (ok) {
+			const deletedCount = ids.length;
 			const deletedSet = new Set(ids);
 			const deletedSize = clips
 				.filter((c) => deletedSet.has(c.id))
 				.reduce((sum, c) => sum + c.sizeMb, 0);
-			clips = clips.filter((c) => !deletedSet.has(c.id));
 			totalSizeMb = Math.round((totalSizeMb - deletedSize) * 10) / 10;
-			totalClips = Math.max(0, totalClips - ids.length);
+			totalClips = Math.max(0, totalClips - deletedCount);
 			for (const id of ids) selected.delete(id);
-			toast.success(`Deleted ${ids.length} clip${ids.length === 1 ? '' : 's'}`);
+			const newTotalPages = Math.max(1, Math.ceil(totalClips / PAGE_SIZE));
+			const targetPage = currentPage > newTotalPages ? newTotalPages : currentPage;
+			await loadPage(targetPage, false);
+			toast.success(`Deleted ${deletedCount} clip${deletedCount === 1 ? '' : 's'}`);
 		} else {
 			toast.error('Failed to delete clips');
 		}
@@ -212,12 +192,18 @@
 			</div>
 		{/each}
 
-		<!-- Infinite scroll sentinel -->
-		{#if hasMore}
-			<div class="load-more-sentinel" bind:this={sentinel}>
-				{#if loadingMore}
-					<p class="loading-hint">Loading more...</p>
-				{/if}
+		<!-- Pagination -->
+		{#if totalPages > 1}
+			<div class="pagination">
+				{#each Array.from({ length: totalPages }, (_, i) => i + 1) as page (page)}
+					<button
+						class="page-btn"
+						class:active={page === currentPage}
+						onclick={() => loadPage(page)}
+					>
+						{page}
+					</button>
+				{/each}
 			</div>
 		{/if}
 	</div>
@@ -381,15 +367,34 @@
 		color: var(--bg-primary);
 	}
 
-	/* Load more */
-	.load-more-sentinel {
-		padding: var(--space-lg) 0;
-		text-align: center;
+	/* Pagination */
+	.pagination {
+		display: flex;
+		justify-content: center;
+		gap: var(--space-xs);
+		margin-top: var(--space-md);
 	}
-	.loading-hint {
-		color: var(--text-muted);
+	.page-btn {
+		width: 32px;
+		height: 32px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: var(--bg-surface);
+		border: none;
+		border-radius: var(--radius-full);
+		color: var(--text-secondary);
 		font-size: 0.8125rem;
-		margin: 0;
+		font-weight: 600;
+		cursor: pointer;
+		transition: all 0.2s ease;
+	}
+	.page-btn.active {
+		background: var(--accent-primary);
+		color: var(--bg-primary);
+	}
+	.page-btn:active:not(.active) {
+		transform: scale(0.93);
 	}
 
 	/* Selection bar */

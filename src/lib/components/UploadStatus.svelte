@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { showShortcutNudge, dismissShortcutNudge } from '$lib/stores/shortcutNudge';
+	import { queueSheetOpen } from '$lib/stores/queueSheet';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import LightbulbIcon from 'phosphor-svelte/lib/LightbulbIcon';
 	import ScissorsIcon from 'phosphor-svelte/lib/ScissorsIcon';
+	import ClockIcon from 'phosphor-svelte/lib/ClockIcon';
 	import ShareLimitDots from './ShareLimitDots.svelte';
 
 	const {
@@ -19,15 +21,17 @@
 		ontrim,
 		onskiptrim,
 		shareCountToday,
-		dailyShareLimit
+		dailyShareLimit,
+		queuedSharesIn
 	}: {
-		phase: 'uploading' | 'done' | 'failed' | 'trim_prompt';
+		phase: 'uploading' | 'done' | 'failed' | 'trim_prompt' | 'queued';
 		clipContentType: string;
 		serverTitle: string | null;
 		serverArtist: string | null;
 		serverAlbumArt: string | null;
 		shareCountToday?: number;
 		dailyShareLimit?: number | null;
+		queuedSharesIn?: string;
 		ondismiss: () => void;
 		onretry: () => void;
 		onsaveandview: () => void;
@@ -39,6 +43,7 @@
 	function getStatusText(p: typeof phase, ct: string): string {
 		if (p === 'uploading') return ct === 'music' ? 'Hang tight...' : 'Downloading video...';
 		if (p === 'trim_prompt') return 'Share the best part?';
+		if (p === 'queued') return 'Queued!';
 		if (p === 'done') return 'Ready!';
 		return 'Download failed';
 	}
@@ -62,10 +67,15 @@
 			class:done={phase === 'done'}
 			class:failed={phase === 'failed'}
 			class:trim={phase === 'trim_prompt'}
+			class:queued={phase === 'queued'}
 		>
 			{#if phase === 'trim_prompt'}
 				<div class="trim-icon-wrap">
 					<ScissorsIcon size={36} weight="bold" />
+				</div>
+			{:else if phase === 'queued'}
+				<div class="queued-icon-wrap">
+					<ClockIcon size={36} weight="bold" />
 				</div>
 			{:else}
 				<svg class="circle-svg" viewBox="0 0 120 120">
@@ -115,6 +125,20 @@
 				><ScissorsIcon size={18} weight="bold" /> Trim</button
 			>
 			<button class="skip-btn" onclick={onskiptrim}> Skip — publish full song </button>
+		{:else if phase === 'queued'}
+			{#if queuedSharesIn}
+				<p class="queued-time">Your clip will share in ~{queuedSharesIn}</p>
+			{/if}
+			<button class="primary-btn" onclick={ondismiss}>Done</button>
+			<button
+				class="manage-queue-btn"
+				onclick={() => {
+					ondismiss();
+					queueSheetOpen.set(true);
+				}}
+			>
+				Manage queue
+			</button>
 		{:else if phase === 'done'}
 			{#if dailyShareLimit !== undefined && dailyShareLimit !== null && shareCountToday !== undefined}
 				<div class="limit-dots-wrap">
@@ -165,7 +189,6 @@
 		width: 20px;
 		height: 20px;
 	}
-
 	/* Upload screen */
 	.upload-screen {
 		flex: 1;
@@ -254,10 +277,44 @@
 		height: 32px;
 		color: var(--error);
 	}
-	.circle-wrap.trim {
+	.circle-wrap.trim,
+	.circle-wrap.queued {
 		display: flex;
 		align-items: center;
 		justify-content: center;
+	}
+	.queued-icon-wrap {
+		width: 80px;
+		height: 80px;
+		border-radius: var(--radius-full);
+		background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: var(--accent-primary);
+		animation: check-pop 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+	}
+	.queued-time {
+		font-size: 0.875rem;
+		color: rgba(255, 255, 255, 0.5);
+		margin: var(--space-sm) 0 0;
+		text-align: center;
+	}
+	.manage-queue-btn {
+		margin-top: var(--space-md);
+		background: none;
+		border: none;
+		color: rgba(255, 255, 255, 0.45);
+		font-size: 0.8125rem;
+		font-weight: 500;
+		cursor: pointer;
+		text-decoration: underline;
+		text-underline-offset: 2px;
+		text-decoration-color: rgba(255, 255, 255, 0.2);
+		padding: var(--space-sm);
+	}
+	.manage-queue-btn:active {
+		opacity: 0.7;
 	}
 	.trim-icon-wrap {
 		width: 80px;
@@ -270,7 +327,6 @@
 		color: var(--accent-primary);
 		animation: check-pop 0.4s cubic-bezier(0.32, 0.72, 0, 1);
 	}
-
 	.skip-btn {
 		margin-top: var(--space-md);
 		background: none;
@@ -415,7 +471,6 @@
 		width: 12px;
 		height: 12px;
 	}
-
 	@keyframes fade-in {
 		from {
 			opacity: 0;

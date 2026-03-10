@@ -1,5 +1,5 @@
 import { db } from '$lib/server/db';
-import { clips } from '$lib/server/db/schema';
+import { clips, clipQueue } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { notifyNewClip } from '$lib/server/push';
 import { createLogger } from '$lib/server/logger';
@@ -9,12 +9,22 @@ const log = createLogger('publish');
 /**
  * Publish a music clip: mark as ready, clear trim deadline, send notifications.
  * Uses WHERE status = 'pending_trim' for race-safe publish (only one writer wins).
+ * If the clip is in the share queue, sets status to 'queued' instead of 'ready'.
  * Returns true if the clip was actually published, false if already published.
  */
 export async function publishMusicClip(clipId: string): Promise<boolean> {
+	// Check if this clip is in the share queue
+	const [queueEntry] = db
+		.select({ id: clipQueue.id })
+		.from(clipQueue)
+		.where(eq(clipQueue.clipId, clipId))
+		.all();
+
+	const targetStatus = queueEntry ? 'queued' : 'ready';
+
 	const result = db
 		.update(clips)
-		.set({ status: 'ready', trimDeadline: null })
+		.set({ status: targetStatus, trimDeadline: null })
 		.where(and(eq(clips.id, clipId), eq(clips.status, 'pending_trim')))
 		.run();
 
@@ -23,11 +33,14 @@ export async function publishMusicClip(clipId: string): Promise<boolean> {
 		return false;
 	}
 
-	log.info({ clipId }, 'music clip published');
+	log.info({ clipId, status: targetStatus }, 'music clip published');
 
-	await notifyNewClip(clipId).catch((err) =>
-		log.error({ err, clipId }, 'push notification failed after publish')
-	);
+	// Only send notification if not queued — scheduler will notify later
+	if (!queueEntry) {
+		await notifyNewClip(clipId).catch((err) =>
+			log.error({ err, clipId }, 'push notification failed after publish')
+		);
+	}
 
 	return true;
 }

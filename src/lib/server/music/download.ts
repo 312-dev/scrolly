@@ -7,6 +7,7 @@ import { getActiveProvider } from '../providers/registry';
 import type { AudioDownloadResult } from '../providers/types';
 import { DATA_DIR, getClipWithMaxFileSize, cleanupClipFiles } from '$lib/server/download-utils';
 import { notifyNewClip } from '$lib/server/push';
+import { setClipReady } from '$lib/server/queue';
 import { generateWaveform } from '$lib/server/audio/waveform';
 import { createLogger } from '$lib/server/logger';
 
@@ -117,22 +118,17 @@ async function finalizeMusicClip(
 
 	if (skipTrim) {
 		// Shortcut path: publish immediately without trim opportunity
-		await db
-			.update(clips)
-			.set({
-				status: 'ready',
-				audioPath: result.audioPath,
-				title,
-				durationSeconds: result.duration,
-				fileSizeBytes: fileSizeBytes || null
-			})
-			.where(eq(clips.id, clipId));
-
 		const t0 = performance.now();
-		await notifyNewClip(clipId).catch((err) =>
-			log.error({ err, clipId }, 'push notification failed')
+		const finalStatus = await setClipReady(clipId, {
+			audioPath: result.audioPath,
+			title,
+			durationSeconds: result.duration,
+			fileSizeBytes: fileSizeBytes || null
+		});
+		log.info(
+			{ clipId, finalStatus, durationMs: Math.round(performance.now() - t0) },
+			'music clip finalized'
 		);
-		log.info({ clipId, durationMs: Math.round(performance.now() - t0) }, 'notifications sent');
 		return;
 	}
 

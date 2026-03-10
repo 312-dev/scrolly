@@ -119,6 +119,7 @@
 	const lastLegacyShareAt = $derived(page.data.user?.lastLegacyShareAt ?? null);
 	const usedNewShareFlow = $derived(page.data.user?.usedNewShareFlow ?? false);
 	const shortcutUrl = $derived(page.data.group?.shortcutUrl ?? null);
+	const isQueueMode = $derived(page.data.group?.sharePacingMode === 'queue');
 
 	let pushSupported = $state(false);
 	let pushEnabled = $state(false);
@@ -573,6 +574,15 @@
 			loadMore();
 	});
 
+	// Sync sort order when it changes in settings (e.g. navigating back from settings page)
+	$effect(() => {
+		const serverSort = page.data.user?.feedSortOrder as FeedSort | undefined;
+		if (serverSort && serverSort !== sort) {
+			sort = serverSort;
+			loadInitialClips();
+		}
+	});
+
 	// Mark deferred last clip as watched when user swipes to end slide
 	$effect(() => {
 		if (filter === 'unwatched' && !hasMore && activeIndex === clips.length && clips.length > 0) {
@@ -920,7 +930,7 @@
 				<p class="empty-title">All caught up</p>
 				<p class="empty-sub">Drop a clip to kick things off</p>
 				<button class="empty-cta" onclick={() => addVideoModalOpen.set(true)}>
-					Add something
+					{isQueueMode ? 'Add to queue' : 'Add something'}
 				</button>
 			</div>
 		{:else}

@@ -1,4 +1,4 @@
-export type ClipStatus = 'downloading' | 'ready' | 'failed' | 'deleted' | 'pending_trim';
+export type ClipStatus = 'downloading' | 'ready' | 'failed' | 'deleted' | 'pending_trim' | 'queued';
 export type ContentType = 'video' | 'music';
 export type Platform =
 	| 'tiktok'

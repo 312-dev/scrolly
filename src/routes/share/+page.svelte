@@ -18,6 +18,21 @@
 	import ExportIcon from 'phosphor-svelte/lib/ExportIcon';
 	import ScissorsIcon from 'phosphor-svelte/lib/ScissorsIcon';
 	import ShareLimitDots from '$lib/components/ShareLimitDots.svelte';
+	import PlatformIcon from '$lib/components/PlatformIcon.svelte';
+	import ClockIcon from 'phosphor-svelte/lib/ClockIcon';
+	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
+	import QueueIcon from 'phosphor-svelte/lib/QueueIcon';
+	import DotsSixVerticalIcon from 'phosphor-svelte/lib/DotsSixVerticalIcon';
+
+	interface QueueItem {
+		id: string;
+		clipId: string;
+		title: string | null;
+		originalUrl: string;
+		platform: string;
+		sharesIn: string;
+		status: string;
+	}
 
 	const shareUrl = $derived(page.data.shareUrl as string);
 	const platform = $derived(platformLabel(shareUrl));
@@ -58,10 +73,20 @@
 	let serverAudioPath = $state<string | null>(null);
 	let serverDuration = $state<number | null>(null);
 	let serverTitle = $state<string | null>(null);
+	let queued = $state(false);
+	let sharesIn = $state('');
 	let limitReached = $state(false);
 	let shareCountToday = $state(0);
 	let dailyShareLimit = $state<number | null>(null);
 	let resetsIn = $state('');
+	let showQueue = $state(false);
+	let queueItems = $state<QueueItem[]>([]);
+	let queueLoading = $state(false);
+	let dragIndex = $state<number | null>(null);
+	let dragOverIndex = $state<number | null>(null);
+	let dragOffsetY = $state(0);
+	let dragStartY = 0;
+	let dragItemHeight = 0;
 	let pollTimer: ReturnType<typeof setInterval> | null = null;
 	let pingTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -87,6 +112,26 @@
 		}
 	});
 
+	function handleErrorResponse(status: number, data: Record<string, unknown>) {
+		if (status === 409 && data.addedBy === page.data.user?.id) {
+			if (data.inQueue) {
+				queued = true;
+				sharesIn = (data.sharesIn as string) ?? '';
+			} else {
+				success = true;
+			}
+			return;
+		}
+		if (status === 429 && data.limitReached) {
+			limitReached = true;
+			shareCountToday = data.shareCountToday as number;
+			dailyShareLimit = data.dailyShareLimit as number | null;
+			resetsIn = (data.resetsIn as string) ?? '';
+			return;
+		}
+		error = (data.error as string) || 'Failed to add clip';
+	}
+
 	async function handleSubmit() {
 		error = '';
 		loading = true;
@@ -101,19 +146,7 @@
 			});
 			const data = await res.json();
 			if (!res.ok) {
-				if (res.status === 409 && data.addedBy === page.data.user?.id) {
-					// Same user double-submitted — treat as success (iOS web view reload)
-					success = true;
-					return;
-				}
-				if (res.status === 429 && data.limitReached) {
-					limitReached = true;
-					shareCountToday = data.shareCountToday;
-					dailyShareLimit = data.dailyShareLimit;
-					resetsIn = data.resetsIn ?? '';
-					return;
-				}
-				error = data.error || 'Failed to add clip';
+				handleErrorResponse(res.status, data);
 				return;
 			}
 			clipId = data.clip.id;
@@ -121,8 +154,10 @@
 			if (data.shareCountToday !== undefined) shareCountToday = data.shareCountToday;
 			if (data.dailyShareLimit !== undefined) dailyShareLimit = data.dailyShareLimit;
 
-			if (contentType === 'music') {
-				// Start polling for music clips — wait for download + trim opportunity
+			if (data.queued) {
+				queued = true;
+				sharesIn = data.sharesIn ?? '';
+			} else if (contentType === 'music') {
 				polling = true;
 				startPolling();
 			} else {
@@ -181,6 +216,94 @@
 	function stopPinging() {
 		if (pingTimer) clearInterval(pingTimer);
 		pingTimer = null;
+	}
+
+	async function loadQueue() {
+		queueLoading = true;
+		try {
+			const res = await fetch('/api/queue');
+			if (res.ok) {
+				const data = await res.json();
+				queueItems = data.queue;
+			}
+		} catch {
+			/* silently fail */
+		}
+		queueLoading = false;
+	}
+
+	function toggleQueue() {
+		showQueue = !showQueue;
+		if (showQueue && queueItems.length === 0) loadQueue();
+	}
+
+	async function cancelQueueItem(entryId: string) {
+		const res = await fetch(`/api/queue/${entryId}`, { method: 'DELETE' });
+		if (res.ok) {
+			queueItems = queueItems.filter((i) => i.id !== entryId);
+		}
+	}
+
+	function handleDragStart(e: PointerEvent, index: number) {
+		e.stopPropagation();
+		e.preventDefault();
+		const handle = e.currentTarget as HTMLElement;
+		handle.setPointerCapture(e.pointerId);
+		dragStartY = e.clientY;
+		dragIndex = index;
+		dragOverIndex = index;
+		dragOffsetY = 0;
+		const li = handle.closest('.queue-row') as HTMLElement;
+		if (li) dragItemHeight = li.offsetHeight;
+	}
+
+	function handleDragMove(e: PointerEvent) {
+		if (dragIndex === null) return;
+		e.preventDefault();
+		dragOffsetY = e.clientY - dragStartY;
+		const steps = Math.round(dragOffsetY / dragItemHeight);
+		dragOverIndex = Math.max(0, Math.min(queueItems.length - 1, dragIndex + steps));
+	}
+
+	function handleDragEnd() {
+		if (dragIndex !== null && dragOverIndex !== null && dragIndex !== dragOverIndex) {
+			const reordered = [...queueItems];
+			const [moved] = reordered.splice(dragIndex, 1);
+			reordered.splice(dragOverIndex, 0, moved);
+			queueItems = reordered;
+			persistReorder(reordered);
+		}
+		dragIndex = null;
+		dragOverIndex = null;
+		dragOffsetY = 0;
+	}
+
+	async function persistReorder(reordered: QueueItem[]) {
+		const res = await fetch('/api/queue/reorder', {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ orderedIds: reordered.map((i) => i.id) })
+		});
+		if (res.ok) await loadQueue();
+	}
+
+	function getItemTransform(index: number): string {
+		if (dragIndex === null || dragOverIndex === null) return '';
+		if (index === dragIndex) return `translateY(${dragOffsetY}px) scale(1.02)`;
+		if (dragIndex < dragOverIndex && index > dragIndex && index <= dragOverIndex)
+			return `translateY(-${dragItemHeight}px)`;
+		if (dragIndex > dragOverIndex && index < dragIndex && index >= dragOverIndex)
+			return `translateY(${dragItemHeight}px)`;
+		return '';
+	}
+
+	function queueItemTitle(item: QueueItem): string {
+		if (item.title) return item.title;
+		try {
+			return new URL(item.originalUrl).hostname;
+		} catch {
+			return item.originalUrl;
+		}
 	}
 
 	function openFeed() {
@@ -267,6 +390,78 @@
 				<p class="share-desc">{closeText}</p>
 			{:else}
 				<a href={resolve('/')} class="btn-secondary">Go to feed</a>
+			{/if}
+		{:else if queued}
+			<div class="icon-wrap success">
+				<CheckIcon size={28} weight="bold" />
+			</div>
+			<h1 class="share-title">Queued!</h1>
+			<p class="share-desc">
+				Your clip will share{sharesIn ? ` in ~${sharesIn}` : ' soon'}.
+			</p>
+			{#if isShortcut}
+				<p class="share-desc">{closeText}</p>
+			{:else}
+				<p class="share-desc">You can close this anytime.</p>
+			{/if}
+			<button class="btn-queue-toggle" onclick={toggleQueue}>
+				<QueueIcon size={16} weight="bold" />
+				{showQueue ? 'Hide queue' : 'Manage queue'}
+			</button>
+			{#if showQueue}
+				<div class="inline-queue">
+					{#if queueLoading}
+						<p class="queue-status">Loading...</p>
+					{:else if queueItems.length === 0}
+						<p class="queue-status">Queue is empty</p>
+					{:else}
+						<ul class="queue-list">
+							{#each queueItems as item, i (item.id)}
+								<li
+									class="queue-row"
+									class:dragging={dragIndex === i}
+									style:transform={getItemTransform(i)}
+									style:z-index={dragIndex === i ? 10 : 1}
+								>
+									<button
+										class="drag-handle"
+										onpointerdown={(e) => handleDragStart(e, i)}
+										onpointermove={handleDragMove}
+										onpointerup={handleDragEnd}
+										onpointercancel={handleDragEnd}
+										aria-label="Reorder"
+									>
+										<DotsSixVerticalIcon size={16} />
+									</button>
+									<div class="queue-row-icon">
+										<PlatformIcon platform={item.platform} size={16} />
+									</div>
+									<div class="queue-row-info">
+										<span class="queue-row-title">{queueItemTitle(item)}</span>
+										<span class="queue-row-meta">
+											<ClockIcon size={11} />
+											{#if item.status === 'failed'}
+												<span class="queue-failed">Failed</span>
+											{:else}
+												~{item.sharesIn}
+											{/if}
+										</span>
+									</div>
+									<button
+										class="queue-row-delete"
+										onclick={() => cancelQueueItem(item.id)}
+										aria-label="Remove"
+									>
+										<TrashIcon size={14} />
+									</button>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				</div>
+			{/if}
+			{#if !isShortcut}
+				<button class="btn-ghost" onclick={openFeed}>Go to feed</button>
 			{/if}
 		{:else if success}
 			<div class="icon-wrap success">
@@ -364,12 +559,14 @@
 		align-items: center;
 		justify-content: center;
 		min-height: 100dvh;
-		padding: var(--space-xl);
+		padding: var(--space-lg);
 		background: var(--bg-primary);
+		overflow-y: auto;
 	}
 	.share-card {
 		width: 100%;
 		max-width: 380px;
+		max-height: calc(100dvh - var(--space-2xl));
 		background: var(--bg-elevated);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-xl);
@@ -379,6 +576,8 @@
 		align-items: center;
 		text-align: center;
 		gap: var(--space-sm);
+		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
 	}
 	.icon-wrap {
 		width: 56px;
@@ -536,6 +735,128 @@
 		font-weight: 600;
 		text-decoration: none;
 		margin-top: var(--space-sm);
+	}
+	.btn-queue-toggle {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-xs);
+		background: var(--bg-surface);
+		color: var(--text-secondary);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-full);
+		font-size: 0.8125rem;
+		font-weight: 600;
+		padding: var(--space-xs) var(--space-md);
+		cursor: pointer;
+		margin-top: var(--space-xs);
+	}
+	.btn-queue-toggle:active {
+		opacity: 0.7;
+	}
+	.inline-queue {
+		width: 100%;
+		margin-top: var(--space-xs);
+	}
+	.queue-status {
+		font-size: 0.8125rem;
+		color: var(--text-muted);
+		text-align: center;
+		margin: var(--space-md) 0;
+	}
+	.queue-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	.queue-row {
+		display: flex;
+		align-items: center;
+		gap: var(--space-xs);
+		padding: var(--space-sm) 0;
+		border-top: 1px solid var(--border);
+		text-align: left;
+		position: relative;
+		background: var(--bg-elevated);
+		transition:
+			transform 200ms ease,
+			box-shadow 200ms ease;
+	}
+	.queue-row:last-child {
+		border-bottom: 1px solid var(--border);
+	}
+	.queue-row.dragging {
+		z-index: 10;
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+		background: var(--bg-surface);
+		transition: box-shadow 200ms ease;
+	}
+	.drag-handle {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 24px;
+		flex-shrink: 0;
+		color: var(--text-muted);
+		background: none;
+		border: none;
+		cursor: grab;
+		padding: var(--space-sm) 0;
+		touch-action: none;
+	}
+	.drag-handle:active {
+		cursor: grabbing;
+	}
+	.queue-row-icon {
+		width: 28px;
+		height: 28px;
+		border-radius: var(--radius-sm);
+		background: var(--bg-surface);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		color: var(--text-muted);
+	}
+	.queue-row-info {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+	}
+	.queue-row-title {
+		font-size: 0.8125rem;
+		font-weight: 600;
+		color: var(--text-primary);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.queue-row-meta {
+		display: inline-flex;
+		align-items: center;
+		gap: 3px;
+		font-size: 0.6875rem;
+		color: var(--text-muted);
+	}
+	.queue-failed {
+		color: var(--error);
+	}
+	.queue-row-delete {
+		width: 28px;
+		height: 28px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: var(--radius-full);
+		background: none;
+		border: none;
+		color: var(--text-muted);
+		cursor: pointer;
+		flex-shrink: 0;
+	}
+	.queue-row-delete:active {
+		color: var(--error);
 	}
 	@keyframes pop {
 		from {

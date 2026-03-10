@@ -17,12 +17,12 @@ Response: { user: { id, username, phone, groupId, themePreference, autoScroll, m
 ### POST /api/auth
 Dispatches by `action` field in the request body:
 
-**Join a group:**
+**Join a group (legacy API — prefer `/join/[code]` page flow):**
 ```
 Request:  { "action": "join", "inviteCode": "abc123" }
 Response: { "userId": "...", "group": { ... }, "needsOnboarding": true }
 ```
-Sets a signed httpOnly session cookie. Resumes existing session if one exists.
+Sets a signed httpOnly session cookie. Creates a placeholder phone (`pending:{userId}`) to avoid unique constraint violations when multiple users are pre-onboarding. The primary join flow now uses the `/join/[code]` SvelteKit page with a form action instead of this API endpoint.
 
 **Send login code:**
 ```
