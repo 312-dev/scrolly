@@ -4,6 +4,7 @@
 	import { confirm } from '$lib/stores/confirm';
 	import { toast } from '$lib/stores/toasts';
 	import { fetchQueueCount } from '$lib/stores/queue';
+	import { basename } from '$lib/utils';
 	import ClockIcon from 'phosphor-svelte/lib/ClockIcon';
 	import ArrowUpIcon from 'phosphor-svelte/lib/ArrowUpIcon';
 	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
@@ -116,7 +117,7 @@
 					<li class="queue-item">
 						<div class="item-thumb">
 							{#if item.thumbnailPath}
-								<img src="/api/thumbnails/{item.thumbnailPath}" alt="" />
+								<img src="/api/thumbnails/{basename(item.thumbnailPath)}" alt="" />
 							{:else}
 								<div class="thumb-placeholder">
 									<PlatformIcon platform={item.platform} size={18} />

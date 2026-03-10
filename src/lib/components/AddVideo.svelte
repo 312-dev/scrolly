@@ -8,6 +8,7 @@
 		isPlatformAllowed
 	} from '$lib/url-validation';
 	import { addToast } from '$lib/stores/toasts';
+	import { fetchQueueCount } from '$lib/stores/queue';
 	import { showShortcutNudge } from '$lib/stores/shortcutNudge';
 	import { page } from '$app/state';
 	import type { GroupMember } from '$lib/types';
@@ -147,6 +148,7 @@
 				contentType: data.clip.contentType,
 				autoDismiss: 0
 			});
+			if (data.queued) fetchQueueCount();
 			onsubmitted?.({
 				...data.clip,
 				shareCountToday: data.shareCountToday,
