@@ -106,6 +106,17 @@
 		void isFeed;
 		syncThemeColor();
 	});
+
+	// Open queue sheet when navigated to with ?queue=true
+	$effect(() => {
+		if (page.url.searchParams.get('queue') === 'true') {
+			queueSheetOpen.set(true);
+			// Clean up the query param without a navigation
+			const url = new URL(page.url);
+			url.searchParams.delete('queue');
+			history.replaceState(history.state, '', url.pathname + url.search);
+		}
+	});
 </script>
 
 <!-- eslint-disable svelte/no-navigation-without-resolve -- static routes, resolve() unnecessary -->
