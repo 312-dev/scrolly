@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
 import { clips, clipQueue, groups } from '$lib/server/db/schema';
-import { eq, and, sql, desc } from 'drizzle-orm';
+import { eq, and, sql, desc, lte, gte } from 'drizzle-orm';
 import { notifyNewClip } from '$lib/server/push';
 import { createLogger } from '$lib/server/logger';
 import { v4 as uuid } from 'uuid';
@@ -21,7 +21,8 @@ export function checkBurstAvailable(
 ): { available: boolean; burstUsed: number; nextSlotAt: Date | null } {
 	const windowMs = burst * cooldownMinutes * 60 * 1000;
 	const windowStart = new Date(Date.now() - windowMs);
-	const windowStartUnix = Math.floor(windowStart.getTime() / 1000);
+
+	const notInQueue = sql`${clips.id} NOT IN (SELECT clip_id FROM clip_queue WHERE user_id = ${userId} AND group_id = ${groupId})`;
 
 	// Count clips this user created in the rolling window that went instant
 	// (i.e. clips NOT in the clip_queue table)
@@ -32,8 +33,8 @@ export function checkBurstAvailable(
 			and(
 				eq(clips.addedBy, userId),
 				eq(clips.groupId, groupId),
-				sql`${clips.createdAt} >= ${windowStartUnix}`,
-				sql`${clips.id} NOT IN (SELECT clip_id FROM clip_queue WHERE user_id = ${userId} AND group_id = ${groupId})`
+				gte(clips.createdAt, windowStart),
+				notInQueue
 			)
 		)
 		.all();
@@ -51,8 +52,8 @@ export function checkBurstAvailable(
 				and(
 					eq(clips.addedBy, userId),
 					eq(clips.groupId, groupId),
-					sql`${clips.createdAt} >= ${windowStartUnix}`,
-					sql`${clips.id} NOT IN (SELECT clip_id FROM clip_queue WHERE user_id = ${userId} AND group_id = ${groupId})`
+					gte(clips.createdAt, windowStart),
+					notInQueue
 				)
 			)
 			.orderBy(clips.createdAt)
@@ -399,7 +400,7 @@ export function getQueueCount(userId: string, groupId: string): number {
  * Get queue entries that are due to be published.
  */
 export function getDueQueueEntries() {
-	const nowSec = Math.floor(Date.now() / 1000);
+	const now = new Date();
 	return db
 		.select({
 			id: clipQueue.id,
@@ -409,6 +410,6 @@ export function getDueQueueEntries() {
 			scheduledAt: clipQueue.scheduledAt
 		})
 		.from(clipQueue)
-		.where(sql`${clipQueue.scheduledAt} <= ${nowSec}`)
+		.where(lte(clipQueue.scheduledAt, now))
 		.all();
 }
