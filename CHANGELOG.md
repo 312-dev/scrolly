@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.23.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.22.0...scrolly-v1.23.0) (2026-03-10)
+
+
+### Features
+
+* share pacing queue and management UI ([#102](https://github.com/312-dev/scrolly/issues/102)) ([87071c5](https://github.com/312-dev/scrolly/commit/87071c501e29b10934b8805bec8b5fb0546c3e47))
+
 ## [1.22.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.21.0...scrolly-v1.22.0) (2026-03-09)
 
 
