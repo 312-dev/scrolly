@@ -55,24 +55,25 @@
 		loading = false;
 	}
 
-	function handleDragStart(e: TouchEvent, index: number) {
+	function handleDragStart(e: PointerEvent, index: number) {
 		e.stopPropagation();
-		const touch = e.touches[0];
-		dragStartY = touch.clientY;
+		e.preventDefault();
+		const handle = e.currentTarget as HTMLElement;
+		handle.setPointerCapture(e.pointerId);
+		dragStartY = e.clientY;
 		dragIndex = index;
 		dragOverIndex = index;
 		dragOffsetY = 0;
 
 		// Measure item height for snap calculations
-		const li = (e.currentTarget as HTMLElement).closest('.queue-item') as HTMLElement;
+		const li = handle.closest('.queue-item') as HTMLElement;
 		if (li) dragItemHeight = li.offsetHeight;
 	}
 
-	function handleDragMove(e: TouchEvent) {
+	function handleDragMove(e: PointerEvent) {
 		if (dragIndex === null) return;
 		e.preventDefault();
-		const touch = e.touches[0];
-		dragOffsetY = touch.clientY - dragStartY;
+		dragOffsetY = e.clientY - dragStartY;
 
 		// Calculate which index we're hovering over
 		const steps = Math.round(dragOffsetY / dragItemHeight);
@@ -86,7 +87,6 @@
 			return;
 		}
 		if (dragIndex !== dragOverIndex) {
-			// Reorder locally with animation
 			const reordered = [...items];
 			const [moved] = reordered.splice(dragIndex, 1);
 			reordered.splice(dragOverIndex, 0, moved);
@@ -175,12 +175,7 @@
 		</div>
 	{/snippet}
 
-	<div
-		class="queue-body"
-		ontouchmove={handleDragMove}
-		ontouchend={handleDragEnd}
-		ontouchcancel={handleDragEnd}
-	>
+	<div class="queue-body">
 		{#if loading}
 			<div class="queue-empty">
 				<span class="loading-text">Loading...</span>
@@ -202,7 +197,10 @@
 					>
 						<button
 							class="drag-handle"
-							ontouchstart={(e) => handleDragStart(e, i)}
+							onpointerdown={(e) => handleDragStart(e, i)}
+							onpointermove={handleDragMove}
+							onpointerup={handleDragEnd}
+							onpointercancel={handleDragEnd}
 							aria-label="Reorder"
 						>
 							<DotsSixVerticalIcon size={20} />
