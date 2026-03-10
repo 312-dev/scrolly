@@ -1,7 +1,7 @@
 import { db } from '$lib/server/db';
 import { clips, clipQueue, groups } from '$lib/server/db/schema';
 import { eq, and, sql, desc, lte, gte } from 'drizzle-orm';
-import { notifyNewClip } from '$lib/server/push';
+import { notifyNewClip, notifyNewClipsBatch } from '$lib/server/push';
 import { createLogger } from '$lib/server/logger';
 import { v4 as uuid } from 'uuid';
 
@@ -75,7 +75,8 @@ export function enqueueClip(
 	clipId: string,
 	userId: string,
 	groupId: string,
-	cooldownMinutes: number
+	cooldownMinutes: number,
+	burst = 1
 ): { id: string; scheduledAt: Date; position: number } | null {
 	// Check queue depth
 	const [countResult] = db
@@ -84,7 +85,8 @@ export function enqueueClip(
 		.where(and(eq(clipQueue.userId, userId), eq(clipQueue.groupId, groupId)))
 		.all();
 
-	if ((countResult?.count ?? 0) >= MAX_QUEUE_DEPTH) {
+	const currentCount = countResult?.count ?? 0;
+	if (currentCount >= MAX_QUEUE_DEPTH) {
 		return null; // Queue full
 	}
 
@@ -99,10 +101,23 @@ export function enqueueClip(
 
 	const now = new Date();
 	const cooldownMs = cooldownMinutes * 60 * 1000;
-	const baseTime =
-		latest?.scheduledAt && latest.scheduledAt.getTime() > now.getTime() ? latest.scheduledAt : now;
-	const scheduledAt = new Date(baseTime.getTime() + cooldownMs);
 	const position = (latest?.position ?? -1) + 1;
+
+	// Burst grouping: clips at the same burst boundary share a scheduled time.
+	// Position 0..burst-1 → first window, burst..2*burst-1 → second window, etc.
+	const isNewWindow = position % Math.max(1, burst) === 0;
+	let scheduledAt: Date;
+	if (isNewWindow || !latest?.scheduledAt) {
+		const baseTime =
+			latest?.scheduledAt && latest.scheduledAt.getTime() > now.getTime()
+				? latest.scheduledAt
+				: now;
+		scheduledAt = new Date(baseTime.getTime() + cooldownMs);
+	} else {
+		// Same burst window — use the same time as the previous clip
+		scheduledAt = latest.scheduledAt.getTime() > now.getTime() ? latest.scheduledAt : now;
+	}
+
 	const id = uuid();
 
 	db.insert(clipQueue)
@@ -124,7 +139,10 @@ export function enqueueClip(
 /**
  * Publish a queued clip: set status to ready, update createdAt, notify group.
  */
-export async function publishQueuedClip(queueEntryId: string): Promise<boolean> {
+export async function publishQueuedClip(
+	queueEntryId: string,
+	skipNotification = false
+): Promise<string | false> {
 	const [entry] = db.select().from(clipQueue).where(eq(clipQueue.id, queueEntryId)).all();
 
 	if (!entry) return false;
@@ -147,12 +165,13 @@ export async function publishQueuedClip(queueEntryId: string): Promise<boolean> 
 
 	log.info({ clipId: entry.clipId, queueEntryId }, 'queued clip published');
 
-	// Send push notification
-	await notifyNewClip(entry.clipId).catch((err) =>
-		log.error({ err, clipId: entry.clipId }, 'push notification failed for queued clip')
-	);
+	if (!skipNotification) {
+		await notifyNewClip(entry.clipId).catch((err) =>
+			log.error({ err, clipId: entry.clipId }, 'push notification failed for queued clip')
+		);
+	}
 
-	return true;
+	return entry.clipId;
 }
 
 /**
@@ -257,15 +276,14 @@ export function moveToTop(queueEntryId: string, userId: string, groupId: string)
 	const [target] = entries.splice(targetIdx, 1);
 	entries.unshift(target);
 
-	// Get group cooldown to recalculate times
 	const [group] = db
-		.select({ shareCooldownMinutes: groups.shareCooldownMinutes })
+		.select({ shareCooldownMinutes: groups.shareCooldownMinutes, shareBurst: groups.shareBurst })
 		.from(groups)
 		.where(eq(groups.id, groupId))
 		.all();
 	if (!group) return false;
 
-	recalculateScheduledTimes(entries, group.shareCooldownMinutes);
+	recalculateScheduledTimes(entries, group.shareCooldownMinutes, group.shareBurst);
 	return true;
 }
 
@@ -287,13 +305,13 @@ export function reorderQueue(userId: string, groupId: string, orderedIds: string
 	if (reordered.length !== entries.length) return false;
 
 	const [group] = db
-		.select({ shareCooldownMinutes: groups.shareCooldownMinutes })
+		.select({ shareCooldownMinutes: groups.shareCooldownMinutes, shareBurst: groups.shareBurst })
 		.from(groups)
 		.where(eq(groups.id, groupId))
 		.all();
 	if (!group) return false;
 
-	recalculateScheduledTimes(reordered, group.shareCooldownMinutes);
+	recalculateScheduledTimes(reordered, group.shareCooldownMinutes, group.shareBurst);
 	return true;
 }
 
@@ -302,14 +320,27 @@ export function reorderQueue(userId: string, groupId: string, orderedIds: string
  */
 function recalculateScheduledTimes(
 	entries: { id: string; scheduledAt: Date }[],
-	cooldownMinutes: number
+	cooldownMinutes: number,
+	burst = 1
 ) {
 	const cooldownMs = cooldownMinutes * 60 * 1000;
 	const now = new Date();
+	const safeBurst = Math.max(1, burst);
 
 	for (let i = 0; i < entries.length; i++) {
-		const baseTime = i === 0 ? now : entries[i - 1].scheduledAt;
-		const scheduledAt = new Date(Math.max(baseTime.getTime(), now.getTime()) + cooldownMs);
+		const isNewWindow = i % safeBurst === 0;
+		let scheduledAt: Date;
+
+		if (i === 0) {
+			scheduledAt = new Date(now.getTime() + cooldownMs);
+		} else if (isNewWindow) {
+			const baseTime = entries[i - 1].scheduledAt;
+			scheduledAt = new Date(Math.max(baseTime.getTime(), now.getTime()) + cooldownMs);
+		} else {
+			// Same burst window — share the previous entry's time
+			scheduledAt = entries[i - 1].scheduledAt;
+		}
+
 		entries[i].scheduledAt = scheduledAt;
 
 		db.update(clipQueue)
@@ -365,19 +396,22 @@ export async function flushQueue(groupId: string): Promise<number> {
 	}
 
 	const now = new Date();
+	const clipIds: string[] = [];
 
 	for (const entry of entries) {
 		db.update(clips)
 			.set({ status: 'ready', createdAt: now })
 			.where(eq(clips.id, entry.clipId))
 			.run();
-
-		await notifyNewClip(entry.clipId).catch((err) =>
-			log.error({ err, clipId: entry.clipId }, 'push notification failed during flush')
-		);
+		clipIds.push(entry.clipId);
 	}
 
 	db.delete(clipQueue).where(eq(clipQueue.groupId, groupId)).run();
+
+	// Single batched notification for all flushed clips
+	await notifyNewClipsBatch(clipIds).catch((err) =>
+		log.error({ err, groupId }, 'batch notification failed during flush')
+	);
 
 	log.info({ groupId, published: entries.length }, 'queue flushed');
 	return entries.length;

@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { clips } from '$lib/server/db/schema';
 import { eq, and, gte, sql } from 'drizzle-orm';
+import { checkBurstAvailable } from '$lib/server/queue';
 
 /**
  * Calculate the start of "today" in the user's timezone as a UTC Date.
@@ -119,4 +120,84 @@ export function enforceDailyShareLimit(
 		),
 		limitCheck
 	};
+}
+
+/**
+ * Human-readable relative time string.
+ */
+export function formatRelativeTime(ms: number): string {
+	const totalMinutes = Math.ceil(ms / 60_000);
+	const hours = Math.floor(totalMinutes / 60);
+	const minutes = totalMinutes % 60;
+	if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`;
+	if (hours > 0) return `${hours} hour${hours === 1 ? '' : 's'}`;
+	return `${minutes} minute${minutes === 1 ? '' : 's'}`;
+}
+
+export type SharePacingResult =
+	| { mode: 'off' }
+	| { mode: 'daily_cap'; response: Response | null; limitCheck: ShareLimitResult }
+	| {
+			mode: 'queue';
+			queued: boolean;
+			scheduledAt?: Date;
+			nextSlotAt?: Date;
+			queueFull?: boolean;
+	  };
+
+interface GroupPacingConfig {
+	sharePacingMode: string;
+	dailyShareLimit: number | null;
+	shareBurst: number;
+	shareCooldownMinutes: number;
+}
+
+/**
+ * Unified share pacing check. Dispatches based on group's pacing mode.
+ * Queue mode never rejects — it returns queued: true with schedule info.
+ */
+export function checkSharePacing(
+	userId: string,
+	groupId: string,
+	group: GroupPacingConfig,
+	tz?: string | null
+): SharePacingResult {
+	switch (group.sharePacingMode) {
+		case 'daily_cap': {
+			const limitCheck = checkDailyShareLimit(userId, groupId, group.dailyShareLimit, tz);
+			if (limitCheck.allowed) {
+				return { mode: 'daily_cap', response: null, limitCheck };
+			}
+			const resetsIn = formatResetTime(tz);
+			return {
+				mode: 'daily_cap',
+				response: json(
+					{
+						error: `Daily share limit reached (${limitCheck.shareCountToday}/${limitCheck.dailyShareLimit}). Resets in ${resetsIn}.`,
+						shareCountToday: limitCheck.shareCountToday,
+						dailyShareLimit: limitCheck.dailyShareLimit,
+						resetsIn,
+						limitReached: true
+					},
+					{ status: 429 }
+				),
+				limitCheck
+			};
+		}
+		case 'queue': {
+			const burst = checkBurstAvailable(
+				userId,
+				groupId,
+				group.shareBurst,
+				group.shareCooldownMinutes
+			);
+			return {
+				mode: 'queue',
+				queued: !burst.available,
+				nextSlotAt: burst.nextSlotAt ?? undefined
+			};
+		}
+		default:
+			return { mode: 'off' };
+	}
 }
