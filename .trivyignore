@@ -13,3 +13,6 @@ GHSA-qffp-2rhf-9h96
 
 # tar hardlink path traversal via drive-relative linkpath (npm bundled)
 CVE-2026-29786
+
+# tar node-tar <7.5.11 vulnerability (npm bundled)
+CVE-2026-31802

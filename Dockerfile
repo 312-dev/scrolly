@@ -32,8 +32,7 @@ RUN apt-get update && \
       ca-certificates && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
-    groupadd -r scrolly && useradd -r -g scrolly -m scrolly && \
-    cd /usr/local/lib/node_modules/npm && npm install tar@7.5.11 --no-save
+    groupadd -r scrolly && useradd -r -g scrolly -m scrolly
 
 WORKDIR /app
 
