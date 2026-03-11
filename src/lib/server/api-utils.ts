@@ -218,10 +218,12 @@ export async function notifyClipOwner(opts: {
 			opts.type === 'comment' || opts.type === 'reply'
 				? `/?clip=${opts.clipId}&comments=true`
 				: `/?clip=${opts.clipId}`;
-		const image =
-			opts.actorAvatarPath && env.ORIGIN
+		let image: string | undefined;
+		if (env.ORIGIN) {
+			image = opts.actorAvatarPath
 				? `${env.ORIGIN}/api/profile/avatar/${opts.actorAvatarPath}`
-				: undefined;
+				: `${env.ORIGIN}/api/profile/avatar/initials/${encodeURIComponent(opts.actorUsername)}`;
+		}
 		sendNotification(opts.recipientId, {
 			title: opts.pushTitle,
 			body: opts.pushBody,

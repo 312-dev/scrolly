@@ -38,9 +38,14 @@ async function getUnwatchedCount(userId: string, groupId: string): Promise<numbe
 	return result.count;
 }
 
-/** Build a full avatar URL for push notification icon, or undefined if no avatar. */
-function avatarIconUrl(avatarPath: string | null | undefined): string | undefined {
-	return avatarPath && env.ORIGIN ? `${env.ORIGIN}/api/profile/avatar/${avatarPath}` : undefined;
+/** Build a full avatar URL for push notification icon, with initials fallback. */
+function avatarIconUrl(
+	avatarPath: string | null | undefined,
+	username: string
+): string | undefined {
+	if (!env.ORIGIN) return undefined;
+	if (avatarPath) return `${env.ORIGIN}/api/profile/avatar/${avatarPath}`;
+	return `${env.ORIGIN}/api/profile/avatar/initials/${encodeURIComponent(username)}`;
 }
 
 let initialized = false;
@@ -131,7 +136,7 @@ export async function notifyNewClip(clipId: string): Promise<void> {
 		clip.thumbnailPath && env.ORIGIN
 			? `${env.ORIGIN}/api/thumbnails/${basename(clip.thumbnailPath)}`
 			: undefined;
-	const icon = avatarIconUrl(uploader.avatarPath);
+	const icon = avatarIconUrl(uploader.avatarPath, uploader.username);
 
 	// Fallback body when no title: use platform name (e.g. "New TikTok")
 	const platformLabels: Record<string, string> = {

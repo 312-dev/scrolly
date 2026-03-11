@@ -22,6 +22,13 @@ import { sendNotification } from '$lib/server/push';
 import { env } from '$env/dynamic/private';
 import { ALLOWED_EMOJIS } from '$lib/server/constants';
 
+function buildAvatarIconUrl(avatarPath: string | null, username: string): string | undefined {
+	if (!env.ORIGIN) return undefined;
+	return avatarPath
+		? `${env.ORIGIN}/api/profile/avatar/${avatarPath}`
+		: `${env.ORIGIN}/api/profile/avatar/initials/${encodeURIComponent(username)}`;
+}
+
 export const GET: RequestHandler = withClipAuth(async ({ params }, { user }) => {
 	const clipId = params.id;
 	const userId = user.id;
@@ -85,10 +92,7 @@ async function dispatchReactionNotification(
 
 	const pushTitle = `${actor.username} reacted ${emoji}`;
 	const pushTag = `reaction-${clipId}-${actor.id}`;
-	const icon =
-		actor.avatarPath && env.ORIGIN
-			? `${env.ORIGIN}/api/profile/avatar/${actor.avatarPath}`
-			: undefined;
+	const icon = buildAvatarIconUrl(actor.avatarPath, actor.username);
 
 	for (const recipient of targets) {
 		const prefs = prefsMap.get(recipient.id);

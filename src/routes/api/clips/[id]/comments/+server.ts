@@ -207,10 +207,12 @@ async function dispatchCommentNotification(
 ): Promise<string[]> {
 	const type = parentId ? 'reply' : 'comment';
 	const pushTag = `${type}-${clipId}-${actor.id}`;
-	const icon =
-		actor.avatarPath && env.ORIGIN
+	let icon: string | undefined;
+	if (env.ORIGIN) {
+		icon = actor.avatarPath
 			? `${env.ORIGIN}/api/profile/avatar/${actor.avatarPath}`
-			: undefined;
+			: `${env.ORIGIN}/api/profile/avatar/initials/${encodeURIComponent(actor.username)}`;
+	}
 
 	const groupMembers = await db.query.users.findMany({
 		where: and(eq(users.groupId, actor.groupId), isNull(users.removedAt))

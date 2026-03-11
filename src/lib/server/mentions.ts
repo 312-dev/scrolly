@@ -70,10 +70,12 @@ export async function notifyMentions(opts: {
 		clip?.thumbnailPath && env.ORIGIN
 			? `${env.ORIGIN}/api/thumbnails/${basename(clip.thumbnailPath)}`
 			: undefined;
-	const icon =
-		opts.actorAvatarPath && env.ORIGIN
+	let icon: string | undefined;
+	if (env.ORIGIN) {
+		icon = opts.actorAvatarPath
 			? `${env.ORIGIN}/api/profile/avatar/${opts.actorAvatarPath}`
-			: undefined;
+			: `${env.ORIGIN}/api/profile/avatar/initials/${encodeURIComponent(opts.actorUsername)}`;
+	}
 
 	// Look up all active members in the group
 	const groupMembers = await db.query.users.findMany({
