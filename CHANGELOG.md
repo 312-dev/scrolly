@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.24.3](https://github.com/312-dev/scrolly/compare/scrolly-v1.24.2...scrolly-v1.24.3) (2026-03-11)
+
+
+### Bug Fixes
+
+* add point units and queue depth to clout modal ([#112](https://github.com/312-dev/scrolly/issues/112)) ([4d39c83](https://github.com/312-dev/scrolly/commit/4d39c8326b826d95ce6da1397ecad0cde529486b))
+
 ## [1.24.2](https://github.com/312-dev/scrolly/compare/scrolly-v1.24.1...scrolly-v1.24.2) (2026-03-11)
 
 
