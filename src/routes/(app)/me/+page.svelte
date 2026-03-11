@@ -33,6 +33,7 @@
 		icon?: string;
 		cooldownMinutes?: number;
 		burstSize?: number;
+		queueLimit?: number | null;
 	} | null>(null);
 
 	async function loadStats() {
@@ -68,7 +69,8 @@
 			previousTierName: clout.tierName,
 			newTierName: clout.tierName,
 			cooldownMinutes: clout.cooldownMinutes ?? 0,
-			burstSize: clout.burstSize ?? 1
+			burstSize: clout.burstSize ?? 1,
+			queueLimit: clout.queueLimit ?? null
 		});
 	}
 
