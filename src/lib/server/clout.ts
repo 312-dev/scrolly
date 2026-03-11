@@ -57,6 +57,10 @@ export interface TierConfig {
 export interface ClipBreakdown {
 	clipId: string;
 	score: number;
+	title: string | null;
+	platform: string;
+	originalUrl: string;
+	thumbnailPath: string | null;
 }
 
 export interface CloutResult {
@@ -79,6 +83,18 @@ export function getCloutTier(score: number): { key: TierKey; config: TierConfig 
 	return { key: 'fresh', config: TIERS.fresh };
 }
 
+const TIER_ORDER: TierKey[] = ['fresh', 'rising', 'viral', 'iconic'];
+
+/**
+ * Get the next tier above the given one, or null if already at top.
+ */
+export function getNextTier(currentTier: TierKey): { key: TierKey; config: TierConfig } | null {
+	const idx = TIER_ORDER.indexOf(currentTier);
+	if (idx < 0 || idx >= TIER_ORDER.length - 1) return null;
+	const nextKey = TIER_ORDER[idx + 1];
+	return { key: nextKey, config: TIERS[nextKey] };
+}
+
 /**
  * Compute clout score for a user in a group.
  *
@@ -99,7 +115,13 @@ export function getCloutScore(
 
 	// Get the user's last WINDOW_SIZE matured clips
 	const maturedClips = db
-		.select({ id: clips.id })
+		.select({
+			id: clips.id,
+			title: clips.title,
+			platform: clips.platform,
+			originalUrl: clips.originalUrl,
+			thumbnailPath: clips.thumbnailPath
+		})
 		.from(clips)
 		.where(
 			and(
@@ -128,10 +150,10 @@ export function getCloutScore(
 		};
 	}
 
-	const clipIds = maturedClips.map((c) => c.id);
 	const breakdown: ClipBreakdown[] = [];
 
-	for (const clipId of clipIds) {
+	for (const clip of maturedClips) {
+		const clipId = clip.id;
 		// Count reactions from others
 		const [reactionResult] = db
 			.select({ count: sql<number>`count(*)` })
@@ -165,7 +187,14 @@ export function getCloutScore(
 			score = 0;
 		}
 
-		breakdown.push({ clipId, score });
+		breakdown.push({
+			clipId,
+			score,
+			title: clip.title,
+			platform: clip.platform,
+			originalUrl: clip.originalUrl,
+			thumbnailPath: clip.thumbnailPath
+		});
 	}
 
 	const totalScore = breakdown.reduce((sum, b) => sum + b.score, 0);
