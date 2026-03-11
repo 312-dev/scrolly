@@ -7,6 +7,7 @@ export interface CloutChange {
 	newTierName: string;
 	cooldownMinutes: number;
 	burstSize: number;
+	queueLimit: number | null;
 }
 
 export const cloutChange = writable<CloutChange | null>(null);

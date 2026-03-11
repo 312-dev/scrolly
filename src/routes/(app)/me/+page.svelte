@@ -68,7 +68,8 @@
 			previousTierName: clout.tierName,
 			newTierName: clout.tierName,
 			cooldownMinutes: clout.cooldownMinutes ?? 0,
-			burstSize: clout.burstSize ?? 1
+			burstSize: clout.burstSize ?? 1,
+			queueLimit: clout.queueLimit ?? null
 		});
 	}
 

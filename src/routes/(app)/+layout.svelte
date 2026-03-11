@@ -56,7 +56,8 @@
 					previousTierName: TIER_NAMES[data.lastTier] ?? data.lastTier,
 					newTierName: data.tierName,
 					cooldownMinutes: data.cooldownMinutes,
-					burstSize: data.burstSize
+					burstSize: data.burstSize,
+					queueLimit: data.queueLimit ?? null
 				});
 				// Acknowledge so it won't show again on other devices
 				fetch('/api/clout', { method: 'POST' }).catch(() => {});

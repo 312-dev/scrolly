@@ -302,6 +302,8 @@
 						<span class="stat">{formatCooldown(change.cooldownMinutes)} between clips</span>
 						<span class="stat-dot">&middot;</span>
 						<span class="stat">{change.burstSize} per burst</span>
+						<span class="stat-dot">&middot;</span>
+						<span class="stat">{change.queueLimit ?? '∞'} queue depth</span>
 					</div>
 				</div>
 
