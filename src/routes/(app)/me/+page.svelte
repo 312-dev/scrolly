@@ -17,6 +17,7 @@
 	import HeartIcon from 'phosphor-svelte/lib/HeartIcon';
 	import UploadSimpleIcon from 'phosphor-svelte/lib/UploadSimpleIcon';
 	import CameraIcon from 'phosphor-svelte/lib/CameraIcon';
+	import { cloutChange } from '$lib/stores/cloutChange';
 
 	const user = $derived(page.data.user);
 	const group = $derived(page.data.group);
@@ -25,6 +26,14 @@
 	const gifEnabled = $derived(!!page.data.gifEnabled);
 
 	let stats = $state<{ uploads: number; saves: number; minutesWatched: number } | null>(null);
+	let clout = $state<{
+		enabled: boolean;
+		tier?: string;
+		tierName?: string;
+		icon?: string;
+		cooldownMinutes?: number;
+		burstSize?: number;
+	} | null>(null);
 
 	async function loadStats() {
 		try {
@@ -35,11 +44,32 @@
 		}
 	}
 
+	async function loadClout() {
+		try {
+			const res = await fetch('/api/clout');
+			if (res.ok) clout = await res.json();
+		} catch {
+			/* non-critical */
+		}
+	}
+
 	function formatWatchTime(minutes: number | null | undefined): string {
 		if (minutes === null || minutes === undefined) return '--';
 		if (minutes < 1) return '<1m';
 		if (minutes < 60) return `${Math.round(minutes)}m`;
 		return `${(minutes / 60).toFixed(1)}h`;
+	}
+
+	function showCloutModal() {
+		if (!clout?.enabled || !clout.tier || !clout.tierName) return;
+		cloutChange.set({
+			previousTier: clout.tier,
+			newTier: clout.tier,
+			previousTierName: clout.tierName,
+			newTierName: clout.tierName,
+			cooldownMinutes: clout.cooldownMinutes ?? 0,
+			burstSize: clout.burstSize ?? 1
+		});
 	}
 
 	// Avatar state
@@ -152,6 +182,7 @@
 	onMount(() => {
 		loadFaves();
 		loadStats();
+		loadClout();
 	});
 </script>
 
@@ -182,7 +213,14 @@
 			{#if avatarPath}
 				<button class="remove-photo-btn" onclick={handleRemoveAvatar}>Remove photo</button>
 			{/if}
-			<span class="profile-username">@{user?.username}</span>
+			<div class="name-row">
+				<span class="profile-username">{user?.username}</span>
+				{#if clout?.enabled && clout.tier && clout.icon}
+					<button class="rank-badge" onclick={showCloutModal} aria-label={clout.tierName}>
+						<img src={clout.icon} alt={clout.tierName} class="rank-icon" />
+					</button>
+				{/if}
+			</div>
 		</div>
 		<div class="stats-row">
 			<div class="stat">
@@ -328,12 +366,34 @@
 		cursor: pointer;
 		padding: 0;
 	}
+	.name-row {
+		display: flex;
+		align-items: center;
+		gap: var(--space-sm);
+	}
 	.profile-username {
 		font-family: var(--font-display);
 		font-size: 1.25rem;
 		font-weight: 700;
 		color: var(--text-primary);
 		letter-spacing: -0.02em;
+	}
+	.rank-badge {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0;
+		background: none;
+		border: none;
+		cursor: pointer;
+	}
+	.rank-badge:active {
+		transform: scale(0.93);
+	}
+	.rank-icon {
+		width: 22px;
+		height: 22px;
+		object-fit: contain;
 	}
 	.stats-row {
 		display: flex;
