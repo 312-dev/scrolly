@@ -106,15 +106,15 @@
 			<span class="section-label">How scoring works</span>
 			<div class="score-grid">
 				<div class="score-row">
-					<span class="score-badge score-0">0</span>
+					<span class="score-badge score-0">0<span class="score-unit">pts</span></span>
 					<span class="score-desc">No reactions or favorites</span>
 				</div>
 				<div class="score-row">
-					<span class="score-badge score-1">1</span>
+					<span class="score-badge score-1">1<span class="score-unit">pt</span></span>
 					<span class="score-desc">Got a reaction or favorite</span>
 				</div>
 				<div class="score-row">
-					<span class="score-badge score-2">2</span>
+					<span class="score-badge score-2">2<span class="score-unit">pts</span></span>
 					<span class="score-desc">Reaction/fave <strong>and</strong> a comment</span>
 				</div>
 			</div>
@@ -300,6 +300,12 @@
 		font-size: 0.8125rem;
 		font-weight: 700;
 		flex-shrink: 0;
+	}
+	.score-unit {
+		font-size: 0.5rem;
+		font-weight: 600;
+		opacity: 0.7;
+		margin-left: 1px;
 	}
 	.score-0 {
 		background: var(--bg-subtle);
