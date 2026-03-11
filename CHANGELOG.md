@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.24.2](https://github.com/312-dev/scrolly/compare/scrolly-v1.24.1...scrolly-v1.24.2) (2026-03-11)
+
+
+### Bug Fixes
+
+* show ranking tips button on all tiers except iconic ([#110](https://github.com/312-dev/scrolly/issues/110)) ([13b2c7e](https://github.com/312-dev/scrolly/commit/13b2c7eb04991519ff02072908029509bace2270))
+
 ## [1.24.1](https://github.com/312-dev/scrolly/compare/scrolly-v1.24.0...scrolly-v1.24.1) (2026-03-11)
 
 
