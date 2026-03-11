@@ -14,6 +14,7 @@ interface PacingBody {
 	shareBurst?: number;
 	shareCooldownMinutes?: number;
 	dailyShareLimit?: number | null;
+	cloutEnabled?: boolean;
 }
 
 function validatePacingBody(body: PacingBody): string | null {
@@ -53,13 +54,14 @@ export const PATCH: RequestHandler = withHost(async ({ request }, { group }) => 
 	const error = validatePacingBody(body);
 	if (error) return badRequest(error);
 
-	const { sharePacingMode, shareBurst, shareCooldownMinutes, dailyShareLimit } = body;
+	const { sharePacingMode, shareBurst, shareCooldownMinutes, dailyShareLimit, cloutEnabled } = body;
 
 	const updates: Record<string, unknown> = {};
 	if (sharePacingMode !== undefined) updates.sharePacingMode = sharePacingMode;
 	if (shareBurst !== undefined) updates.shareBurst = shareBurst;
 	if (shareCooldownMinutes !== undefined) updates.shareCooldownMinutes = shareCooldownMinutes;
 	if (dailyShareLimit !== undefined) updates.dailyShareLimit = dailyShareLimit ?? null;
+	if (cloutEnabled !== undefined) updates.cloutEnabled = cloutEnabled;
 
 	if (Object.keys(updates).length === 0) return badRequest('No fields to update.');
 
@@ -75,6 +77,7 @@ export const PATCH: RequestHandler = withHost(async ({ request }, { group }) => 
 		shareBurst: (updates.shareBurst as number) ?? group.shareBurst,
 		shareCooldownMinutes: (updates.shareCooldownMinutes as number) ?? group.shareCooldownMinutes,
 		dailyShareLimit:
-			dailyShareLimit !== undefined ? (dailyShareLimit ?? null) : group.dailyShareLimit
+			dailyShareLimit !== undefined ? (dailyShareLimit ?? null) : group.dailyShareLimit,
+		cloutEnabled: cloutEnabled !== undefined ? cloutEnabled : group.cloutEnabled
 	});
 });

@@ -158,6 +158,7 @@ interface GroupPacingConfig {
 	dailyShareLimit: number | null;
 	shareBurst: number;
 	shareCooldownMinutes: number;
+	cloutEnabled: boolean;
 }
 
 /**
@@ -193,19 +194,33 @@ export function checkSharePacing(
 			};
 		}
 		case 'queue': {
-			const clout = getCloutScore(userId, groupId, group.shareCooldownMinutes);
-			const burst = checkBurstAvailable(userId, groupId, clout.burstSize, clout.cooldownMinutes);
+			if (group.cloutEnabled) {
+				const clout = getCloutScore(userId, groupId, group.shareCooldownMinutes);
+				const burst = checkBurstAvailable(userId, groupId, clout.burstSize, clout.cooldownMinutes);
+				return {
+					mode: 'queue',
+					queued: !burst.available,
+					nextSlotAt: burst.nextSlotAt ?? undefined,
+					clout: {
+						cooldownMinutes: clout.cooldownMinutes,
+						burstSize: clout.burstSize,
+						queueLimit: clout.queueLimit,
+						tier: clout.tier,
+						tierName: clout.tierConfig.name
+					}
+				};
+			}
+			// Clout disabled — use base group settings directly
+			const burst = checkBurstAvailable(
+				userId,
+				groupId,
+				group.shareBurst,
+				group.shareCooldownMinutes
+			);
 			return {
 				mode: 'queue',
 				queued: !burst.available,
-				nextSlotAt: burst.nextSlotAt ?? undefined,
-				clout: {
-					cooldownMinutes: clout.cooldownMinutes,
-					burstSize: clout.burstSize,
-					queueLimit: clout.queueLimit,
-					tier: clout.tier,
-					tierName: clout.tierConfig.name
-				}
+				nextSlotAt: burst.nextSlotAt ?? undefined
 			};
 		}
 		default:
