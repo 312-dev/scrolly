@@ -8,6 +8,8 @@ import { build, files, version } from '$service-worker';
 const sw = self as unknown as ServiceWorkerGlobalScope;
 const CACHE_NAME = `scrolly-${version}`;
 const OFFLINE_URL = '/offline';
+const NOTIFICATION_CLICK_CACHE = 'notification-click';
+const NOTIFICATION_CLICK_KEY = '/__notification_url';
 
 // Assets to cache on install (app shell)
 const ASSETS = [...build, ...files];
@@ -118,44 +120,54 @@ sw.addEventListener('notificationclick', (event) => {
 	console.log('[SW notificationclick] url:', url);
 
 	event.waitUntil(
-		Promise.all([
-			// Refresh badge with actual unwatched count instead of blindly clearing
-			fetch('/api/clips/unwatched-count')
-				.then((res) => (res.ok ? res.json() : null))
-				.then((data) => {
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					const nav = sw.navigator as any;
-					if (data && data.count > 0) {
-						nav.setAppBadge?.(data.count)?.catch?.(() => {});
-					} else {
-						nav.clearAppBadge?.()?.catch?.(() => {});
-					}
-				})
-				.catch(() => {
-					// Offline or fetch failed — clear badge as fallback
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					(sw.navigator as any).clearAppBadge?.()?.catch?.(() => {});
-				}),
-			// Focus existing client and send a message to handle navigation
-			// in-app (avoids full-page reload race conditions from client.navigate),
-			// or open a new window with the deep-link URL as fallback.
-			sw.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clients) => {
-				console.log('[SW notificationclick] found', clients.length, 'client(s)');
-				for (const client of clients) {
-					if (client.url.includes(sw.location.origin) && 'focus' in client) {
-						console.log('[SW notificationclick] focusing existing client:', client.url);
-						const focused = await client.focus();
-						// Post a message instead of navigate — lets SvelteKit handle
-						// the deep-link client-side without a full page reload.
-						console.log('[SW notificationclick] posting NOTIFICATION_CLICK message');
-						focused.postMessage({ type: 'NOTIFICATION_CLICK', url });
-						return;
-					}
-				}
-				console.log('[SW notificationclick] no existing client, opening new window');
-				return sw.clients.openWindow(url);
-			})
-		])
+		// Stash URL in Cache API so the client can pick it up on visibilitychange.
+		// Covers frozen/backgrounded PWA clients where postMessage is silently lost.
+		caches
+			.open(NOTIFICATION_CLICK_CACHE)
+			.then((cache) =>
+				cache.put(NOTIFICATION_CLICK_KEY, new Response(JSON.stringify({ url, ts: Date.now() })))
+			)
+			.catch(() => {})
+			.then(() =>
+				Promise.all([
+					// Refresh badge with actual unwatched count instead of blindly clearing
+					fetch('/api/clips/unwatched-count')
+						.then((res) => (res.ok ? res.json() : null))
+						.then((data) => {
+							// eslint-disable-next-line @typescript-eslint/no-explicit-any
+							const nav = sw.navigator as any;
+							if (data && data.count > 0) {
+								nav.setAppBadge?.(data.count)?.catch?.(() => {});
+							} else {
+								nav.clearAppBadge?.()?.catch?.(() => {});
+							}
+						})
+						.catch(() => {
+							// Offline or fetch failed — clear badge as fallback
+							// eslint-disable-next-line @typescript-eslint/no-explicit-any
+							(sw.navigator as any).clearAppBadge?.()?.catch?.(() => {});
+						}),
+					// Focus existing client and send a message to handle navigation
+					// in-app (avoids full-page reload race conditions from client.navigate),
+					// or open a new window with the deep-link URL as fallback.
+					sw.clients
+						.matchAll({ type: 'window', includeUncontrolled: true })
+						.then(async (clients) => {
+							console.log('[SW notificationclick] found', clients.length, 'client(s)');
+							for (const client of clients) {
+								if (client.url.includes(sw.location.origin) && 'focus' in client) {
+									console.log('[SW notificationclick] focusing existing client:', client.url);
+									const focused = await client.focus();
+									console.log('[SW notificationclick] posting NOTIFICATION_CLICK message');
+									focused.postMessage({ type: 'NOTIFICATION_CLICK', url });
+									return;
+								}
+							}
+							console.log('[SW notificationclick] no existing client, opening new window');
+							return sw.clients.openWindow(url);
+						})
+				])
+			)
 	);
 });
 
