@@ -112,9 +112,16 @@ function tryEnqueueShare(
 	burst: number
 ): { queued: false } | { queued: true; sharesIn: string } | Response {
 	if (pacing.mode !== 'queue' || !pacing.queued) return { queued: false };
-	const entry = enqueueClip(clipId, userId, groupId, cooldownMinutes, burst);
+	const effectiveCooldown = pacing.clout?.cooldownMinutes ?? cooldownMinutes;
+	const effectiveBurst = pacing.clout?.burstSize ?? burst;
+	const queueLimit = pacing.clout?.queueLimit ?? null;
+	const entry = enqueueClip(clipId, userId, groupId, effectiveCooldown, effectiveBurst, queueLimit);
 	if (!entry) {
-		return shareResponse(false, '❌  Your queue is full (max 10 items).', 429, { queueFull: true });
+		const limit = pacing.clout?.queueLimit ?? 10;
+		const tierMsg = pacing.clout ? ` (${pacing.clout.tierName} tier)` : '';
+		return shareResponse(false, `❌  Queue full${tierMsg} (${limit}/${limit}).`, 429, {
+			queueFull: true
+		});
 	}
 	return {
 		queued: true,

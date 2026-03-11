@@ -3,6 +3,7 @@ import { db } from '$lib/server/db';
 import { clips } from '$lib/server/db/schema';
 import { eq, and, gte, sql } from 'drizzle-orm';
 import { checkBurstAvailable } from '$lib/server/queue';
+import { getCloutScore } from '$lib/server/clout';
 
 /**
  * Calculate the start of "today" in the user's timezone as a UTC Date.
@@ -143,6 +144,13 @@ export type SharePacingResult =
 			scheduledAt?: Date;
 			nextSlotAt?: Date;
 			queueFull?: boolean;
+			clout?: {
+				cooldownMinutes: number;
+				burstSize: number;
+				queueLimit: number | null;
+				tier: string;
+				tierName: string;
+			};
 	  };
 
 interface GroupPacingConfig {
@@ -185,16 +193,19 @@ export function checkSharePacing(
 			};
 		}
 		case 'queue': {
-			const burst = checkBurstAvailable(
-				userId,
-				groupId,
-				group.shareBurst,
-				group.shareCooldownMinutes
-			);
+			const clout = getCloutScore(userId, groupId, group.shareCooldownMinutes);
+			const burst = checkBurstAvailable(userId, groupId, clout.burstSize, clout.cooldownMinutes);
 			return {
 				mode: 'queue',
 				queued: !burst.available,
-				nextSlotAt: burst.nextSlotAt ?? undefined
+				nextSlotAt: burst.nextSlotAt ?? undefined,
+				clout: {
+					cooldownMinutes: clout.cooldownMinutes,
+					burstSize: clout.burstSize,
+					queueLimit: clout.queueLimit,
+					tier: clout.tier,
+					tierName: clout.tierConfig.name
+				}
 			};
 		}
 		default:
