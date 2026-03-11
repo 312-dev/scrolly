@@ -305,9 +305,9 @@
 					</div>
 				</div>
 
-				{#if !isRankUp}
+				{#if change.newTier !== 'iconic'}
 					<button class="tips-btn" onclick={openTips} disabled={tipsLoading}>
-						{tipsLoading ? 'Loading...' : 'How to rank up'}
+						{tipsLoading ? 'Loading...' : 'Tips on ranking up'}
 					</button>
 				{/if}
 			{:else if tipsData}
