@@ -22,6 +22,7 @@ SQLite database via Drizzle ORM. All IDs are UUIDs stored as text. Timestamps ar
 | share_pacing_mode | text | Default `'off'`. `'off'` / `'daily_cap'` / `'queue'`. |
 | share_burst | integer | Default 2. Clips per scheduled time slot in queue mode (1–10). |
 | share_cooldown_minutes | integer | Default 120. Minutes between clip groups in queue mode. |
+| clout_enabled | integer | Boolean (0/1). Default 1. Enables reputation-based queue adjustments. |
 | shortcut_token | text | Nullable, unique. Token for iOS Shortcut clip sharing. |
 | shortcut_url | text | Nullable. URL for iOS Shortcut integration. |
 | created_by | text | FK → users.id (host/admin) |
@@ -42,6 +43,8 @@ SQLite database via Drizzle ORM. All IDs are UUIDs stored as text. Timestamps ar
 | avatar_path | text | Nullable. Path to uploaded profile picture. |
 | last_legacy_share_at | integer | Nullable. Unix timestamp of last legacy shortcut share. Used for upgrade banner. |
 | used_new_share_flow | integer | Boolean (0/1). Default 0. Tracks if user has adopted new web view share flow. |
+| clout_tier | text | Nullable. Last acknowledged clout tier (for tier change detection). |
+| clout_change_shown_at | integer | Nullable. Unix timestamp when tier change modal was last shown (3-day cooldown). |
 | removed_at | integer | Nullable. Unix timestamp when removed from group. |
 | created_at | integer | Unix timestamp |
 
@@ -249,4 +252,4 @@ users  1──∞ verification_codes
 - **Duplicate URL prevention:** A unique index on `(group_id, original_url)` prevents the same link from being shared twice within a group.
 - **Music clip trim workflow:** Music clips enter `pending_trim` status after download. The user can trim audio via the trim UI or skip trimming. If neither occurs before `trim_deadline`, the clip auto-publishes to `ready` status via the scheduler.
 - **Dismissed clips:** The `dismissed_clips` table tracks clips dismissed by users in the catch-up modal. Users can dismiss unwatched clips in bulk, then restore them later from the Skipped Clips viewer in settings.
-- **Clout (reputation):** Computed on-demand from existing tables — no new schema. A user's clout score is the rolling average of per-clip engagement scores (0/1/2) for their last 10 matured clips (48h+ old). Scores are derived from `reactions`, `favorites`, and `comments` tables, excluding self-interactions. Tiers (Fresh/Rising/Viral/Iconic) determine queue cooldown multiplier, burst size, and queue depth limits.
+- **Clout (reputation):** Computed on-demand from `reactions`, `favorites`, and `comments` tables. A user's clout score is the rolling average of per-clip engagement scores (0/1/2) for their last 10 matured clips (48h+ old). Self-interactions are excluded. Tiers (Fresh/Rising/Viral/Iconic) determine queue cooldown multiplier, burst size, and queue depth limits. The `clout_enabled` flag on `groups` controls whether clout adjustments are applied. The `clout_tier` and `clout_change_shown_at` columns on `users` track server-driven tier change notifications with a 3-day cooldown.
