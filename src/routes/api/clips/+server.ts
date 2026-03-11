@@ -392,9 +392,23 @@ function tryEnqueue(
 	burst: number
 ): QueueResult | Response {
 	if (pacing.mode !== 'queue' || !pacing.queued) return { queued: false };
-	const entry = enqueueClip(clipId, userId, groupId, cooldownMinutes, burst);
-	if (!entry)
-		return json({ error: 'Your queue is full (max 10).', queueFull: true }, { status: 429 });
+	// Use clout-adjusted values when available
+	const effectiveCooldown = pacing.clout?.cooldownMinutes ?? cooldownMinutes;
+	const effectiveBurst = pacing.clout?.burstSize ?? burst;
+	const queueLimit = pacing.clout?.queueLimit ?? null;
+	const entry = enqueueClip(clipId, userId, groupId, effectiveCooldown, effectiveBurst, queueLimit);
+	if (!entry) {
+		const tierMsg = pacing.clout ? ` You're at ${pacing.clout.tierName} tier.` : '';
+		const limit = pacing.clout?.queueLimit ?? 10;
+		return json(
+			{
+				error: `Queue full (${limit}/${limit}).${tierMsg} Share clips that get reactions to unlock more capacity.`,
+				queueFull: true,
+				tier: pacing.clout?.tier
+			},
+			{ status: 429 }
+		);
+	}
 	return { queued: true, scheduledAt: entry.scheduledAt, position: entry.position };
 }
 

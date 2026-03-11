@@ -423,6 +423,7 @@
 						currentBurst={group.shareBurst}
 						currentCooldown={group.shareCooldownMinutes}
 						currentDailyLimit={group.dailyShareLimit}
+						currentCloutEnabled={group.cloutEnabled}
 					/>
 				</div>
 			</div>

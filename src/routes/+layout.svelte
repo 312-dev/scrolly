@@ -7,6 +7,7 @@
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import InstallBanner from '$lib/components/InstallBanner.svelte';
 	import SwUpdateToast from '$lib/components/SwUpdateToast.svelte';
+	import CloutChangeModal from '$lib/components/CloutChangeModal.svelte';
 	import {
 		isStandalone,
 		detectStandaloneMode,
@@ -15,6 +16,57 @@
 	} from '$lib/stores/pwa';
 
 	const { children } = $props();
+
+	const NOTIFICATION_CLICK_CACHE = 'notification-click';
+	const NOTIFICATION_CLICK_KEY = '/__notification_url';
+
+	/** Shared handler for notification deep-link URLs (used by postMessage and visibilitychange). */
+	function handleNotificationUrl(url: string) {
+		const parsed = new URL(url, window.location.origin);
+		const clipId = parsed.searchParams.get('clip');
+		const comments = parsed.searchParams.get('comments') === 'true';
+
+		if (clipId && window.location.pathname === '/') {
+			console.log('[Layout] on feed, opening overlay via signal:', clipId);
+			clipOverlaySignal.set(clipId);
+			if (comments) {
+				setTimeout(() => openCommentsSignal.set(clipId), 150);
+			}
+		} else {
+			console.log('[Layout] navigating to feed with deep link:', url);
+			// eslint-disable-next-line svelte/no-navigation-without-resolve -- resolve() expects route ID, not URL with query params
+			goto(url);
+		}
+	}
+
+	/** Clear the notification URL stash (called after successful postMessage delivery). */
+	async function clearNotificationStash() {
+		try {
+			const cache = await caches.open(NOTIFICATION_CLICK_CACHE);
+			await cache.delete(NOTIFICATION_CLICK_KEY);
+		} catch {
+			/* ignore */
+		}
+	}
+
+	/**
+	 * Check for a stashed notification URL from the service worker.
+	 * Covers frozen/backgrounded PWA clients where postMessage was silently lost.
+	 */
+	async function checkStashedNotification() {
+		try {
+			const cache = await caches.open(NOTIFICATION_CLICK_CACHE);
+			const res = await cache.match(NOTIFICATION_CLICK_KEY);
+			if (!res) return;
+			const { url, ts } = await res.json();
+			await cache.delete(NOTIFICATION_CLICK_KEY);
+			if (Date.now() - ts > 30_000) return;
+			console.log('[Layout] found stashed notification URL:', url);
+			handleNotificationUrl(url);
+		} catch {
+			/* ignore */
+		}
+	}
 
 	onMount(() => {
 		isStandalone.set(detectStandaloneMode());
@@ -28,35 +80,35 @@
 		if (accent) updateFavicon(accent);
 
 		// Listen for push notification clicks forwarded by the service worker.
-		// Uses postMessage instead of client.navigate() to avoid full-page reloads
-		// that race with SvelteKit hydration on Android PWA.
+		// Uses postMessage for smooth in-app navigation when the app is active.
 		function handleSwMessage(event: MessageEvent) {
 			if (event.data?.type !== 'NOTIFICATION_CLICK') return;
 			const url = event.data.url || '/';
 			console.log('[Layout] NOTIFICATION_CLICK received, url:', url);
+			clearNotificationStash();
+			handleNotificationUrl(url);
+		}
 
-			const parsed = new URL(url, window.location.origin);
-			const clipId = parsed.searchParams.get('clip');
-			const comments = parsed.searchParams.get('comments') === 'true';
-
-			if (clipId && window.location.pathname === '/') {
-				// Already on feed — open overlay directly via signal (same as ActivitySheet)
-				console.log('[Layout] on feed, opening overlay via signal:', clipId);
-				clipOverlaySignal.set(clipId);
-				if (comments) {
-					setTimeout(() => openCommentsSignal.set(clipId), 150);
-				}
-			} else {
-				// On a different page — use SvelteKit client-side navigation
-				console.log('[Layout] navigating to feed with deep link:', url);
-				// eslint-disable-next-line svelte/no-navigation-without-resolve -- resolve() expects route ID, not URL with query params
-				goto(url);
+		// Fallback for frozen/backgrounded PWA clients: when the page becomes
+		// visible again, check if the SW stashed a notification URL in the Cache API.
+		function handleVisibilityChange() {
+			if (document.visibilityState === 'visible') {
+				checkStashedNotification();
 			}
 		}
 
 		navigator.serviceWorker?.addEventListener('message', handleSwMessage);
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+
+		// Also check on mount — covers the case where the app was just opened
+		// from a killed state via openWindow and the stash wasn't cleared yet.
+		// Delay slightly so the feed page's own deep-link handler (which reads
+		// ?clip= and clears the stash) has time to run first, avoiding duplicates.
+		setTimeout(() => checkStashedNotification(), 100);
+
 		return () => {
 			navigator.serviceWorker?.removeEventListener('message', handleSwMessage);
+			document.removeEventListener('visibilitychange', handleVisibilityChange);
 		};
 	});
 </script>
@@ -66,6 +118,7 @@
 <ConfirmDialog />
 <InstallBanner />
 <SwUpdateToast />
+<CloutChangeModal />
 
 <style>
 	:global(*, *::before, *::after) {

@@ -5,6 +5,7 @@
 	import { toast } from '$lib/stores/toasts';
 	import { fetchQueueCount } from '$lib/stores/queue';
 	import { basename } from '$lib/utils';
+	import QueueCloutBanner from './QueueCloutBanner.svelte';
 	import ClockIcon from 'phosphor-svelte/lib/ClockIcon';
 	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
 	import QueueIcon from 'phosphor-svelte/lib/QueueIcon';
@@ -12,6 +13,9 @@
 	import DotsSixVerticalIcon from 'phosphor-svelte/lib/DotsSixVerticalIcon';
 
 	const { ondismiss }: { ondismiss: () => void } = $props();
+
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- API response passed through to QueueCloutBanner
+	let clout = $state<any>(null);
 
 	interface QueueItem {
 		id: string;
@@ -40,6 +44,7 @@
 
 	$effect(() => {
 		loadQueue();
+		loadClout();
 	});
 
 	async function loadQueue() {
@@ -54,6 +59,18 @@
 			// silently fail
 		}
 		loading = false;
+	}
+
+	async function loadClout() {
+		try {
+			const res = await fetch('/api/clout');
+			if (res.ok) {
+				const data = await res.json();
+				if (data.enabled) clout = data;
+			}
+		} catch {
+			// silently fail
+		}
 	}
 
 	function handleDragStart(e: PointerEvent, index: number) {
@@ -145,8 +162,9 @@
 			title: 'How the queue works',
 			message:
 				'Your first few clips go straight to the feed. ' +
-				'After that, extras land here and get shared on a timer — ' +
-				'so your group gets a steady stream instead of everything at once.\n\n' +
+				'After that, extras land here and get shared on a timer.\n\n' +
+				'Your queue speed is based on how your clips land with the group — ' +
+				'more reactions and comments means faster sharing.\n\n' +
 				'Drag to reorder, or tap the trash icon to remove.',
 			confirmLabel: 'Got it',
 			cancelLabel: 'Close'
@@ -191,6 +209,10 @@
 			{/if}
 		</div>
 	{/snippet}
+
+	{#if clout}
+		<QueueCloutBanner {clout} />
+	{/if}
 
 	<div class="queue-body">
 		{#if loading}

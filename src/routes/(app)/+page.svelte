@@ -832,13 +832,23 @@
 				'comments:',
 				deepComments
 			);
-			overlayOpenComments = deepComments;
-			clipOverlaySignal.set(deepClipId);
 			// Clean URL without triggering navigation
 			const clean = new URL(window.location.href);
 			clean.searchParams.delete('clip');
 			clean.searchParams.delete('comments');
 			history.replaceState(null, '', clean.pathname + clean.search || '/');
+			// Clear the notification stash so the layout's visibilitychange handler
+			// doesn't double-process this same deep-link.
+			caches
+				.open('notification-click')
+				.then((c) => c.delete('/__notification_url'))
+				.catch(() => {});
+			// Defer overlay open until after SvelteKit's router is initialized —
+			// pushState throws if called before the router is ready (cold start).
+			setTimeout(() => {
+				overlayOpenComments = deepComments;
+				clipOverlaySignal.set(deepClipId);
+			}, 0);
 		}
 
 		loadInitialClips();

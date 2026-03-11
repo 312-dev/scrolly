@@ -15,6 +15,7 @@ export const groups = sqliteTable('groups', {
 	sharePacingMode: text('share_pacing_mode').notNull().default('off'),
 	shareBurst: integer('share_burst').notNull().default(2),
 	shareCooldownMinutes: integer('share_cooldown_minutes').notNull().default(120),
+	cloutEnabled: integer('clout_enabled', { mode: 'boolean' }).notNull().default(true),
 	shortcutToken: text('shortcut_token').unique(),
 	shortcutUrl: text('shortcut_url'),
 	createdBy: text('created_by'),
@@ -35,6 +36,8 @@ export const users = sqliteTable('users', {
 	avatarPath: text('avatar_path'),
 	lastLegacyShareAt: integer('last_legacy_share_at', { mode: 'timestamp' }),
 	usedNewShareFlow: integer('used_new_share_flow', { mode: 'boolean' }).notNull().default(false),
+	cloutTier: text('clout_tier'),
+	cloutChangeShownAt: integer('clout_change_shown_at', { mode: 'timestamp' }),
 	removedAt: integer('removed_at', { mode: 'timestamp' }),
 	createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
 });

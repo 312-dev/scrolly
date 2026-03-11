@@ -7,7 +7,7 @@ import { v4 as uuid } from 'uuid';
 
 const log = createLogger('queue');
 
-const MAX_QUEUE_DEPTH = 10;
+const DEFAULT_QUEUE_DEPTH = 10;
 
 /**
  * Check if a user still has burst slots available (instant shares).
@@ -76,7 +76,8 @@ export function enqueueClip(
 	userId: string,
 	groupId: string,
 	cooldownMinutes: number,
-	burst = 1
+	burst = 1,
+	queueLimit: number | null = DEFAULT_QUEUE_DEPTH
 ): { id: string; scheduledAt: Date; position: number } | null {
 	// Check queue depth
 	const [countResult] = db
@@ -86,7 +87,8 @@ export function enqueueClip(
 		.all();
 
 	const currentCount = countResult?.count ?? 0;
-	if (currentCount >= MAX_QUEUE_DEPTH) {
+	const effectiveLimit = queueLimit ?? Infinity;
+	if (currentCount >= effectiveLimit) {
 		return null; // Queue full
 	}
 

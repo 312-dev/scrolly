@@ -1,0 +1,1 @@
+ALTER TABLE `groups` ADD `clout_enabled` integer DEFAULT true NOT NULL;

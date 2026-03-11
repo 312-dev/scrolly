@@ -12,6 +12,7 @@
 	import { initAudioContext } from '$lib/audio/normalizer';
 	import { feedUiHidden } from '$lib/stores/uiHidden';
 	import { fetchGroupMembers } from '$lib/stores/members';
+	import { cloutChange } from '$lib/stores/cloutChange';
 	import ActivitySheet from '$lib/components/ActivitySheet.svelte';
 	import QueueSheet from '$lib/components/QueueSheet.svelte';
 	import AddVideoModal from '$lib/components/AddVideoModal.svelte';
@@ -33,9 +34,42 @@
 		return '';
 	});
 
+	const TIER_NAMES: Record<string, string> = {
+		fresh: 'Fresh',
+		rising: 'Rising',
+		viral: 'Viral',
+		iconic: 'Iconic'
+	};
+
+	async function checkCloutTier() {
+		try {
+			const res = await fetch('/api/clout');
+			if (!res.ok) return;
+			const data = await res.json();
+			if (!data.enabled) return;
+
+			// Server tells us if a tier change modal should be shown (3-day cooldown)
+			if (data.tierChanged && data.lastTier) {
+				cloutChange.set({
+					previousTier: data.lastTier,
+					newTier: data.tier,
+					previousTierName: TIER_NAMES[data.lastTier] ?? data.lastTier,
+					newTierName: data.tierName,
+					cooldownMinutes: data.cooldownMinutes,
+					burstSize: data.burstSize
+				});
+				// Acknowledge so it won't show again on other devices
+				fetch('/api/clout', { method: 'POST' }).catch(() => {});
+			}
+		} catch {
+			// silently fail
+		}
+	}
+
 	onMount(() => {
 		startPolling();
 		fetchGroupMembers();
+		checkCloutTier();
 
 		// Measure actual bottom nav height and expose as CSS variable.
 		// This adapts to the real safe-area insets on each device instead of

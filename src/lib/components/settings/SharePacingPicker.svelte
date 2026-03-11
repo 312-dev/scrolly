@@ -5,18 +5,21 @@
 		currentMode,
 		currentBurst,
 		currentCooldown,
-		currentDailyLimit
+		currentDailyLimit,
+		currentCloutEnabled
 	}: {
 		currentMode: string;
 		currentBurst: number;
 		currentCooldown: number;
 		currentDailyLimit: number | null;
+		currentCloutEnabled: boolean;
 	} = $props();
 
 	let mode = $state(currentMode);
 	let burst = $state(currentBurst);
 	let cooldown = $state(currentCooldown);
 	let dailyLimit = $state(currentDailyLimit === null ? '' : String(currentDailyLimit));
+	let cloutEnabled = $state(currentCloutEnabled);
 	let saving = $state(false);
 
 	const cooldownOptions = [
@@ -72,6 +75,11 @@
 		const parsed = dailyLimit === '' ? null : parseInt(dailyLimit);
 		if (parsed !== null && (isNaN(parsed) || parsed < 1)) return;
 		save({ dailyShareLimit: parsed });
+	}
+
+	function toggleClout() {
+		cloutEnabled = !cloutEnabled;
+		save({ cloutEnabled });
 	}
 </script>
 
@@ -171,6 +179,23 @@
 							</button>
 						{/each}
 					</div>
+				</div>
+				<div class="control-label">
+					<div class="toggle-label-group">
+						<span>Reputation adjustments</span>
+						<span class="toggle-hint">Adjust pacing based on engagement</span>
+					</div>
+					<button
+						class="toggle"
+						class:on={cloutEnabled}
+						onclick={toggleClout}
+						disabled={saving}
+						role="switch"
+						aria-checked={cloutEnabled}
+						aria-label="Reputation adjustments"
+					>
+						<span class="toggle-thumb"></span>
+					</button>
 				</div>
 			</div>
 		{/if}
@@ -362,5 +387,55 @@
 	.cooldown-btn:disabled {
 		opacity: 0.5;
 		cursor: not-allowed;
+	}
+
+	.toggle-label-group {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+
+	.toggle-hint {
+		font-size: 0.6875rem;
+		font-weight: 400;
+		color: var(--text-muted);
+	}
+
+	.toggle {
+		position: relative;
+		width: 44px;
+		height: 26px;
+		border-radius: 13px;
+		border: none;
+		background: var(--border);
+		cursor: pointer;
+		padding: 0;
+		flex-shrink: 0;
+		transition: background 0.2s ease;
+	}
+
+	.toggle.on {
+		background: var(--accent-primary);
+	}
+
+	.toggle:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.toggle-thumb {
+		position: absolute;
+		top: 2px;
+		left: 2px;
+		width: 22px;
+		height: 22px;
+		border-radius: 50%;
+		background: var(--constant-white, #fff);
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+		transition: transform 0.2s ease;
+	}
+
+	.toggle.on .toggle-thumb {
+		transform: translateX(18px);
 	}
 </style>
