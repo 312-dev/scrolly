@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.24.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.23.1...scrolly-v1.24.0) (2026-03-11)
+
+
+### Features
+
+* clout system with tier-based queue pacing ([#106](https://github.com/312-dev/scrolly/issues/106)) ([518ae8e](https://github.com/312-dev/scrolly/commit/518ae8e96e9164bdad092d118fef6d3dbc43207c))
+
 ## [1.23.1](https://github.com/312-dev/scrolly/compare/scrolly-v1.23.0...scrolly-v1.23.1) (2026-03-10)
 
 
