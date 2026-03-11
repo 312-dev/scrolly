@@ -211,6 +211,20 @@
       "when": 1773098368569,
       "tag": "0029_chunky_sentry",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1773193628213,
+      "tag": "0030_mean_bruce_banner",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1773193972601,
+      "tag": "0031_futuristic_shard",
+      "breakpoints": true
     }
   ]
 }
