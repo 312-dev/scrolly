@@ -33,6 +33,7 @@
 		icon?: string;
 		cooldownMinutes?: number;
 		burstSize?: number;
+		queueLimit?: number | null;
 	} | null>(null);
 
 	async function loadStats() {
