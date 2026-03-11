@@ -237,6 +237,34 @@ Extends the trim deadline for a music clip in `pending_trim` status. The client 
 Response: { "ok": true }
 ```
 
+## Clout (Reputation)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/clout` | Get user's clout score, tier, and breakdown |
+
+### GET /api/clout
+Returns the user's clout score and tier when queue pacing is enabled. Clout is computed from the engagement on the user's last 10 matured clips (48h+ old). Users with fewer than 10 matured clips default to Rising tier.
+```
+Response: {
+  "enabled": true,
+  "score": 0.8,
+  "tier": "viral",
+  "tierName": "Viral",
+  "cooldownMinutes": 120,
+  "burstSize": 3,
+  "queueLimit": null,
+  "icon": "/icons/clout/viral.png",
+  "breakdown": [{ "clipId": "...", "score": 2 }, ...],
+  "nextTier": { "tier": "iconic", "tierName": "Iconic", "minScore": 1.0, "burst": 5, "queueLimit": null, "icon": "..." },
+  "underperforming": [{ "clipId": "...", "title": "...", "platform": "tiktok", "originalUrl": "...", "thumbnailPath": "..." }]
+}
+```
+
+**Tiers:** Fresh (<0.4) → Rising (0.4–0.6) → Viral (0.7–0.9) → Iconic (≥1.0). Each tier adjusts cooldown multiplier, burst size, and queue depth limit.
+
+**Per-clip scoring:** 0 = no reactions/favorites from others, 1 = reaction or favorite but no comment, 2 = reaction/favorite AND comment. Self-interactions excluded.
+
 ## Queue Management
 
 Manage queued clips when share pacing is enabled.
