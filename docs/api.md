@@ -242,6 +242,7 @@ Response: { "ok": true }
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/clout` | Get user's clout score, tier, and breakdown |
+| POST | `/api/clout` | Acknowledge tier change modal was shown |
 
 ### GET /api/clout
 Returns the user's clout score and tier when queue pacing is enabled. Clout is computed from the engagement on the user's last 10 matured clips (48h+ old). Users with fewer than 10 matured clips default to Rising tier.
@@ -257,13 +258,23 @@ Response: {
   "icon": "/icons/clout/viral.png",
   "breakdown": [{ "clipId": "...", "score": 2 }, ...],
   "nextTier": { "tier": "iconic", "tierName": "Iconic", "minScore": 1.0, "burst": 5, "queueLimit": null, "icon": "..." },
-  "underperforming": [{ "clipId": "...", "title": "...", "platform": "tiktok", "originalUrl": "...", "thumbnailPath": "..." }]
+  "underperforming": [{ "clipId": "...", "title": "...", "platform": "tiktok", "originalUrl": "...", "thumbnailPath": "..." }],
+  "lastTier": "rising",
+  "tierChanged": true
 }
 ```
 
 **Tiers:** Fresh (<0.4) → Rising (0.4–0.6) → Viral (0.7–0.9) → Iconic (≥1.0). Each tier adjusts cooldown multiplier, burst size, and queue depth limit.
 
 **Per-clip scoring:** 0 = no reactions/favorites from others, 1 = reaction or favorite but no comment, 2 = reaction/favorite AND comment. Self-interactions excluded.
+
+**Tier change detection:** The server tracks each user's last acknowledged tier (`cloutTier`) and last modal shown time (`cloutChangeShownAt`). When the computed tier differs from the acked tier and the 3-day cooldown has elapsed, `tierChanged: true` is returned. The `lastTier` field shows what the user was previously at.
+
+### POST /api/clout
+Acknowledges that the tier change modal was shown. Updates the user's stored tier and resets the cooldown timer.
+```
+Response: { "ok": true }
+```
 
 ## Queue Management
 
@@ -378,13 +389,14 @@ Response: { "dailyShareLimit": 5 }
 ### PATCH /api/group/share-pacing
 Host-only. Configures queue-based share pacing. When switching away from `queue` mode, all queued clips are flushed to `ready`.
 ```
-Request:  { "sharePacingMode": "queue", "shareBurst": 2, "shareCooldownMinutes": 120, "dailyShareLimit": null }
-Response: { "sharePacingMode": "queue", "shareBurst": 2, "shareCooldownMinutes": 120, "dailyShareLimit": null }
+Request:  { "sharePacingMode": "queue", "shareBurst": 2, "shareCooldownMinutes": 120, "dailyShareLimit": null, "cloutEnabled": true }
+Response: { "sharePacingMode": "queue", "shareBurst": 2, "shareCooldownMinutes": 120, "dailyShareLimit": null, "cloutEnabled": true }
 ```
 - `sharePacingMode`: `"off"` | `"daily_cap"` | `"queue"`
 - `shareBurst`: 1–10 (clips per scheduled time slot)
 - `shareCooldownMinutes`: 30 | 60 | 120 | 240 | 360
 - `dailyShareLimit`: positive integer or null
+- `cloutEnabled`: boolean (enables reputation-based queue adjustments)
 
 ### GET /api/group/provider
 ```

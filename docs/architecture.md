@@ -98,6 +98,9 @@ scrolly/
 │   │   │   ├── AddVideoModal.svelte # Modal wrapper for AddVideo
 │   │   │   ├── AvatarCropModal.svelte # Profile picture crop UI
 │   │   │   ├── QueueSheet.svelte    # Bottom sheet for viewing/reordering queued clips
+│   │   │   ├── QueueCloutBanner.svelte # Clout tier banner inside QueueSheet
+│   │   │   ├── CloutChangeModal.svelte # Tier change celebration modal
+│   │   │   ├── CloutTipsView.svelte   # Clout tips/breakdown view (tier details, scoring)
 │   │   │   ├── CatchUpModal.svelte  # Catch-up modal for bulk unwatched clips
 │   │   │   ├── MeGrid.svelte         # Profile clip grid (favorites/uploads)
 │   │   │   ├── MeReelView.svelte     # Profile reel overlay view
