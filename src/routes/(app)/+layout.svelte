@@ -47,17 +47,19 @@
 			if (!res.ok) return;
 			const data = await res.json();
 			if (!data.enabled) return;
-			const storedTier = localStorage.getItem('clout-tier');
-			localStorage.setItem('clout-tier', data.tier);
-			if (storedTier && storedTier !== data.tier) {
+
+			// Server tells us if a tier change modal should be shown (3-day cooldown)
+			if (data.tierChanged && data.lastTier) {
 				cloutChange.set({
-					previousTier: storedTier,
+					previousTier: data.lastTier,
 					newTier: data.tier,
-					previousTierName: TIER_NAMES[storedTier] ?? storedTier,
+					previousTierName: TIER_NAMES[data.lastTier] ?? data.lastTier,
 					newTierName: data.tierName,
 					cooldownMinutes: data.cooldownMinutes,
 					burstSize: data.burstSize
 				});
+				// Acknowledge so it won't show again on other devices
+				fetch('/api/clout', { method: 'POST' }).catch(() => {});
 			}
 		} catch {
 			// silently fail
