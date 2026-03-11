@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.24.1](https://github.com/312-dev/scrolly/compare/scrolly-v1.24.0...scrolly-v1.24.1) (2026-03-11)
+
+
+### Documentation
+
+* update api, data-model, and architecture for clout system ([#108](https://github.com/312-dev/scrolly/issues/108)) ([253294b](https://github.com/312-dev/scrolly/commit/253294b2ad3e93ca59146e13e49cb108d9c9afe0))
+
+
+### Miscellaneous
+
+* **deps:** bump the minor-and-patch group with 12 updates ([#101](https://github.com/312-dev/scrolly/issues/101)) ([418bd75](https://github.com/312-dev/scrolly/commit/418bd75b9188e1cf4fc92fba0ff7c23d96042960))
+
 ## [1.24.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.23.1...scrolly-v1.24.0) (2026-03-11)
 
 
