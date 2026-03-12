@@ -140,6 +140,7 @@ Returns dismissed clips with thumbnail, platform, uploader info, and dismissal t
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/api/clips/[id]/watched` | Mark clip as watched |
+| PATCH | `/api/clips/[id]/watched` | Update watch percent only |
 | DELETE | `/api/clips/[id]/watched` | Mark clip as unwatched |
 | POST | `/api/clips/[id]/favorite` | Toggle favorite |
 | GET | `/api/clips/[id]/views` | List who has viewed |
@@ -161,6 +162,13 @@ Returns dismissed clips with thumbnail, platform, uploader info, and dismissal t
 ```
 Request:  { "watchPercent": 85 }   (optional, 0–100)
 Response: { "watched": true }
+```
+
+### PATCH /api/clips/[id]/watched
+Updates watch percent without marking the clip as watched. Only updates existing watched records — does not create new ones. Used for periodic progress tracking while the user is still viewing.
+```
+Request:  { "watchPercent": 85 }   (0–100)
+Response: { "updated": true }
 ```
 
 ### POST /api/clips/[id]/favorite
