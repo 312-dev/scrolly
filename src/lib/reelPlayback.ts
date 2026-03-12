@@ -40,19 +40,13 @@ export function sendWatchPercent(clipId: string, maxPercent: number): void {
 	if (maxPercent <= 0) return;
 	const pct = Math.round(maxPercent);
 	const body = JSON.stringify({ watchPercent: pct });
-	if (navigator.sendBeacon) {
-		navigator.sendBeacon(
-			`/api/clips/${clipId}/watched`,
-			new Blob([body], { type: 'application/json' })
-		);
-	} else {
-		fetch(`/api/clips/${clipId}/watched`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body,
-			keepalive: true
-		}).catch((err) => console.warn('[watch-beacon]', err));
-	}
+	// Use PATCH to update percent without marking as watched (only swipe-past marks watched)
+	fetch(`/api/clips/${clipId}/watched`, {
+		method: 'PATCH',
+		headers: { 'Content-Type': 'application/json' },
+		body,
+		keepalive: true
+	}).catch((err) => console.warn('[watch-percent]', err));
 }
 
 export function startPeriodicWatchUpdate(
