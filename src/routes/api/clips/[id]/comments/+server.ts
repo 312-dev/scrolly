@@ -98,11 +98,11 @@ export const GET: RequestHandler = withClipAuth(async ({ params }, { user }) => 
 		};
 	}
 
-	// Sort top-level: hearts desc, then newest first
+	// Sort top-level: hearts desc, then oldest first
 	topLevel.sort((a, b) => {
 		const heartDiff = (heartCounts.get(b.id) || 0) - (heartCounts.get(a.id) || 0);
 		if (heartDiff !== 0) return heartDiff;
-		return b.createdAt.getTime() - a.createdAt.getTime();
+		return a.createdAt.getTime() - b.createdAt.getTime();
 	});
 
 	// Build response with nested replies (sorted chronologically)

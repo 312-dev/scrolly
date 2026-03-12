@@ -57,9 +57,6 @@
 		gifEnabled = false,
 		seenByOthers = false,
 		hideViewBadge = false,
-		deferWatched = false,
-		deferFirstClip = false,
-		onwatched,
 		onfavorited,
 		onreaction,
 		onretry,
@@ -75,9 +72,6 @@
 		gifEnabled?: boolean;
 		seenByOthers?: boolean;
 		hideViewBadge?: boolean;
-		deferWatched?: boolean;
-		deferFirstClip?: boolean;
-		onwatched: (id: string) => void;
 		onfavorited: (id: string) => void;
 		onreaction: (clipId: string, emoji: string) => Promise<void>;
 		onretry: (id: string) => void;
@@ -86,7 +80,6 @@
 	} = $props();
 
 	let itemEl: HTMLDivElement | null = $state(null);
-	let hasMarkedWatched = $state(false);
 	let muted = $derived($globalMuted);
 	let showMuteIndicator = $state(false);
 	let muteIndicatorTimer: ReturnType<typeof setTimeout> | null = null;
@@ -204,9 +197,7 @@
 		if (postEngagementTimer) clearTimeout(postEngagementTimer);
 		if (pillTimer) clearTimeout(pillTimer);
 		scrubSeekedCleanup?.();
-		if ((!deferWatched && !deferFirstClip) || hasMarkedWatched) {
-			sendWatchPercent(clip.id, maxPercent);
-		}
+		sendWatchPercent(clip.id, maxPercent);
 	});
 
 	// Contributor pill: expand when a different contributor's clip becomes active
@@ -248,30 +239,6 @@
 	$effect(() => {
 		if (active) feedUiHidden.set(uiHidden);
 	});
-	$effect(() => {
-		if (!active || clip.watched || hasMarkedWatched || deferWatched || deferFirstClip) return;
-		const timer = setTimeout(() => {
-			hasMarkedWatched = true;
-			onwatched(clip.id);
-		}, 3000);
-		return () => clearTimeout(timer);
-	});
-	// Deferred watch: mark watched when 50% or 10s threshold is met
-	$effect(() => {
-		if (!deferWatched || !active || clip.watched || hasMarkedWatched) return;
-		if ((duration > 0 && currentTime / duration >= 0.5) || currentTime >= 10) {
-			hasMarkedWatched = true;
-			onwatched(clip.id);
-		}
-	});
-	// First clip deferral: only mark watched at 40% progress
-	$effect(() => {
-		if (!deferFirstClip || !active || clip.watched || hasMarkedWatched) return;
-		if (duration > 0 && currentTime / duration >= 0.4) {
-			hasMarkedWatched = true;
-			onwatched(clip.id);
-		}
-	});
 	let hasMarkedReactionsRead = $state(false);
 	$effect(() => {
 		if (!active || hasMarkedReactionsRead) return;
@@ -293,15 +260,13 @@
 			wasActive = true;
 		} else if (wasActive) {
 			wasActive = false;
-			if (!deferWatched || hasMarkedWatched) {
-				sendWatchPercent(clip.id, maxPercent);
-			}
+			sendWatchPercent(clip.id, maxPercent);
 			maxPercent = 0;
 		}
 	});
 	// Send watch percent to server periodically while active
 	$effect(() => {
-		if (!active || (deferWatched && !hasMarkedWatched)) return;
+		if (!active) return;
 		return startPeriodicWatchUpdate(clip.id, () => maxPercent);
 	});
 	// Fetch comment previews for cycling prompt bar

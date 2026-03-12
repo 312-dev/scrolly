@@ -25,6 +25,7 @@
 	import { feedUiHidden } from '$lib/stores/uiHidden';
 	import { anySheetOpen } from '$lib/stores/sheetOpen';
 	import { get } from 'svelte/store';
+	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { basename } from '$lib/utils';
 	import type { FeedClip } from '$lib/types';
@@ -56,17 +57,6 @@
 
 	let isDesktopFeed = $state(false);
 	const renderWindow = $derived(isDesktopFeed ? 3 : 2);
-
-	// Defer watched marking for the last unwatched clip
-	const isLastUnwatched = $derived(
-		filter === 'unwatched' &&
-			!hasMore &&
-			clips.length > 0 &&
-			clips.filter((c) => !c.watched).length === 1
-	);
-
-	// Defer watched marking for the first loaded clip until 40% watched or swiped past
-	let firstClipId = $state<string | null>(null);
 
 	// Clip overlay (dedicated single-clip view)
 	let overlayClipId = $state<string | null>(null);
@@ -139,7 +129,6 @@
 			clips = data.clips;
 			hasMore = data.hasMore;
 			currentOffset = data.clips.length;
-			firstClipId = data.clips.length > 0 ? data.clips[0].id : null;
 		} else {
 			toast.error('Failed to load clips');
 		}
@@ -161,14 +150,14 @@
 	}
 
 	async function markWatched(clipId: string) {
-		const wasUnwatched = clips.find((c) => c.id === clipId && !c.watched);
-		await markClipWatched(clipId);
+		const clip = clips.find((c) => c.id === clipId);
+		if (!clip || clip.watched) return;
+		// Optimistic update before the API call — prevents double-calls during async gap
 		clips = clips.map((c) =>
-			c.id === clipId
-				? { ...c, watched: true, viewCount: c.watched ? c.viewCount : c.viewCount + 1 }
-				: c
+			c.id === clipId ? { ...c, watched: true, viewCount: c.viewCount + 1 } : c
 		);
-		if (wasUnwatched) fetchUnwatchedCount();
+		fetchUnwatchedCount();
+		await markClipWatched(clipId);
 	}
 
 	async function toggleFavorite(clipId: string) {
@@ -583,21 +572,15 @@
 		}
 	});
 
-	// Mark deferred last clip as watched when user swipes to end slide
+	// Mark a clip as watched when the user swipes past it (forward only)
+	let prevActiveIndex = 0;
 	$effect(() => {
-		if (filter === 'unwatched' && !hasMore && activeIndex === clips.length && clips.length > 0) {
-			const lastClip = clips[clips.length - 1];
-			if (!lastClip.watched) markWatched(lastClip.id);
+		const curr = activeIndex;
+		if (curr > prevActiveIndex) {
+			const clip = clips[prevActiveIndex];
+			if (clip && !clip.watched) markWatched(clip.id);
 		}
-	});
-
-	// Mark first clip as watched when user swipes past it
-	$effect(() => {
-		if (firstClipId && activeIndex > 0) {
-			const firstClip = clips.find((c) => c.id === firstClipId);
-			if (firstClip && !firstClip.watched) markWatched(firstClipId);
-			firstClipId = null;
-		}
+		prevActiveIndex = curr;
 	});
 
 	$effect(() => {
@@ -648,7 +631,6 @@
 	$effect(() => {
 		const targetClipId = $clipOverlaySignal;
 		if (!targetClipId) return;
-		console.log('[Feed] clipOverlaySignal fired:', targetClipId, 'setting overlayClipId');
 		clipOverlaySignal.set(null);
 		overlayClipId = targetClipId;
 	});
@@ -718,7 +700,6 @@
 	}
 
 	function handleOverlayDismiss() {
-		console.log('[Feed] handleOverlayDismiss, was:', overlayClipId);
 		overlayClipId = null;
 		overlayOpenComments = false;
 		// Refresh feed to reflect any changes made in the overlay
@@ -792,7 +773,7 @@
 		}
 	}
 
-	$effect(() => {
+	onMount(() => {
 		isDesktopFeed = matchMedia('(pointer: fine)').matches;
 		const shareUrl = extractShareTargetUrl();
 		if (shareUrl) {
@@ -820,18 +801,7 @@
 		const params = new URLSearchParams(window.location.search);
 		const deepClipId = params.get('clip');
 		const deepComments = params.get('comments') === 'true';
-		console.log('[Feed] deep-link check:', {
-			deepClipId,
-			deepComments,
-			search: window.location.search
-		});
 		if (deepClipId) {
-			console.log(
-				'[Feed] deep-link: opening overlay for clip',
-				deepClipId,
-				'comments:',
-				deepComments
-			);
 			// Clean URL without triggering navigation
 			const clean = new URL(window.location.href);
 			clean.searchParams.delete('clip');
@@ -957,9 +927,6 @@
 								{autoScroll}
 								{gifEnabled}
 								seenByOthers={clip.seenByOthers}
-								deferWatched={isLastUnwatched && !clip.watched}
-								deferFirstClip={clip.id === firstClipId && !clip.watched}
-								onwatched={markWatched}
 								onfavorited={toggleFavorite}
 								onreaction={handleReaction}
 								onretry={retryDownload}

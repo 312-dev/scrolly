@@ -97,6 +97,17 @@
 		return () => observer.disconnect();
 	});
 
+	// Mark a clip as watched when the user swipes past it (forward only)
+	let prevActiveIndex = 0;
+	$effect(() => {
+		const curr = activeIndex;
+		if (curr > prevActiveIndex) {
+			const clip = clips[prevActiveIndex];
+			if (clip && !clip.watched) onwatched(clip.id);
+		}
+		prevActiveIndex = curr;
+	});
+
 	function close() {
 		if (dismissed) return;
 		dismissed = true;
@@ -134,7 +145,6 @@
 						{gifEnabled}
 						seenByOthers={clip.seenByOthers}
 						hideViewBadge={true}
-						{onwatched}
 						{onfavorited}
 						{onreaction}
 						{onretry}
