@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.24.4](https://github.com/312-dev/scrolly/compare/scrolly-v1.24.3...scrolly-v1.24.4) (2026-03-12)
+
+
+### Refactoring
+
+* simplify watched marking to swipe-past model ([#114](https://github.com/312-dev/scrolly/issues/114)) ([dfbc5fd](https://github.com/312-dev/scrolly/commit/dfbc5fdc96c9a7f1883a80336c28ffae24de8f8f))
+
 ## [1.24.3](https://github.com/312-dev/scrolly/compare/scrolly-v1.24.2...scrolly-v1.24.3) (2026-03-11)
 
 
