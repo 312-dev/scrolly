@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { REACTIONS } from '$lib/icons';
+	import { openSheet, closeSheet } from '$lib/stores/sheetOpen';
+	import { onDestroy } from 'svelte';
 
-	const RADIUS = 140;
-	const START_DEG = 120;
-	const END_DEG = 240;
+	// Reorder: heart last (rightmost, anchoring the bar)
+	const BAR_EMOJIS = [...REACTIONS.filter((e) => e !== '❤️'), '❤️'];
 
 	const {
 		x,
@@ -19,20 +20,14 @@
 		dragMode?: boolean;
 	} = $props();
 
-	let pickerEl: HTMLDivElement | null = $state(null);
+	let barEl: HTMLDivElement | null = $state(null);
 	let visible = $state(false);
 	let hoveredIndex = $state(-1);
 	const btnEls: HTMLButtonElement[] = $state([]);
 
-	// Pre-compute arc positions (math coords, screen-y inverted)
-	const positions = REACTIONS.map((_, i) => {
-		const deg = START_DEG + (END_DEG - START_DEG) * (i / (REACTIONS.length - 1));
-		const rad = (deg * Math.PI) / 180;
-		return {
-			x: RADIUS * Math.cos(rad),
-			y: -RADIUS * Math.sin(rad)
-		};
-	});
+	// Block feed swipe while picker is open
+	openSheet();
+	onDestroy(closeSheet);
 
 	// Animate in
 	$effect(() => {
@@ -54,7 +49,7 @@
 		if (dragMode) return;
 
 		function handleOutsideClick(e: PointerEvent) {
-			if (pickerEl && !pickerEl.contains(e.target as Node)) {
+			if (barEl && !barEl.contains(e.target as Node)) {
 				ondismiss();
 			}
 		}
@@ -97,7 +92,7 @@
 		function handleUp(e: PointerEvent) {
 			const idx = hitTestEmoji(e.clientX, e.clientY);
 			if (idx >= 0) {
-				onpick(REACTIONS[idx]);
+				onpick(BAR_EMOJIS[idx]);
 			} else {
 				ondismiss();
 			}
@@ -113,21 +108,27 @@
 	});
 </script>
 
+<!-- x,y = center of the heart icon-circle (44x44) -->
+<!-- Bar right edge should align so the last emoji (❤️) sits exactly over the heart -->
 <div
-	class="picker-anchor"
+	class="reaction-bar"
+	class:visible
 	style="left:{x}px;top:{y}px"
-	bind:this={pickerEl}
+	bind:this={barEl}
 	role="listbox"
 	aria-label="Reaction picker"
+	ontouchstart={(e) => e.stopPropagation()}
+	ontouchmove={(e) => e.stopPropagation()}
+	ontouchend={(e) => e.stopPropagation()}
+	onpointerdown={(e) => e.stopPropagation()}
 >
-	{#each REACTIONS as emoji, i (emoji)}
+	{#each BAR_EMOJIS as emoji, i (emoji)}
+		{@const delayIndex = BAR_EMOJIS.length - 1 - i}
 		<button
 			class="reaction-btn"
 			class:visible
 			class:hovered={hoveredIndex === i}
-			style="--tx:{positions[i].x}px;--ty:{positions[i].y}px;transition-delay:{visible
-				? i * 30
-				: 0}ms"
+			style="transition-delay:{visible ? delayIndex * 25 : 0}ms"
 			bind:this={btnEls[i]}
 			onclick={() => {
 				if (!dragMode) onpick(emoji);
@@ -140,14 +141,33 @@
 </div>
 
 <style>
-	.picker-anchor {
+	.reaction-bar {
 		position: fixed;
 		z-index: 200;
-		pointer-events: none;
+		display: flex;
+		align-items: center;
+		gap: 0;
+		padding: 4px;
+		border-radius: var(--radius-full);
+		background: var(--reel-icon-circle-bg);
+		backdrop-filter: blur(6px);
+		-webkit-backdrop-filter: blur(6px);
+		box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+		/* Right-align: shift left by full width, then back by half the last emoji (22px = 44/2) */
+		transform-origin: right center;
+		transform: translate(calc(-100% + 22px), -50%) scaleX(0);
+		opacity: 0;
+		transition:
+			transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1),
+			opacity 150ms ease;
+	}
+
+	.reaction-bar.visible {
+		transform: translate(calc(-100% + 22px), -50%) scaleX(1);
+		opacity: 1;
 	}
 
 	.reaction-btn {
-		position: absolute;
 		width: 44px;
 		height: 44px;
 		display: flex;
@@ -158,36 +178,33 @@
 		padding: 0;
 		border-radius: var(--radius-full);
 		background: none;
-		color: var(--reel-text);
-		transform: translate(-50%, -50%) scale(0);
+		transform: scale(0);
 		opacity: 0;
 		transition:
-			transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1),
-			opacity 150ms ease,
-			color 120ms ease;
-		pointer-events: none;
+			transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
+			opacity 150ms ease;
 		-webkit-tap-highlight-color: transparent;
+		pointer-events: none;
 	}
 
 	.reaction-btn.visible {
-		transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(1);
+		transform: scale(1);
 		opacity: 1;
 		pointer-events: auto;
 	}
 
 	.reaction-btn.hovered {
-		transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(1.45);
-		color: var(--accent-magenta);
+		transform: scale(1.5) translateY(-16px);
 	}
 
-	.reaction-btn:hover:not(.hovered) .emoji {
+	.reaction-btn:not(.hovered):hover .emoji {
 		transform: scale(1.15);
 	}
 
 	.emoji {
 		font-size: 24px;
 		line-height: 1;
-		filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 8px rgba(0, 0, 0, 0.4));
+		filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
 		transition: transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1);
 		pointer-events: none;
 		user-select: none;

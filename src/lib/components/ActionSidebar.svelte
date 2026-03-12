@@ -84,8 +84,9 @@
 		holdTimer = setTimeout(() => {
 			holdFired = true;
 			if (onreactionhold && saveBtnEl) {
-				const rect = saveBtnEl.getBoundingClientRect();
-				onreactionhold(rect.left + rect.width / 2, rect.top);
+				const circle = saveBtnEl.querySelector('.icon-circle');
+				const rect = (circle ?? saveBtnEl).getBoundingClientRect();
+				onreactionhold(rect.left + rect.width / 2, rect.top + rect.height / 2);
 			}
 		}, 350);
 	}

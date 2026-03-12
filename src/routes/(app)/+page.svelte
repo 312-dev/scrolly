@@ -372,7 +372,7 @@
 		}
 
 		function onPointerDown(e: PointerEvent) {
-			if (swipeAnimating) return;
+			if (swipeAnimating || get(anySheetOpen)) return;
 			const target = e.target as HTMLElement;
 			if (target.closest('.progress-bar')) {
 				tracking = false;
@@ -395,7 +395,7 @@
 		}
 
 		function onPointerMove(e: PointerEvent) {
-			if (!tracking || swipeAnimating) return;
+			if (!tracking || swipeAnimating || get(anySheetOpen)) return;
 			const dx = e.clientX - startX;
 			const dy = e.clientY - startY;
 
