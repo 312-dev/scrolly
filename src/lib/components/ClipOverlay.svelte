@@ -197,6 +197,12 @@
 		};
 	});
 
+	// Mark the clip as watched immediately when opened in the overlay
+	$effect(() => {
+		if (!clip || clip.watched) return;
+		handleWatched(clip.id);
+	});
+
 	// Interaction handlers (local state updates)
 	async function handleWatched(id: string) {
 		await markClipWatched(id);
@@ -272,7 +278,6 @@
 				{gifEnabled}
 				seenByOthers={clip.seenByOthers}
 				hideViewBadge={true}
-				onwatched={handleWatched}
 				onfavorited={handleFavorite}
 				onreaction={handleReaction}
 				onretry={handleRetry}
