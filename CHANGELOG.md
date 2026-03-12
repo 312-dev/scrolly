@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.25.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.24.4...scrolly-v1.25.0) (2026-03-12)
+
+
+### Features
+
+* horizontal reaction bar and watched-on-swipe ([#116](https://github.com/312-dev/scrolly/issues/116)) ([caf64ac](https://github.com/312-dev/scrolly/commit/caf64acf14c384baddd686e35e5dd9d8747b0e63))
+
 ## [1.24.4](https://github.com/312-dev/scrolly/compare/scrolly-v1.24.3...scrolly-v1.24.4) (2026-03-12)
 
 
