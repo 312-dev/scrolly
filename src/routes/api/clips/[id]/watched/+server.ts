@@ -39,6 +39,34 @@ export const POST: RequestHandler = withClipAuth(async ({ params, request }, { u
 	return json({ watched: true });
 });
 
+// PATCH: update watchPercent only — creates the row if needed but does NOT count as "watched"
+// Used for periodic progress tracking while user is still viewing
+export const PATCH: RequestHandler = withClipAuth(async ({ params, request }, { user }) => {
+	let watchPercent: number | null = null;
+	try {
+		const body = await request.json();
+		if (typeof body.watchPercent === 'number') {
+			watchPercent = Math.max(0, Math.min(100, Math.round(body.watchPercent)));
+		}
+	} catch {
+		// No body or invalid JSON
+	}
+
+	if (watchPercent === null) {
+		return json({ updated: false });
+	}
+
+	// Only update if the row already exists — don't create a watched record
+	await db
+		.update(watched)
+		.set({
+			watchPercent: sql`MAX(COALESCE(${watched.watchPercent}, 0), ${watchPercent})`
+		})
+		.where(and(eq(watched.clipId, params.id), eq(watched.userId, user.id)));
+
+	return json({ updated: true });
+});
+
 export const DELETE: RequestHandler = withClipAuth(async ({ params }, { user }) => {
 	await db.delete(watched).where(and(eq(watched.clipId, params.id), eq(watched.userId, user.id)));
 
