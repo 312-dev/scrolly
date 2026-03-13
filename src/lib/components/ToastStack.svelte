@@ -207,6 +207,13 @@
 		handleDismiss(toast.id);
 	}
 
+	function handleTap(toast: Toast) {
+		if (toast.onTap) {
+			toast.onTap();
+			handleDismiss(toast.id);
+		}
+	}
+
 	let dismissingIds = $state(new Set<string>());
 
 	function handleDismiss(id: string) {
@@ -237,24 +244,30 @@
 		{#each $toasts as toast (toast.id)}
 			<div
 				class="toast toast-{toast.type}"
+				class:tappable={toast.type === 'rank_change'}
 				class:dismissing={dismissingIds.has(toast.id)}
 				role="alert"
+				onclick={toast.type === 'rank_change' ? () => handleTap(toast) : undefined}
 				ontouchstart={(e) => onSwipeStart(e, toast.id)}
 				ontouchmove={(e) => onSwipeMove(e, toast.id)}
 				ontouchend={() => onSwipeEnd(toast.id)}
 				ontouchcancel={() => onSwipeEnd(toast.id)}
 			>
-				<div class="toast-icon">
-					{#if toast.type === 'processing'}
-						<div class="spinner-ring"></div>
-					{:else if toast.type === 'success'}
-						<CheckIcon size={16} weight="bold" />
-					{:else if toast.type === 'info'}
-						<InfoIcon size={16} />
-					{:else}
-						<XCircleIcon size={16} />
-					{/if}
-				</div>
+				{#if toast.type === 'rank_change' && toast.rankIcon}
+					<img src={toast.rankIcon} alt="" class="toast-rank-icon" />
+				{:else}
+					<div class="toast-icon">
+						{#if toast.type === 'processing'}
+							<div class="spinner-ring"></div>
+						{:else if toast.type === 'success'}
+							<CheckIcon size={16} weight="bold" />
+						{:else if toast.type === 'info'}
+							<InfoIcon size={16} />
+						{:else}
+							<XCircleIcon size={16} />
+						{/if}
+					</div>
+				{/if}
 				<span class="toast-message">{toast.message}</span>
 				{#if toast.type === 'success' && toast.clipId}
 					<button class="toast-view" onclick={() => handleView(toast)}>View</button>
@@ -353,6 +366,22 @@
 
 	.toast-processing .toast-icon {
 		background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+	}
+
+	.toast-rank_change {
+		background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-elevated));
+		cursor: pointer;
+	}
+
+	.toast-rank-icon {
+		width: 32px;
+		height: 32px;
+		object-fit: contain;
+		flex-shrink: 0;
+	}
+
+	.toast.tappable:active {
+		transform: scale(0.97);
 	}
 
 	.toast-message {
