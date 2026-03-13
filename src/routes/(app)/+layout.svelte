@@ -65,7 +65,9 @@
 
 				addToast({
 					type: 'rank_change',
-					message: isRankUp ? 'You ranked up!' : 'Your rank changed',
+					message: isRankUp
+						? `You ranked up to ${data.tierName}!`
+						: `Your rank changed to ${data.tierName}`,
 					rankIcon: data.icon,
 					onTap: () => cloutChange.set(changeData)
 				});
