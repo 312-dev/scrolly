@@ -7,8 +7,6 @@ import { users } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { dev } from '$app/environment';
 
-const MODAL_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
-
 export const GET: RequestHandler = withAuth(async (event, { user, group }) => {
 	if (group.sharePacingMode !== 'queue' || !group.cloutEnabled) {
 		return json({ enabled: false });
@@ -42,22 +40,16 @@ export const GET: RequestHandler = withAuth(async (event, { user, group }) => {
 			thumbnailPath: b.thumbnailPath
 		}));
 
-	// Determine if a tier change modal should be shown.
-	// cloutTier tracks the last tier the user was NOTIFIED about (updated on POST ack).
-	// This means if a change is suppressed by cooldown, it's preserved until the
-	// cooldown expires — then the modal shows the accumulated change.
+	// Determine if a tier change should be reported.
+	// No cooldown — every change triggers a toast immediately.
 	const lastAckedTier = user.cloutTier;
-	const lastShownAt = user.cloutChangeShownAt;
 	let tierChanged = false;
 
 	if (!lastAckedTier) {
-		// First time — seed the tier silently (no modal on first load)
+		// First time — seed the tier silently (no notification on first load)
 		db.update(users).set({ cloutTier: result.tier }).where(eq(users.id, user.id)).run();
 	} else if (lastAckedTier !== result.tier) {
-		const cooldownElapsed = !lastShownAt || Date.now() - lastShownAt.getTime() >= MODAL_COOLDOWN_MS;
-		tierChanged = cooldownElapsed;
-		// Don't update cloutTier here — only on POST ack, so the change persists
-		// until the user actually sees the modal
+		tierChanged = true;
 	}
 
 	return json({
@@ -81,15 +73,15 @@ export const GET: RequestHandler = withAuth(async (event, { user, group }) => {
 					icon: nextTier.config.icon
 				}
 			: null,
+		baseCooldownMinutes: group.shareCooldownMinutes,
 		underperforming,
 		lastTier: lastAckedTier ?? null,
 		tierChanged
 	});
 });
 
-/** Acknowledge that the tier change modal was shown. Updates both the
- *  last-shown timestamp (cooldown) and the acked tier so future checks
- *  compare against the tier the user was actually notified about. */
+/** Acknowledge that the tier change was seen. Updates the acked tier so
+ *  future checks compare against the tier the user was notified about. */
 export const POST: RequestHandler = withAuth(async (_event, { user, group }) => {
 	// Recompute current tier so we store the accurate value
 	const result = getCloutScore(user.id, user.groupId, group.shareCooldownMinutes);

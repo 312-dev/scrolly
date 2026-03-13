@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 
-export type ToastType = 'processing' | 'success' | 'error' | 'info';
+export type ToastType = 'processing' | 'success' | 'error' | 'info' | 'rank_change';
 
 export interface Toast {
 	id: string;
@@ -10,6 +10,10 @@ export interface Toast {
 	contentType?: string;
 	autoDismiss?: number;
 	createdAt: number;
+	/** Rank change toast data */
+	rankIcon?: string;
+	rankTierName?: string;
+	onTap?: () => void;
 }
 
 export const toasts = writable<Toast[]>([]);
@@ -23,7 +27,8 @@ const DEFAULT_DISMISS: Record<ToastType, number> = {
 	success: 3000,
 	error: 4000,
 	info: 3000,
-	processing: 0
+	processing: 0,
+	rank_change: 0
 };
 
 export function addToast(toast: Omit<Toast, 'id' | 'createdAt'>): string {

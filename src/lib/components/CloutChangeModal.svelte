@@ -38,6 +38,7 @@
 		nextTier: NextTierInfo | null;
 		underperforming: Underperformer[];
 		breakdown: { clipId: string; score: number }[];
+		baseCooldownMinutes: number;
 	} | null>(null);
 	let tipsLoading = $state(false);
 
@@ -175,7 +176,8 @@
 				tipsData = {
 					nextTier: data.nextTier,
 					underperforming: data.underperforming ?? [],
-					breakdown: data.breakdown ?? []
+					breakdown: data.breakdown ?? [],
+					baseCooldownMinutes: data.baseCooldownMinutes ?? 120
 				};
 			}
 		} catch {
@@ -318,6 +320,7 @@
 					nextTier={tipsData.nextTier}
 					underperforming={tipsData.underperforming}
 					breakdown={tipsData.breakdown}
+					baseCooldownMinutes={tipsData.baseCooldownMinutes}
 					ondismiss={dismiss}
 				/>
 			{/if}

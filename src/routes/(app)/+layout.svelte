@@ -13,6 +13,7 @@
 	import { feedUiHidden } from '$lib/stores/uiHidden';
 	import { fetchGroupMembers } from '$lib/stores/members';
 	import { cloutChange } from '$lib/stores/cloutChange';
+	import { addToast } from '$lib/stores/toasts';
 	import ActivitySheet from '$lib/components/ActivitySheet.svelte';
 	import QueueSheet from '$lib/components/QueueSheet.svelte';
 	import AddVideoModal from '$lib/components/AddVideoModal.svelte';
@@ -41,6 +42,8 @@
 		iconic: 'Iconic'
 	};
 
+	const TIER_ORDER = ['fresh', 'rising', 'viral', 'iconic'];
+
 	async function checkCloutTier() {
 		try {
 			const res = await fetch('/api/clout');
@@ -48,9 +51,9 @@
 			const data = await res.json();
 			if (!data.enabled) return;
 
-			// Server tells us if a tier change modal should be shown (3-day cooldown)
 			if (data.tierChanged && data.lastTier) {
-				cloutChange.set({
+				const isRankUp = TIER_ORDER.indexOf(data.tier) > TIER_ORDER.indexOf(data.lastTier);
+				const changeData = {
 					previousTier: data.lastTier,
 					newTier: data.tier,
 					previousTierName: TIER_NAMES[data.lastTier] ?? data.lastTier,
@@ -58,7 +61,16 @@
 					cooldownMinutes: data.cooldownMinutes,
 					burstSize: data.burstSize,
 					queueLimit: data.queueLimit ?? null
+				};
+
+				addToast({
+					type: 'rank_change',
+					message: isRankUp ? 'You ranked up!' : 'Your rank changed',
+					rankIcon: data.icon,
+					rankTierName: data.tierName,
+					onTap: () => cloutChange.set(changeData)
 				});
+
 				// Acknowledge so it won't show again on other devices
 				fetch('/api/clout', { method: 'POST' }).catch(() => {});
 			}
