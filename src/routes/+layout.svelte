@@ -113,12 +113,16 @@
 	});
 </script>
 
-{@render children()}
-<ToastStack />
-<ConfirmDialog />
-<InstallBanner />
-<SwUpdateToast />
-<CloutChangeModal />
+<div class="desktop-frame">
+	<div class="desktop-frame-inner">
+		{@render children()}
+		<ToastStack />
+		<ConfirmDialog />
+		<InstallBanner />
+		<SwUpdateToast />
+		<CloutChangeModal />
+	</div>
+</div>
 
 <style>
 	:global(*, *::before, *::after) {
@@ -274,10 +278,18 @@
 	}
 
 	/* Feed context: override body background so the iOS black-translucent status bar
-	   shows the reel bg color rather than the light-mode white */
+	   shows the reel bg color rather than the light-mode white.
+	   On desktop (640px+), the outer body keeps its subtle bg and only the frame is dark. */
 	:global(html.feed-context),
 	:global(html.feed-context body) {
 		background: var(--reel-bg);
+	}
+
+	@media (min-width: 640px) {
+		:global(html.feed-context),
+		:global(html.feed-context body) {
+			background: var(--bg-subtle);
+		}
 	}
 
 	:global(body) {
@@ -296,6 +308,69 @@
 		-webkit-touch-callout: default;
 		-webkit-user-select: text;
 		user-select: text;
+	}
+
+	/* Desktop frame: constrain app to phone-like container on wide viewports */
+	.desktop-frame {
+		display: contents;
+	}
+
+	.desktop-frame-inner {
+		display: contents;
+	}
+
+	@media (min-width: 640px) {
+		:global(body) {
+			background: var(--bg-elevated);
+		}
+
+		.desktop-frame {
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			min-height: 100dvh;
+			padding: var(--space-xl) 0;
+			background:
+				radial-gradient(
+					ellipse at 20% 20%,
+					color-mix(in srgb, var(--accent-primary) 8%, transparent) 0%,
+					transparent 60%
+				),
+				radial-gradient(
+					ellipse at 80% 80%,
+					color-mix(in srgb, var(--accent-magenta) 6%, transparent) 0%,
+					transparent 60%
+				),
+				var(--bg-elevated);
+		}
+
+		.desktop-frame-inner {
+			display: block;
+			position: relative;
+			width: 390px;
+			max-height: min(850px, calc(100dvh - 3rem));
+			height: calc(100dvh - 3rem);
+			border-radius: var(--radius-xl);
+			overflow: clip;
+			background: var(--bg-primary);
+			box-shadow:
+				0 8px 40px rgba(0, 0, 0, 0.25),
+				0 0 0 0.5px rgba(255, 255, 255, 0.08);
+			/* Creates a containing block for position:fixed descendants,
+			   so all modals/sheets/toasts stay within the phone frame */
+			contain: paint;
+		}
+
+		/* Override app shell to fill the frame instead of the viewport */
+		.desktop-frame-inner :global(.app-shell) {
+			height: 100%;
+			min-height: unset;
+			overflow: hidden;
+		}
+
+		.desktop-frame-inner :global(main) {
+			overflow-y: auto;
+		}
 	}
 
 	@media (prefers-reduced-motion: reduce) {
