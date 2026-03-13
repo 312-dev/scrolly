@@ -73,6 +73,7 @@ export const GET: RequestHandler = withAuth(async (event, { user, group }) => {
 					icon: nextTier.config.icon
 				}
 			: null,
+		baseCooldownMinutes: group.shareCooldownMinutes,
 		underperforming,
 		lastTier: lastAckedTier ?? null,
 		tierChanged
