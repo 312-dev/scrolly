@@ -12,6 +12,7 @@ export interface Toast {
 	createdAt: number;
 	/** Rank change toast data */
 	rankIcon?: string;
+	rankTierName?: string;
 	onTap?: () => void;
 }
 

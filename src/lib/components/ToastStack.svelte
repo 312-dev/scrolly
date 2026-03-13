@@ -255,6 +255,10 @@
 			>
 				{#if toast.type === 'rank_change' && toast.rankIcon}
 					<img src={toast.rankIcon} alt="" class="toast-rank-icon" />
+					<span class="toast-message toast-message-rank">
+						{toast.message}
+						{#if toast.rankTierName}<strong>{toast.rankTierName}</strong>{/if}
+					</span>
 				{:else}
 					<div class="toast-icon">
 						{#if toast.type === 'processing'}
@@ -267,8 +271,8 @@
 							<XCircleIcon size={16} />
 						{/if}
 					</div>
+					<span class="toast-message">{toast.message}</span>
 				{/if}
-				<span class="toast-message">{toast.message}</span>
 				{#if toast.type === 'success' && toast.clipId}
 					<button class="toast-view" onclick={() => handleView(toast)}>View</button>
 				{/if}
@@ -371,6 +375,19 @@
 	.toast-rank_change {
 		background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-elevated));
 		cursor: pointer;
+		justify-content: center;
+	}
+
+	.toast-message-rank {
+		text-align: center;
+	}
+
+	.toast-message-rank strong {
+		display: block;
+		font-family: var(--font-display);
+		font-weight: 700;
+		font-size: 1rem;
+		color: var(--accent-primary);
 	}
 
 	.toast-rank-icon {
