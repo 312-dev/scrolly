@@ -38,6 +38,7 @@
 		nextTier: NextTierInfo | null;
 		underperforming: Underperformer[];
 		breakdown: { clipId: string; score: number }[];
+		baseCooldownMinutes: number;
 	} | null>(null);
 	let tipsLoading = $state(false);
 
