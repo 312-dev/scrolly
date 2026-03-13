@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.26.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.25.0...scrolly-v1.26.0) (2026-03-13)
+
+
+### Features
+
+* rework rank/clout UI with tappable tiers and desktop frame ([#120](https://github.com/312-dev/scrolly/issues/120)) ([ea28cf6](https://github.com/312-dev/scrolly/commit/ea28cf68570c5d194d630029ffb88df77d5012f4))
+
+
+### Documentation
+
+* update api.md for PATCH watched endpoint ([#118](https://github.com/312-dev/scrolly/issues/118)) ([52d6331](https://github.com/312-dev/scrolly/commit/52d63313d60228c9f0b90cd32d84d432688fdd8f))
+
+
+### Miscellaneous
+
+* **deps:** bump devalue from 5.6.3 to 5.6.4 ([#119](https://github.com/312-dev/scrolly/issues/119)) ([b79c918](https://github.com/312-dev/scrolly/commit/b79c918ec7e89f9fb30e46bbeaadd1b3454b9ab6))
+
 ## [1.25.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.24.4...scrolly-v1.25.0) (2026-03-12)
 
 
