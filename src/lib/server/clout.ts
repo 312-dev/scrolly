@@ -1,12 +1,13 @@
 import { db } from '$lib/server/db';
-import { clips, reactions, favorites, comments } from '$lib/server/db/schema';
-import { eq, and, ne, sql, desc, lte } from 'drizzle-orm';
+import { clips, reactions, favorites, comments, watched, users } from '$lib/server/db/schema';
+import { eq, and, ne, sql, desc, isNull } from 'drizzle-orm';
 import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('clout');
 
-const MATURITY_HOURS = 48;
 const WINDOW_SIZE = 10;
+const GROUP_WATCH_THRESHOLD = 0.75;
+const RANK_DOWN_COOLDOWN_MS = 4 * 24 * 60 * 60 * 1000;
 
 export const TIERS = {
 	iconic: {
@@ -71,6 +72,7 @@ export interface CloutResult {
 	cooldownMinutes: number;
 	burstSize: number;
 	queueLimit: number | null;
+	tierActuallyChanged: boolean;
 }
 
 /**
@@ -96,6 +98,43 @@ export function getNextTier(currentTier: TierKey): { key: TierKey; config: TierC
 }
 
 /**
+ * Determine the effective tier after applying rank-down protection.
+ * Rank-ups apply immediately. Rank-downs only apply if the user has held
+ * their current tier for at least 4 days.
+ */
+export function getEffectiveTier(
+	computedTier: TierKey,
+	storedTier: TierKey | null,
+	tierChangedAt: Date | null
+): { effectiveTier: TierKey; tierActuallyChanged: boolean } {
+	if (!storedTier) {
+		return { effectiveTier: computedTier, tierActuallyChanged: false };
+	}
+
+	const computedIdx = TIER_ORDER.indexOf(computedTier);
+	const storedIdx = TIER_ORDER.indexOf(storedTier);
+
+	if (computedIdx >= storedIdx) {
+		// Rank up (or same) — apply immediately
+		return {
+			effectiveTier: computedTier,
+			tierActuallyChanged: computedTier !== storedTier
+		};
+	}
+
+	// Rank down — check 4-day stability requirement
+	const now = Date.now();
+	const changedAt = tierChangedAt?.getTime() ?? 0;
+
+	if (now - changedAt >= RANK_DOWN_COOLDOWN_MS) {
+		return { effectiveTier: computedTier, tierActuallyChanged: true };
+	}
+
+	// Still within cooldown — keep the higher tier
+	return { effectiveTier: storedTier, tierActuallyChanged: false };
+}
+
+/**
  * Compute clout score for a user in a group.
  *
  * Scoring per clip (0 / 1 / 2):
@@ -103,18 +142,29 @@ export function getNextTier(currentTier: TierKey): { key: TierKey; config: TierC
  *   1 = at least 1 reaction or favorite, but no comments from others
  *   2 = at least 1 reaction/fav AND at least 1 comment from others
  *
- * Returns the rolling average of the last 10 matured clips (48h+ old).
- * Users with <10 matured clips default to Rising tier.
+ * Only clips watched by ≥75% of other group members are eligible.
+ * Returns the rolling average of the last 10 eligible clips.
+ * Users with <10 eligible clips default to Rising tier.
+ *
+ * Rank-down protection: rank-ups apply immediately, but rank-downs only
+ * take effect if the user has held their current tier for ≥4 days.
  */
 export function getCloutScore(
 	userId: string,
 	groupId: string,
-	baseCooldownMinutes: number
+	baseCooldownMinutes: number,
+	storedTier: TierKey | null = null,
+	tierChangedAt: Date | null = null
 ): CloutResult {
-	const maturityCutoff = new Date(Date.now() - MATURITY_HOURS * 60 * 60 * 1000);
+	// Count active group members (not removed)
+	const [{ count: memberCount }] = db
+		.select({ count: sql<number>`count(*)` })
+		.from(users)
+		.where(and(eq(users.groupId, groupId), isNull(users.removedAt)))
+		.all();
 
-	// Get the user's last WINDOW_SIZE matured clips
-	const maturedClips = db
+	// Get recent ready clips — fetch more than WINDOW_SIZE since some may be filtered out
+	const candidateClips = db
 		.select({
 			id: clips.id,
 			title: clips.title,
@@ -123,20 +173,30 @@ export function getCloutScore(
 			thumbnailPath: clips.thumbnailPath
 		})
 		.from(clips)
-		.where(
-			and(
-				eq(clips.addedBy, userId),
-				eq(clips.groupId, groupId),
-				eq(clips.status, 'ready'),
-				lte(clips.createdAt, maturityCutoff)
-			)
-		)
+		.where(and(eq(clips.addedBy, userId), eq(clips.groupId, groupId), eq(clips.status, 'ready')))
 		.orderBy(desc(clips.createdAt))
-		.limit(WINDOW_SIZE)
+		.limit(WINDOW_SIZE * 3) // fetch extra to account for watch threshold filtering
 		.all();
 
-	// Not enough matured clips — default to Rising
-	if (maturedClips.length < WINDOW_SIZE) {
+	// Filter to clips watched by ≥75% of other group members
+	const otherMembers = memberCount - 1;
+	const eligibleClips =
+		otherMembers > 0
+			? candidateClips.filter((clip) => {
+					const [{ count: watchCount }] = db
+						.select({ count: sql<number>`count(*)` })
+						.from(watched)
+						.where(and(eq(watched.clipId, clip.id), ne(watched.userId, userId)))
+						.all();
+					return watchCount / otherMembers >= GROUP_WATCH_THRESHOLD;
+				})
+			: candidateClips;
+
+	// Take only the most recent WINDOW_SIZE eligible clips
+	const windowClips = eligibleClips.slice(0, WINDOW_SIZE);
+
+	// Not enough eligible clips — default to Rising
+	if (windowClips.length < WINDOW_SIZE) {
 		const { key, config } = getCloutTier(TIERS.rising.minScore);
 		const cooldownMinutes = Math.round(baseCooldownMinutes * config.cooldownMultiplier);
 		return {
@@ -146,13 +206,14 @@ export function getCloutScore(
 			breakdown: [],
 			cooldownMinutes,
 			burstSize: config.burst,
-			queueLimit: config.queueLimit
+			queueLimit: config.queueLimit,
+			tierActuallyChanged: false
 		};
 	}
 
 	const breakdown: ClipBreakdown[] = [];
 
-	for (const clip of maturedClips) {
+	for (const clip of windowClips) {
 		const clipId = clip.id;
 		// Count reactions from others
 		const [reactionResult] = db
@@ -202,21 +263,38 @@ export function getCloutScore(
 	// Round to 1 decimal place
 	const score = Math.round(averageScore * 10) / 10;
 
-	const { key, config } = getCloutTier(score);
-	const cooldownMinutes = Math.round(baseCooldownMinutes * config.cooldownMultiplier);
+	const { key: computedTier } = getCloutTier(score);
+
+	// Apply rank-down protection
+	const { effectiveTier, tierActuallyChanged } = getEffectiveTier(
+		computedTier,
+		storedTier,
+		tierChangedAt
+	);
+	const effectiveConfig = TIERS[effectiveTier];
+	const cooldownMinutes = Math.round(baseCooldownMinutes * effectiveConfig.cooldownMultiplier);
 
 	log.info(
-		{ userId, score, tier: key, cooldownMinutes, burst: config.burst },
+		{
+			userId,
+			score,
+			computedTier,
+			effectiveTier,
+			cooldownMinutes,
+			burst: effectiveConfig.burst,
+			tierActuallyChanged
+		},
 		'clout score computed'
 	);
 
 	return {
 		score,
-		tier: key,
-		tierConfig: config,
+		tier: effectiveTier,
+		tierConfig: effectiveConfig,
 		breakdown,
 		cooldownMinutes,
-		burstSize: config.burst,
-		queueLimit: config.queueLimit
+		burstSize: effectiveConfig.burst,
+		queueLimit: effectiveConfig.queueLimit,
+		tierActuallyChanged
 	};
 }
