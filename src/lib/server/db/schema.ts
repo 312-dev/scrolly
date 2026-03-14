@@ -38,6 +38,7 @@ export const users = sqliteTable('users', {
 	usedNewShareFlow: integer('used_new_share_flow', { mode: 'boolean' }).notNull().default(false),
 	cloutTier: text('clout_tier'),
 	cloutChangeShownAt: integer('clout_change_shown_at', { mode: 'timestamp' }),
+	cloutTierChangedAt: integer('clout_tier_changed_at', { mode: 'timestamp' }),
 	removedAt: integer('removed_at', { mode: 'timestamp' }),
 	createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
 });

@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `clout_tier_changed_at` integer;
