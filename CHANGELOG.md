@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.27.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.26.0...scrolly-v1.27.0) (2026-03-14)
+
+
+### Features
+
+* clout rank-down protection and watch threshold ([#122](https://github.com/312-dev/scrolly/issues/122)) ([6f01021](https://github.com/312-dev/scrolly/commit/6f010219dc79b283c6aad19c4e44bd3918e90ed7))
+
 ## [1.26.0](https://github.com/312-dev/scrolly/compare/scrolly-v1.25.0...scrolly-v1.26.0) (2026-03-13)
 
 
