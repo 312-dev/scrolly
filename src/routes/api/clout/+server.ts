@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { withAuth } from '$lib/server/api-utils';
 import { getCloutScore, getNextTier, TIERS } from '$lib/server/clout';
+import type { TierKey } from '$lib/server/clout';
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
@@ -12,7 +13,13 @@ export const GET: RequestHandler = withAuth(async (event, { user, group }) => {
 		return json({ enabled: false });
 	}
 
-	const result = getCloutScore(user.id, user.groupId, group.shareCooldownMinutes);
+	const result = getCloutScore(
+		user.id,
+		user.groupId,
+		group.shareCooldownMinutes,
+		(user.cloutTier as TierKey) ?? null,
+		user.cloutTierChangedAt ?? null
+	);
 
 	// DEV ONLY: ?tier=rising to force a specific tier for testing
 	if (dev) {
@@ -29,27 +36,23 @@ export const GET: RequestHandler = withAuth(async (event, { user, group }) => {
 
 	const nextTier = getNextTier(result.tier);
 
-	// Low-scoring clips (score 0) that drag the average down
-	const underperforming = result.breakdown
-		.filter((b) => b.score === 0)
-		.map((b) => ({
-			clipId: b.clipId,
-			title: b.title,
-			platform: b.platform,
-			originalUrl: b.originalUrl,
-			thumbnailPath: b.thumbnailPath
-		}));
-
-	// Determine if a tier change should be reported.
-	// No cooldown — every change triggers a toast immediately.
+	// Determine if a tier change should be reported
 	const lastAckedTier = user.cloutTier;
 	let tierChanged = false;
 
 	if (!lastAckedTier) {
 		// First time — seed the tier silently (no notification on first load)
-		db.update(users).set({ cloutTier: result.tier }).where(eq(users.id, user.id)).run();
-	} else if (lastAckedTier !== result.tier) {
+		db.update(users)
+			.set({ cloutTier: result.tier, cloutTierChangedAt: new Date() })
+			.where(eq(users.id, user.id))
+			.run();
+	} else if (result.tierActuallyChanged) {
 		tierChanged = true;
+		// Persist the new effective tier and reset the changed-at timestamp
+		db.update(users)
+			.set({ cloutTier: result.tier, cloutTierChangedAt: new Date() })
+			.where(eq(users.id, user.id))
+			.run();
 	}
 
 	return json({
@@ -74,7 +77,6 @@ export const GET: RequestHandler = withAuth(async (event, { user, group }) => {
 				}
 			: null,
 		baseCooldownMinutes: group.shareCooldownMinutes,
-		underperforming,
 		lastTier: lastAckedTier ?? null,
 		tierChanged
 	});
@@ -84,9 +86,19 @@ export const GET: RequestHandler = withAuth(async (event, { user, group }) => {
  *  future checks compare against the tier the user was notified about. */
 export const POST: RequestHandler = withAuth(async (_event, { user, group }) => {
 	// Recompute current tier so we store the accurate value
-	const result = getCloutScore(user.id, user.groupId, group.shareCooldownMinutes);
+	const result = getCloutScore(
+		user.id,
+		user.groupId,
+		group.shareCooldownMinutes,
+		(user.cloutTier as TierKey) ?? null,
+		user.cloutTierChangedAt ?? null
+	);
 	db.update(users)
-		.set({ cloutTier: result.tier, cloutChangeShownAt: new Date() })
+		.set({
+			cloutTier: result.tier,
+			cloutChangeShownAt: new Date(),
+			cloutTierChangedAt: new Date()
+		})
 		.where(eq(users.id, user.id))
 		.run();
 	return json({ ok: true });
