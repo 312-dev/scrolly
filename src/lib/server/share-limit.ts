@@ -4,6 +4,7 @@ import { clips } from '$lib/server/db/schema';
 import { eq, and, gte, sql } from 'drizzle-orm';
 import { checkBurstAvailable } from '$lib/server/queue';
 import { getCloutScore } from '$lib/server/clout';
+import type { TierKey } from '$lib/server/clout';
 
 /**
  * Calculate the start of "today" in the user's timezone as a UTC Date.
@@ -161,6 +162,11 @@ interface GroupPacingConfig {
 	cloutEnabled: boolean;
 }
 
+interface UserTierHistory {
+	cloutTier: string | null;
+	cloutTierChangedAt: Date | null;
+}
+
 /**
  * Unified share pacing check. Dispatches based on group's pacing mode.
  * Queue mode never rejects — it returns queued: true with schedule info.
@@ -169,7 +175,8 @@ export function checkSharePacing(
 	userId: string,
 	groupId: string,
 	group: GroupPacingConfig,
-	tz?: string | null
+	tz?: string | null,
+	userTierHistory?: UserTierHistory
 ): SharePacingResult {
 	switch (group.sharePacingMode) {
 		case 'daily_cap': {
@@ -195,7 +202,13 @@ export function checkSharePacing(
 		}
 		case 'queue': {
 			if (group.cloutEnabled) {
-				const clout = getCloutScore(userId, groupId, group.shareCooldownMinutes);
+				const clout = getCloutScore(
+					userId,
+					groupId,
+					group.shareCooldownMinutes,
+					(userTierHistory?.cloutTier as TierKey) ?? null,
+					userTierHistory?.cloutTierChangedAt ?? null
+				);
 				const burst = checkBurstAvailable(userId, groupId, clout.burstSize, clout.cooldownMinutes);
 				return {
 					mode: 'queue',

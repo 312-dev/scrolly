@@ -44,7 +44,8 @@ SQLite database via Drizzle ORM. All IDs are UUIDs stored as text. Timestamps ar
 | last_legacy_share_at | integer | Nullable. Unix timestamp of last legacy shortcut share. Used for upgrade banner. |
 | used_new_share_flow | integer | Boolean (0/1). Default 0. Tracks if user has adopted new web view share flow. |
 | clout_tier | text | Nullable. Last acknowledged clout tier (for tier change detection). |
-| clout_change_shown_at | integer | Nullable. Unix timestamp when tier change modal was last shown (3-day cooldown). |
+| clout_change_shown_at | integer | Nullable. Unix timestamp when tier change modal was last shown. |
+| clout_tier_changed_at | integer | Nullable. Unix timestamp when the user's effective clout tier last changed. Used for rank-down protection (4-day cooldown). |
 | removed_at | integer | Nullable. Unix timestamp when removed from group. |
 | created_at | integer | Unix timestamp |
 
@@ -252,4 +253,4 @@ users  1──∞ verification_codes
 - **Duplicate URL prevention:** A unique index on `(group_id, original_url)` prevents the same link from being shared twice within a group.
 - **Music clip trim workflow:** Music clips enter `pending_trim` status after download. The user can trim audio via the trim UI or skip trimming. If neither occurs before `trim_deadline`, the clip auto-publishes to `ready` status via the scheduler.
 - **Dismissed clips:** The `dismissed_clips` table tracks clips dismissed by users in the catch-up modal. Users can dismiss unwatched clips in bulk, then restore them later from the Skipped Clips viewer in settings.
-- **Clout (reputation):** Computed on-demand from `reactions`, `favorites`, and `comments` tables. A user's clout score is the rolling average of per-clip engagement scores (0/1/2) for their last 10 matured clips (48h+ old). Self-interactions are excluded. Tiers (Fresh/Rising/Viral/Iconic) determine queue cooldown multiplier, burst size, and queue depth limits. The `clout_enabled` flag on `groups` controls whether clout adjustments are applied. The `clout_tier` and `clout_change_shown_at` columns on `users` track server-driven tier change notifications with a 3-day cooldown.
+- **Clout (reputation):** Computed on-demand from `reactions`, `favorites`, and `comments` tables. A user's clout score is the rolling average of per-clip engagement scores (0/1/2) for their last 10 eligible clips. Only clips watched by ≥75% of other group members are eligible. Self-interactions are excluded. Tiers (Fresh/Rising/Viral/Iconic) determine queue cooldown multiplier, burst size, and queue depth limits. Rank-ups apply immediately; rank-downs require the user to have held their current tier for ≥4 days before taking effect. The `clout_enabled` flag on `groups` controls whether clout adjustments are applied. The `clout_tier` and `clout_tier_changed_at` columns on `users` track the effective tier and when it last changed.

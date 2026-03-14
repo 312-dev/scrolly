@@ -225,6 +225,13 @@
       "when": 1773193972601,
       "tag": "0031_futuristic_shard",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1773457298216,
+      "tag": "0032_brown_impossible_man",
+      "breakpoints": true
     }
   ]
 }

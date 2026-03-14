@@ -253,7 +253,7 @@ Response: { "ok": true }
 | POST | `/api/clout` | Acknowledge tier change modal was shown |
 
 ### GET /api/clout
-Returns the user's clout score and tier when queue pacing is enabled. Clout is computed from the engagement on the user's last 10 matured clips (48h+ old). Users with fewer than 10 matured clips default to Rising tier.
+Returns the user's clout score and tier when queue pacing is enabled. Clout is computed from the engagement on the user's last 10 eligible clips (watched by ≥75% of group). Users with fewer than 10 eligible clips default to Rising tier.
 ```
 Response: {
   "enabled": true,
@@ -266,7 +266,6 @@ Response: {
   "icon": "/icons/clout/viral.png",
   "breakdown": [{ "clipId": "...", "score": 2 }, ...],
   "nextTier": { "tier": "iconic", "tierName": "Iconic", "minScore": 1.0, "burst": 5, "queueLimit": null, "icon": "..." },
-  "underperforming": [{ "clipId": "...", "title": "...", "platform": "tiktok", "originalUrl": "...", "thumbnailPath": "..." }],
   "lastTier": "rising",
   "tierChanged": true
 }
@@ -274,9 +273,11 @@ Response: {
 
 **Tiers:** Fresh (<0.4) → Rising (0.4–0.6) → Viral (0.7–0.9) → Iconic (≥1.0). Each tier adjusts cooldown multiplier, burst size, and queue depth limit.
 
-**Per-clip scoring:** 0 = no reactions/favorites from others, 1 = reaction or favorite but no comment, 2 = reaction/favorite AND comment. Self-interactions excluded.
+**Per-clip scoring:** 0 = no reactions/favorites from others, 1 = reaction or favorite but no comment, 2 = reaction/favorite AND comment. Self-interactions excluded. Only clips watched by ≥75% of other group members are eligible.
 
-**Tier change detection:** The server tracks each user's last acknowledged tier (`cloutTier`) and last modal shown time (`cloutChangeShownAt`). When the computed tier differs from the acked tier and the 3-day cooldown has elapsed, `tierChanged: true` is returned. The `lastTier` field shows what the user was previously at.
+**Rank-down protection:** Rank-ups apply immediately. Rank-downs only take effect if the user has held their current tier for ≥4 days. The `cloutTierChangedAt` column tracks when the effective tier last changed.
+
+**Tier change detection:** The server tracks each user's last effective tier (`cloutTier`) and when it changed (`cloutTierChangedAt`). When the tier actually changes (after rank-down protection), `tierChanged: true` is returned.
 
 ### POST /api/clout
 Acknowledges that the tier change modal was shown. Updates the user's stored tier and resets the cooldown timer.

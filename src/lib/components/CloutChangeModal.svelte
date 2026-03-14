@@ -23,20 +23,11 @@
 		icon: string;
 	}
 
-	interface Underperformer {
-		clipId: string;
-		title: string | null;
-		platform: string;
-		originalUrl: string;
-		thumbnailPath: string | null;
-	}
-
 	let visible = $state(false);
 	let change = $state<typeof $cloutChange>(null);
 	let showTips = $state(false);
 	let tipsData = $state<{
 		nextTier: NextTierInfo | null;
-		underperforming: Underperformer[];
 		breakdown: { clipId: string; score: number }[];
 		baseCooldownMinutes: number;
 	} | null>(null);
@@ -175,7 +166,6 @@
 				const data = await res.json();
 				tipsData = {
 					nextTier: data.nextTier,
-					underperforming: data.underperforming ?? [],
 					breakdown: data.breakdown ?? [],
 					baseCooldownMinutes: data.baseCooldownMinutes ?? 120
 				};
@@ -318,10 +308,8 @@
 				<CloutTipsView
 					currentTier={change.newTier}
 					nextTier={tipsData.nextTier}
-					underperforming={tipsData.underperforming}
 					breakdown={tipsData.breakdown}
 					baseCooldownMinutes={tipsData.baseCooldownMinutes}
-					ondismiss={dismiss}
 				/>
 			{/if}
 		</div>

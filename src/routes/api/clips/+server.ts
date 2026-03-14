@@ -490,7 +490,10 @@ export const POST: RequestHandler = withAuth(async ({ request }, { user, group }
 	const normalizedUrl = normalizeUrl(validUrl);
 
 	const tz = typeof body.tz === 'string' ? body.tz : null;
-	const pacing = checkSharePacing(user.id, user.groupId, group, tz);
+	const pacing = checkSharePacing(user.id, user.groupId, group, tz, {
+		cloutTier: user.cloutTier,
+		cloutTierChangedAt: user.cloutTierChangedAt
+	});
 	if (pacing.mode === 'daily_cap' && pacing.response) return pacing.response;
 
 	const existing = await db.query.clips.findFirst({
