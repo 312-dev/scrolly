@@ -1,5 +1,4 @@
 <script lang="ts">
-	import UnderperformingClips from './UnderperformingClips.svelte';
 	import MinusCircleIcon from 'phosphor-svelte/lib/MinusCircleIcon';
 	import ThumbsUpIcon from 'phosphor-svelte/lib/ThumbsUpIcon';
 	import FireIcon from 'phosphor-svelte/lib/FireIcon';
@@ -36,13 +35,6 @@
 		selectedTier = selectedTier === tier ? null : tier;
 	}
 
-	interface Underperformer {
-		clipId: string;
-		title: string | null;
-		platform: string;
-		originalUrl: string;
-		thumbnailPath: string | null;
-	}
 	interface NextTierInfo {
 		tier: string;
 		tierName: string;
@@ -55,17 +47,13 @@
 	let {
 		currentTier,
 		nextTier,
-		underperforming,
 		breakdown,
-		baseCooldownMinutes = 120,
-		ondismiss
+		baseCooldownMinutes = 120
 	}: {
 		currentTier: string;
 		nextTier: NextTierInfo | null;
-		underperforming: Underperformer[];
 		breakdown: { clipId: string; score: number }[];
 		baseCooldownMinutes?: number;
-		ondismiss: () => void;
 	} = $props();
 
 	function formatCooldown(minutes: number): string {
@@ -190,10 +178,6 @@
 			<p class="at-top-title">You're at the top</p>
 			<p class="at-top-sub">Maximum speed unlocked. Keep sharing clips the group loves.</p>
 		</div>
-	{/if}
-
-	{#if underperforming.length > 0}
-		<UnderperformingClips clips={underperforming} {ondismiss} />
 	{/if}
 </div>
 
