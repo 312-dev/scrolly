@@ -101,7 +101,6 @@ scrolly/
 │   │   │   ├── QueueCloutBanner.svelte # Clout tier banner inside QueueSheet
 │   │   │   ├── CloutChangeModal.svelte # Tier change celebration modal
 │   │   │   ├── CloutTipsView.svelte   # Clout tips/breakdown view (tier details, scoring)
-│   │   │   ├── UnderperformingClips.svelte # Collapsible carousel of low-engagement clips
 │   │   │   ├── CatchUpModal.svelte  # Catch-up modal for bulk unwatched clips
 │   │   │   ├── MeGrid.svelte         # Profile clip grid (favorites/uploads)
 │   │   │   ├── MeReelView.svelte     # Profile reel overlay view
